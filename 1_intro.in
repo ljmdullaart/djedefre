@@ -1,0 +1,24 @@
+.header
+
+.h1 Intro
+
+Lesson 1: Every good work of software starts by scratching a developer's personal itch.
+
+Without any claim that djedefre is a good work of software, my personal itch was
+that I wanted a plot of my network as it was. I had seen Cheops in the past, and
+that was the kind of network plot that I wanted. Cheops had developped into 
+cheops-ng (next generation) and after that in abandonware. I tried in vain to 
+compile cheops on an up-to-date ditribution.
+
+So it was time for a successor. Not an newer-generation (ng-ng), but a successor.
+The target is small networks (SOHO), for which the drawing will fit on 1 page. It
+will use ssh to access managed systems to gather information. 
+In addition, the relation with virtual machines should be clear and there must be
+a status indicating whether a server is up or down.
+
+The result would look like this:
+
+.img network_example.png
+
+The software is far from finished. Buttons don't have actions behind them et cetera.
+
