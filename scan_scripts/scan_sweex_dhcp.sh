@@ -48,10 +48,13 @@ if [ $database = "-h" ] ; then
 fi
 
 if [ -f ~/.djedefre.pw ] ; then
+	echo '~/.djedefre.pw'
+
 	user=$(sed -n "s/:[^:]*$//;s/$host://p" ~/.djedefre.pw)
 	pw=$(sed -n "s/:.*:/;/;s/$host;//p" ~/.djedefre.pw)
 fi
 if [ -f .djedefre.pw ] ; then
+	echo '.djedefre.pw'
 	user=$(sed -n "s/:[^:]*$//;s/$host://p" .djedefre.pw)
 	pw=$(sed -n "s/:.*:/;/;s/$host;//p" .djedefre.pw)
 fi
@@ -62,7 +65,7 @@ if [ "$pw" = "" ] ; then
 	read -p 'Password: ' pw
 fi
 
-print "$user:$pw"
+echo " ----> $user:$pw"
 curl -u $user:$pw http://nogeentje.home/userRpm/AssignedIpAddrListRpm.htm?Refresh=Refresh > $TMP
 grep '..-..-..-..' $TMP | sed 's/-/:/g;s/"//g;s/,/ /g' | tr '[:upper:]' '[:lower:]' | 
    while read name mac ip lease ; do

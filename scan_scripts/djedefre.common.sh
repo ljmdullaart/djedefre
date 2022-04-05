@@ -33,6 +33,13 @@ EOF
 exit 0
 fi
 
+debug(){
+	if [ "$DEBUG" = "yes" ] ; then
+		echo $*
+	fi
+}
+
+
 
 #                   __ _
 #   ___ ___  _ __  / _(_) __ _
@@ -143,14 +150,23 @@ add_server(){
 
 add_subnet(){
 	### add_subnet <nwaddress> <cidr-bits> : Add a subnet if it does not exist; return the ID
-	nwaddress="$1"
+	nwaddress=$(echo $1|sed 's/ //g')
 	cidr="$2"
-	old_value=$(sqlite3 "$database" "SELECT id FROM subnet WHERE nwaddress='$nwaddress'")
-	if [ "$old_value" = "" ] ; then
-		sqlite3 "$database" "INSERT INTO subnet (nwaddress,cidr) VALUES ('$nwaddress','$cidr')"
+	debug "nwaddress=$nwaddress   cidr=$cidr"
+	if [[ $nwaddress =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+		if [[ $cidr =~ ^[0-9]+$ ]] ; then
+			old_value=$(sqlite3 "$database" "SELECT id FROM subnet WHERE nwaddress='$nwaddress'")
+			if [ "$old_value" = "" ] ; then
+				sqlite3 "$database" "INSERT INTO subnet (nwaddress,cidr) VALUES ('$nwaddress','$cidr')"
+			fi
+			old_value=$(sqlite3 "$database" "SELECT id FROM subnet WHERE nwaddress='$nwaddress'")
+			db_retval="$old_value"
+		else
+			debug wrong cidr $cidr
+		fi
+	else
+		debug wrong ip $nwaddress
 	fi
-	old_value=$(sqlite3 "$database" "SELECT id FROM subnet WHERE nwaddress='$nwaddress'")
-	db_retval="$old_value"
 }
 
 

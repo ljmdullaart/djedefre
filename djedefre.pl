@@ -164,6 +164,15 @@ sub init_db {
 	";
 	$db->do($schema) or die $db->errstr;
 	$schema="
+	create table if not exists command (
+  	  id         integer primary key autoincrement,
+  	  host       string,
+	  button     string,
+	  command    string
+	);
+	";
+	$db->do($schema) or die $db->errstr;
+	$schema="
 	create table if not exists config (
   	  id         integer primary key autoincrement,
   	  attribute  string,
@@ -320,7 +329,7 @@ sub read_logos {
 			$nw_logos{$1} = $subframe->Photo(-file=>"$image_directory/$_");
 		}
 	}
-	@typeslist=sort {$a<=>$b} keys(%nw_logos);
+	@typeslist=sort  keys(%nw_logos);
 }
 
 sub nw_set_objarray {
@@ -451,6 +460,7 @@ sub network_frame {
 			nw_set_linearray();
 			nw_clearall();
 			nw_drawall();
+			nw_export();
 		}
 	});
 	$nw_canvas->bind( 'draggable', '<1>'                   => sub{ drag_start();});
@@ -460,12 +470,16 @@ sub network_frame {
 
 }
 
+sub nw_export(){
+}
+
 my $nw_frame_for_info;
 my $nw_frame_for_info_counter=1;
 my $nw_this_status;
 my $nw_through_host=-1;
 my $nw_through_text='No ping-through';
 my $typechoice;
+my $nw_frame_name_value='';
 
 
 sub nw_fill_info {
@@ -489,8 +503,9 @@ sub nw_fill_info {
 			$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'ID')->pack(-side=>'left');
 			$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$nw_recordid[$id])->pack(-side=>'right');
 			$local_frame=$nw_frame_for_info->Frame()->pack(-side=>'top');
-			$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Name')->pack(-side=>'left');
-			$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$nw_text[$id])->pack(-side=>'right');
+			$local_frame->Button ( -width=>10,-text=>'Name', -command=>sub {$Message='';nw_change_name($id,$nw_frame_name_value,'subnet');})->pack(-side=>'left');
+			$nw_frame_name_value=$nw_text[$id];
+			$local_frame->Entry ( -width=>30,-textvariable=>\$nw_frame_name_value)->pack(-side=>'right');
 			$local_frame=$nw_frame_for_info->Frame()->pack(-side=>'top');
 			$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Subnet')->pack(-side=>'left');
 			$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$nw_ipaddress[$id])->pack(-side=>'right');
@@ -508,9 +523,9 @@ sub nw_fill_info {
 			$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'ID')->pack(-side=>'left');
 			$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$nw_recordid[$id])->pack(-side=>'right');
 			$local_frame=$nw_frame_for_info->Frame()->pack(-side=>'top');
-			$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Name')->pack(-side=>'left');
-			my $local_name=$nw_text[$id];
-			$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$local_name)->pack(-side=>'right');
+			$local_frame->Button ( -width=>10,-text=>'Name', -command=>sub {$Message='';nw_change_name($id,$nw_frame_name_value,'server');})->pack(-side=>'left');
+			$nw_frame_name_value=$nw_text[$id];
+			$local_frame->Entry ( -width=>30,-textvariable=>\$nw_frame_name_value)->pack(-side=>'right');
 			$local_frame=$nw_frame_for_info->Frame()->pack(-side=>'top');
 			$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Interfaces')->pack(-side=>'left');
 			my $ifs='';
@@ -545,6 +560,16 @@ sub nw_fill_info {
 	}
 	$nw_frame_for_info_counter++;
 }
+sub nw_change_name{
+	(my $id,my $val,my $table)=@_;
+	if ( $nw_frame_name_value ne $nw_text[$id]){
+		$nw_text[$id]=$nw_frame_name_value;
+		my $sql = "UPDATE $table SET name='$nw_frame_name_value' WHERE id=$nw_recordid[$id]";
+		my $sth = $db->prepare($sql);
+		$sth->execute();
+	}
+}
+
 sub nw_delete_server {
 	(my $idx)=@_;
 	if ($nw_type[$idx] eq 'subnet'){
@@ -768,71 +793,12 @@ sub cfg_frame {
 
 # This method is called when one Listbox is scrolled with the keyboard
 # It makes the Scrollbar reflect the change, and scrolls the other lists
-sub scroll_listboxes {
-	my ($sb, $scrolled, $lbs, @args) = @_;
-	$sb->set(@args); # tell the Scrollbar what to display
-	my ($top, $bottom) = $scrolled->yview( );
-	foreach my $list (@$lbs) {
-		$list->yviewMoveto($top); # adjust each lb
-	}
-}
-sub scroll_subnetboxes {
-	my ($sb, $scrolled, $lbs, @args) = @_;
-	$sb->set(@args); # tell the Scrollbar what to display
-	my ($top, $bottom) = $scrolled->yview( );
-	foreach my $list (@$lbs) {
-		$list->yviewMoveto($top); # adjust each lb
-	}
-}
 
 
-my $list_listing;
-my $list_scroll;
-my $list_listboxes;
-my $list_subnetframe;
-my $list_subnetscroll;
-my $list_subnetboxes;
-my $list_sn_idbox;
-my $list_nw_idbox;
-my $list_cidr_idbox;
 
 
-sub list_subnets {
-	$list_subnetframe=$subframe->Frame()->pack(-side=>'left');
-	$list_subnetscroll = $list_subnetframe->Scrollbar( );
-	$list_sn_idbox=$list_subnetframe->Listbox()->pack(-side => 'right', -fill => 'y');
-	$list_nw_idbox=$list_subnetframe->Listbox()->pack(-side => 'right', -fill => 'y');
-	$list_cidr_idbox=$list_subnetframe->Listbox()->pack(-side => 'right', -fill => 'y');
-	my $list;
-	$list_sn_idbox->configure(-yscrollcommand => [ \&scroll_subnetboxes, $list_subnetscroll, $list, $list_subnetboxes ]);
-	$list_nw_idbox->configure(-yscrollcommand => [ \&scroll_subnetboxes, $list_subnetscroll, $list, $list_subnetboxes ]);
-	$list_cidr_idbox->configure(-yscrollcommand => [ \&scroll_subnetboxes, $list_subnetscroll, $list, $list_subnetboxes ]);
-	
-	# Configure the Scrollbar to scroll each Listbox
-	$list_subnetscroll->configure(-command => sub {
-			$list_sn_idbox->yview(@_);
-			$list_nw_idbox->yview(@_);
-			$list_cidr_idbox->yview(@_);
-		}
-	);
-
-	# Pack the Scrollbar and Listboxes
-	
-	$list_subnetscroll->pack(-side => 'right', -fill => 'y');
-
-	my $sql = 'SELECT id,nwaddress,cidr FROM subnet';
-	my $sth = $db->prepare($sql);
-	$sth->execute();
-	while((my $id,my $nwaddress, my $cidr) = $sth->fetchrow()){
-		$list_sn_idbox->insert ($id);
-		$list_nw_idbox->insert ($nwaddress);
-		$list_cidr_idbox->insert ($cidr);
-
-	}
-}
 
 sub list_frame {
-	list_subnets;
 }
 
 #                  _

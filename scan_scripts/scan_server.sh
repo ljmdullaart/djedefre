@@ -1,5 +1,6 @@
 #!/bin/bash
 
+log=log_scanserver
 
 if [ -f /usr/local/bin/djedefre.common ] ; then
 	. /usr/local/bin/djedefre.common
@@ -18,32 +19,39 @@ fi
 # |___/\___\__,_|_| |_|   \__,_|   |___/\___|_|    \_/ \___|_|
 #
 
+date > $log
 
 scan_server(){
-	server="$1" 
-	server_id="$2"
+	srv="$1" 
+	srv_id="$2"
 	cmd="$3"
 	didit=no
-	echo "$erver ($server_id):"
-	echo hop |$cmd$server ip addr |
+	echo "$erver ($srv_id):" >>$log
+	echo hop |$cmd$srv ip addr |
 		sed -n 's/\([0-9]\) .*/\1/;s/\// /;s/.*inet //p' |
 		grep -v 127.0.0.1 |
 		while read ip cidr ; do
-		echo "    interface : $ip"
-		add_if "$ip" "$server_id"
-		nwaddress=$(ipcalc "$ip" -b | sed -n 's/\/.*//;s/Network: *//p')
-		echo "    subnet    : $ip / $cidr"
-		add_subnet "$nwaddress" "$cidr"
+		echo "    interface : $ip" >> $log
+		add_if "$ip" "$srv_id"
+		nwaddress=$(ipcalc "$ip/$cidr" | sed -n 's/\/.*//;s/Network: *//p'| sed 's/ //g')
+		echo "    subnet    : $ip / $cidr" >> $log
+		if [ "$nwaddress" = "" ] ; then
+			echo "    empty" >> $log
+		elif [ "$cidr" = "" ] ; then
+			echo "    empty" >> $log
+		else
+			add_subnet "$nwaddress" "$cidr"
+		fi
 		didit=yes
 	done
 	if [ "$didit" = "no" ] ; then
-		echo hop |$cmd$server ifconfig -a |
+		echo hop |$cmd$srv ifconfig -a |
 			sed -n 's/.*inet //;s/ *netmask */ /;s/ *broad.*//p' |
 			grep -v 127.0.0.1 |
 			while read ip mask; do
 			cidr=$(ipcalc -b  $ip $mask | sed -n 's/.*[0-9]\///p')
-			nwaddress=$(ipcalc "$ip" -b | sed -n 's/\/.*//;s/Network: *//p')
-			echo "    subnet    : $ip / $cidr"
+			nwaddress=$(ipcalc "$ip/$cidr"  | sed -n 's/\/.*//;s/Network: *//p')
+			echo "    subnet    : $ip / $cidr" >>$log
 			add_subnet "$nwaddress" "$cidr"
 		done
 		didit=yes
@@ -60,7 +68,7 @@ scan_server(){
 
 
 add_server "$(hostname)"
-echo $db_retval
+echo $db_retval >>$log
 scan_server 127.0.0.1 "$db_retval" "ssh "
 
 
@@ -141,6 +149,11 @@ for ip in $(sqlite3 "$database" "SELECT ip FROM interfaces WHERE host IS NULL ")
 	fi
 done
 
+for id in $(sqlite3 "$database" "SELECT id FROM interfaces") ; do
+	host=''
+	host=$(sqlite3 "$database" "SELECT id FROM server WHERE interfaces LIKE '%$id%'")
+	echo "$id -> $host"
+done
 
 
 #                _                      _

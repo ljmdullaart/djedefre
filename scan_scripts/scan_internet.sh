@@ -20,16 +20,20 @@ else
 fi
 
 tmpfile=/tmp/scan_internet.$$
+tmpfile2=/tmp/scan_internet2.$$
 
+ifconfig | sed -n 's/ net.*//;s/.*inet //p' | grep -v 127.0 > $tmpfile2
 traceroute 8.8.8.8                |
 	grep -v traceroute        |
-	sed -n 's/.*(//;s/).*//p' |
+	sed -n 's/.*(//;s/).*//p' >>$tmpfile2
+cat $tmpfile2                     |
 	while read ip ; do
 		sqlite3 $database "select id from interfaces where ip='$ip'" 
 	done>$tmpfile
 
 lastif=$(grep -v '^\s*$' $tmpfile | tail -1)
 rm -f $tmpfile
+rm -f $tmpfile2
 
 lasthost=$(sqlite3 $database "select host from interfaces where id=$lastif")
 
