@@ -1,0 +1,8 @@
+.headerlink ../top/tech.html Tech
+.headerlink ../top/top.html
+.author ljm
+.title Djedefre
+.subtitle a networking documentation tool
+.cover cover.png
+.set do_cover no
+.in3charmap "%qtab;",""\s-6tab\s+6"",""<span style="font-size:0.4em">tab</span>""

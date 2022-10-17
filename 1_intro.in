@@ -1,0 +1,19 @@
+.header
+
+.h1 Intro
+
+Djedefre is a tool for documenting your network. 
+
+Djedefre consists of 3 parts:
+
+- the database
+- scan scripts
+- the GUI
+
+The scan scripts fill the database. The GUI displays the network in the database and
+allows the user to change certain values. The database is created when the GUI is
+first started.
+
+
+Some time ago, there was a tool called Cheops, that automated network discovery and gave 
+a nice drawing of the network. Cheops is now abandonware. Djedefre was pharao after Cheops.

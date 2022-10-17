@@ -1,0 +1,62 @@
+.header
+
+.h1 Using Djedefre
+
+.h2 First start
+
+After installing or unpacking,
+
+- Move to the directory where 
+.fixed djedefre
+is installed.
+- Make sure that there is a directory
+.fixed database
+and create it if it is not there
+- start the GUI with
+.fixed ./dedefre.pl &
+
+You will be greeted with a cartouche depicting the hieroglyphs for Djedefre with a number of buttons above it.
+
+.img djedefre_opening.xcf
+
+The buttons give access to funtionality:
+
+- List network provides several lists (servers, subnets, interfaces)
+- Plot network provides a drawing of the network
+- Options tell Djedefre to do or change something
+
+At this point, when you press the "Plot network", you will get an emty drawing.
+
+.h2 Start scanning
+
+To get some information into the database, scanscripts are used. These scanscripts can be 
+launched from the "Options" page. Although it is possible to launch the scripts in any
+sequence you like, some scripts rely on information in the database. For example: the "subnet"
+scan scans all the subnets in the database. If there are no subnets, nothing is scanned.
+
+The best start would be to scab the "local system". This launches the script
+.fixed scan_local_system.sh
+in the
+.fixed scan_scripts
+directory in a separate
+.fixed xterm
+window. 
+
+When the scan is finished, the plot page will show the local system and the subnets that it 
+is connected to.
+
+.img djedefre_localsys.xcf
+
+With the left mouse button, you can pick-up the server and the subnets and place them anywhere
+on the canvas that you like.
+
+.img djedefre_localsys2.xcf
+
+As there are now subnets in the database, a scan of the subnets is possible. Select "subnet" 
+under Scan scripts in the Options page. Again, an 
+.fixed xterm
+window opens, and when it is finished, the plot will look something like this:
+
+.img djedefre_subnet.xcf
+
+
