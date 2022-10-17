@@ -71,5 +71,11 @@ sort -u $tmp1 | while read ip mac; do
 
 done
 
-# Some clean-up from spurious arp replies
-sqlite3  "$database" "DELETE FROM interfaces WHERE subnet IS NULL"
+
+	
+	
+
+#sqlite3  "$database" "DELETE FROM interfaces WHERE subnet IS NULL"
+
+
+rm -f $tmp $tmp1 $tmp2
