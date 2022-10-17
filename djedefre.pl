@@ -387,7 +387,11 @@ sub nw_set_objarray {
 	my $sth = $db->prepare($sql);
 	$sth->execute();
 	while((my $id,my $name, my $x,my $y,my $type,my $interfaces,my $status,my $options) = $sth->fetchrow()){
-		$nw_tmpx=$nw_tmpx+10;
+		$nw_tmpx=$nw_tmpx+50;
+		if ($nw_tmpx > ($canvas_xsize-50)){
+			$nw_tmpy=$nw_tmpy+50;
+			$nw_tmpx=20;
+		}
 		$x=$nw_tmpx unless defined $x;
 		$y=$nw_tmpy unless defined $y;
 		$type='server' unless defined $type;
