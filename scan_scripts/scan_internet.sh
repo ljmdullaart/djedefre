@@ -24,6 +24,7 @@ elif ping -c1 8.8.8.8 > /dev/null 2>/dev/null ; then
         sqlite3 $database  "INSERT INTO subnet (nwaddress,name) VALUES ('Internet','Internet')"
 else
         echo "No Internet."
+	exit 0
 fi
 
 tmpfile=/tmp/scan_internet.$$
@@ -58,5 +59,15 @@ lasthost=$(sqlite3 $database "SELECT host FROM interfaces WHERE id='$lastid'")
 echo  -n 'The last host is '
 sqlite3 $database "SELECT * FROM server WHERE id=$lasthost"
 
-sqlite3 $database "UPDATE interfaces SET host=$lasthost WHERE ip='Internet'"
+inetnet=$(sqlite3 $database "SELECT id FROM subnet WHERE nwaddress='Internet'")
+inetif=$(sqlite3 $database "SELECT id FROM interfaces WHERE ip='Internet'")
+inethost=$(sqlite3 $database "SELECT host FROM interfaces WHERE ip='Internet'")
+
+if [ "$inetif" = "" ] ; then
+	sqlite3 $database  "INSERT INTO interfaces (host,subnet,ip) VALUES ($lasthost,$inetnet,'Internet')"
+elif [ "$inethost" != "$lasthost" ] ; then
+	sqlite3 $database  "INSERT INTO interfaces (host,subnet,ip) VALUES ($lasthost,$inetnet,'Internet')"
+else
+	sqlite3 $database "UPDATE interfaces SET host=$lasthost WHERE ip='Internet'"
+fi
 
