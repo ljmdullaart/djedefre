@@ -53,6 +53,7 @@ fi
 #
 readarray -t interfaces < <(sqlite3 -separator ' ' $database 'SELECT id,ip FROM interfaces'          )
 readarray -t subnets    < <(sqlite3 -separator ' ' $database 'SELECT id,nwaddress,cidr FROM subnet'  )
+readarray -t servers    < <(sqlite3 -separator ' ' $database 'SELECT id,name FROM server'  )
 
 
 for interface in "${interfaces[@]}" ; do
@@ -60,6 +61,16 @@ for interface in "${interfaces[@]}" ; do
 	if host $ip > /dev/null 2>/dev/null ; then
 		hostname=$(host $ip | sed 's/.* //')
 		sqlite3  $database "UPDATE interfaces SET hostname='$hostname' WHERE id=$ifid"
+	fi
+done
+
+for server in "${servers[@]}" ; do
+	read srvid name < <(echo $interface)
+	if [[ $name =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+		if host $name > /dev/null 2>/dev/null ; then
+			hostname=$(host $name | sed 's/.* //')
+			sqlite3  $database "UPDATE server SET name='$hostname' WHERE id=$srvid"
+		fi
 	fi
 done
 
