@@ -7,7 +7,7 @@
 After installing or unpacking,
 
 - Move to the directory where 
-.fixed djedefre
+.fixed Djedefre
 is installed.
 - Make sure that there is a directory
 .fixed database
@@ -19,17 +19,17 @@ You will be greeted with a cartouche depicting the hieroglyphs for Djedefre with
 
 .img djedefre_opening.xcf
 
-The buttons give access to funtionality:
+The buttons give access to functionality:
 
 - List network provides several lists (servers, subnets, interfaces)
 - Plot network provides a drawing of the network
 - Options tell Djedefre to do or change something
 
-At this point, when you press the "Plot network", you will get an emty drawing.
+At this point, when you press the "Plot network", you will get an empty drawing.
 
 .h2 Start scanning
 
-To get some information into the database, scanscripts are used. These scanscripts can be 
+To get some information into the database, scan-scripts are used. These scan-scripts can be 
 launched from the "Options" page. Although it is possible to launch the scripts in any
 sequence you like, some scripts rely on information in the database. For example: the "subnet"
 scan scans all the subnets in the database. If there are no subnets, nothing is scanned.
@@ -58,5 +58,80 @@ under Scan scripts in the Options page. Again, an
 window opens, and when it is finished, the plot will look something like this:
 
 .img djedefre_subnet.xcf
+
+Servers are placed in neat little rows and can be placed anywhere on the canvas, again with the left mouse button.
+With the right mouse button, a detail window opens that allows you to change the type, change the name or merge servers together.
+It is also possible to delete the server or do a port scan on it. 
+
+.img djedefre_srvdet.xcf
+
+.h2 Scanning the network
+
+
+You may have noticed that the scan of subnets did not provide a complete list of all the
+servers on the network. This is because the subnet scan uses
+.fixed fping
+to scan the subnet. Typically, for example, Windows 10 does not reply to a ping, so 
+no Windows 10 machines will show up. An ARP scan however will detect those machines if they're on
+the same layer 2 segment.
+
+There are a number of scan scripts available. 
+These scripts try to find out what the network lay-out is, what the systems are.
+
+- local_system 
+- subnet 
+- arp 
+- access 
+- type 
+- server 
+- remote_system 
+- cisco 
+- dns 
+- vbox  
+- status 
+- internet 
+- database_integrity
+
+The scan scripts are in the diretcory
+.fixed scan_scripts
+and they are called
+.fixed scan_xxxxx.sh
+with 
+.fixed xxxxx
+meaning the name of the scan.
+
+.h3 local_system 
+
+Adds the local system to the network. Also adds the interfaces and the subnets that the system is connected
+to. 
+
+.h3 subnet 
+
+Scans all the known subnets for servers. Uses
+.fixed sudo fping
+for the scan.
+
+.h3 arp 
+
+.h3 access 
+
+.h3 type 
+
+.h3 server 
+
+.h3 remote_system 
+
+.h3 cisco 
+
+.h3 dns 
+
+.h3 vbox  
+
+.h3 status 
+
+
+.h3 internet 
+
+.h3 database_integrity
 
 
