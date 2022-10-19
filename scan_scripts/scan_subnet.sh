@@ -34,7 +34,7 @@ cat $tmp1 | while read id ip cidr ; do
 		echo  "    $ip / $cidr"
 		if [ "$cidr" != '' ] ; then
 			if [ $cidr -gt 22 ] ; then
-				fping -g $ip/$cidr 2>&1 | sed -n 's/ is alive//p'>> $tmp
+				sudo fping -g $ip/$cidr 2>&1 | sed -n 's/ is alive//p'>> $tmp
 			fi
 		fi
 	done
