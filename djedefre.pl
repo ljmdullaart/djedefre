@@ -592,7 +592,8 @@ sub nw_fill_info {
 			$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Type')->pack(-side=>'left');
 			$typechoice=$nw_type[$id];
 			#$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$nw_type[$id])->pack(-side=>'right');
-			$local_frame->Optionmenu(-variable => \$typechoice, -width=>25, -options => \@typeslist, -command => sub { set_type($typechoice,$id) } )->pack();
+			#$local_frame->Optionmenu(-variable => \$typechoice, -width=>25, -options => \@typeslist, -command => sub { set_type($typechoice,$id) } )->pack();
+			$local_frame->JBrowseEntry(-variable => \$typechoice, -width=>25, -choices => \@typeslist, -height=>10, -browsecmd => sub { set_type($typechoice,$id) } )->pack();
 			$local_frame=$nw_frame_for_info->Frame()->pack(-side=>'top');
 			$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'ID')->pack(-side=>'left');
 			$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$nw_recordid[$id])->pack(-side=>'right');
