@@ -24,15 +24,17 @@ fi
 
 sqlite3  -separator ' ' "$database" "SELECT id,ip,access FROM interfaces" > $tmp
 
-grep ssh $tmp |
+cat $tmp |
 	while read id ip access ; do
 		echo "Get type from $ip"
 		if [[ "$access" == *"root"* ]] ; then
 			sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 root@'
 		elif [[ "$access" == *"admin"* ]] ; then
 			sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 admin@'
-		else
+		elif [[ "$access" == *"ssh"* ]] ; then
 			sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 '
+		else
+			sshcmd='true '
 		fi
 		host=$(sqlite3 "$database" "SELECT host FROM interfaces WHERE id=$id")
 		if [ "$host" != "" ] ; then
@@ -45,6 +47,9 @@ grep ssh $tmp |
 			if [ "$oldtype" = "" ] ; then 
 				ntype=server
 				echo date>$tmp1
+				if [ "$sshcmd" = 'true ' ] ; then 
+					sudo nmap -O $ip >> $tmp1
+				fi
 				echo hop|
 					$sshcmd$ip "show version" >> $tmp1 2>/dev/null
 				echo hop|
@@ -59,9 +64,13 @@ grep ssh $tmp |
 				elif grep -q 'ID=raspbian' $tmp1 ; then ntype=raspberry 
 				elif grep -q 'ID=slackware' $tmp1 ; then ntype=slackware 
 				elif grep -q 'ID=ubuntu' $tmp1 ; then ntype=ubuntu 
-				elif grep -q 'ID=pfsense' $tmp1 ; then ntype=router 
+				elif grep -q 'ID=pfsense' $tmp1 ; then ntype=pfsense 
 				elif grep -iq 'unifi' $tmp1 ; then ntype=unifi 
 				elif grep -iq 'cisco ios' $tmp1 ; then ntype=cisco 
+				elif grep -iq 'os.*windows' $tmp1 ; then ntype=windows 
+				else 
+					echo "Could not classify"
+					sed 's/^/    /' $tmp1
 				fi
 				if [ "$ntype" != "" ] ; then
 					sqlite3 "$database" "UPDATE server SET type='$ntype' WHERE id=$host"
