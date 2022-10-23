@@ -1,0 +1,93 @@
+.header
+
+.h1 Details
+
+.h2 The database
+
+The main component of Djedefre is the database. The database is updated by the scan scripts
+and is used by the GUI to show the network.
+
+The conceptual model (MCD) of the database is shown below.
+
+.img mcd.dia
+
+
+.h3 Subnet
+
+|--------------------------------------|-------------------------------------|
+| .b Name     | .b Type                |  .b Description                     |
+|--------------------------------------|-------------------------------------|
+|  id         | integer primary key,   | Primary key for the subnet          |
+|--------------------------------------|-------------------------------------|
+|  nwaddress  | string,                | Network address                     |
+|--------------------------------------|-------------------------------------|
+|  cidr       | integer,               | CIDR, the number of bits in the     |
+|             |                        | network                             |
+|--------------------------------------|-------------------------------------|
+|  xcoord     | integer,               | the x-coordinate in the drawing     |
+|--------------------------------------|-------------------------------------|
+|  ycoord     | integer,               | the y-coordinate in the drawing     |
+|--------------------------------------|-------------------------------------|
+|  name       | string,                | the name that the subnet has been   |
+|             |                        | given                               |
+|--------------------------------------|-------------------------------------|
+|  options    | string,                | future use                          |
+|--------------------------------------|-------------------------------------|
+|  access     | string                 | future use                          |
+|--------------------------------------|-------------------------------------|
+
+.h3 Interfaces
+
+|--------------------------------------|-------------------------------------|
+| .b Name     | .b Type                |  .b Description                     |
+|--------------------------------------|-------------------------------------|
+|  id         | integer primary key,   | Primary key for the interface       |
+|--------------------------------------|-------------------------------------|
+|  macid      | string,                | MAC-id if the MAC-id is known       |
+|--------------------------------------|-------------------------------------|
+|  ip         | string,                | IP address of the interface         |
+|--------------------------------------|-------------------------------------|
+|  hostname   | string,                | hostname that resolves to the IP    |
+|--------------------------------------|-------------------------------------|
+|  host       | integer,               | the id of the host that this        |
+|             |                        | interface belongs to                |
+|--------------------------------------|-------------------------------------|
+|  subnet     | integer,               | the subnet where the interface is   |
+|             |                        | connected                           |
+|--------------------------------------|-------------------------------------|
+|  access     | string                 | the way that access can be gained   |
+|             |                        | to the server via this interface    |
+|             |                        | (in general: ssh + uid)             |
+|--------------------------------------|-------------------------------------|
+
+.h3 Server
+
+A server is a host on the network. It may be an actual server, it may be a network component like a router
+or even a client. The properties of a server are:
+
+|--------------------------------------|-------------------------------------|
+| .b Name     | .b Type                |  .b Description                     |
+|--------------------------------------|-------------------------------------|
+|  id         | integer primary key,   | Primary key for the server          |
+|--------------------------------------|-------------------------------------|
+|  name       | string,                | name of the server                  |
+|--------------------------------------|-------------------------------------|
+|  xcoord     | integer,               | x-coordinate on the drawing         |
+|--------------------------------------|-------------------------------------|
+|  ycoord     | integer,               | y-coordinate on the drawing         |
+|--------------------------------------|-------------------------------------|
+|  type       | string,                | type of the server.                 |
+|--------------------------------------|-------------------------------------|
+|  interfaces | string,                | future use                          |
+|--------------------------------------|-------------------------------------|
+|  access     | string,                | future use                          |
+|--------------------------------------|-------------------------------------|
+|  status     | string,                | Result of the last status scan      |
+|--------------------------------------|-------------------------------------|
+|  last_up    | integer,               | Last time the server was up         |
+|--------------------------------------|-------------------------------------|
+|  options    | string                 | Other optional fields. For example: |
+|             |                        | a virtual machine can have a        |
+|             |                        | reference to the host it runs on    |
+|--------------------------------------|-------------------------------------|
+

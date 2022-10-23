@@ -2,6 +2,45 @@
 
 .h1 Using Djedefre
 
+.h2 Installing
+
+From
+.link https://github.com/ljmdullaart/djedefre
+download at least 
+
+- 
+.fixed djedefre.pl
+- the directory
+.fixed scan_scripts
+- the directory
+.fixed images
+
+Make sure that the following Perl modules are installed:
+
+- 
+.fixed Tk
+-
+.fixed Tk::JBrowseEntry
+- 
+.fixed File::Slurp
+- 
+.fixed File::Slurper
+- 
+.fixed File::HomeDir
+- 
+.fixed DBD/SQLite.pm
+
+
+Make sure that the following programs are installed:
+
+- 
+.fixed ipcalc
+- 
+.fixed grepcidr
+- 
+.fixed fping
+
+
 .h2 First start
 
 After installing or unpacking,
@@ -65,6 +104,11 @@ It is also possible to delete the server or do a port scan on it.
 
 .img djedefre_srvdet.xcf
 
+When you have scanned the network, placed all devices and subnets, set the correct type and name, your
+network may look something like this:
+
+.img djedefre_network.xcf
+
 .h2 Scanning the network
 
 
@@ -77,6 +121,7 @@ the same layer 2 segment.
 
 There are a number of scan scripts available. 
 These scripts try to find out what the network lay-out is, what the systems are.
+Although the scripts can run in any sequence, the fastest discovery seems to be:
 
 - local_system 
 - subnet 
@@ -88,11 +133,11 @@ These scripts try to find out what the network lay-out is, what the systems are.
 - cisco 
 - dns 
 - vbox  
-- status 
 - internet 
 - database_integrity
+- status 
 
-The scan scripts are in the diretcory
+The scan scripts are in the directory
 .fixed scan_scripts
 and they are called
 .fixed scan_xxxxx.sh
@@ -111,27 +156,90 @@ Scans all the known subnets for servers. Uses
 .fixed sudo fping
 for the scan.
 
+.h3 access 
+
+Scan all the known systems for ssh access. It must be password-less login. Three users are used:
+
+- current user: should be the default
+- 
+.fixed root
+: should be available only is a very closed environment, because it is unsafe. Some IoT things require this.
+- 
+.fixed admin
+: same remark as
+.fixed root
+But some devices need this, for example older Qnap NASses.
+
 .h3 arp 
 
-.h3 access 
+The ARP table is read from every device that has ssh access. Interfaces that have an IP address and where the MAC-id
+is not 00:00:00:00:00:00 are added. For interfaces without host, a server is created.
 
 .h3 type 
 
+Tries to determine the type of servers. This works reasonably well for servers that have ssh access.
+
 .h3 server 
+
+For the servers that have ssh access, try to appropriate all the interfaces. 
+
+Also, if the host name is still the IP address, rename the server to its host name.
 
 .h3 remote_system 
 
+For all the servers that have ssh access, add the networks that they are connected to.
+
 .h3 cisco 
+
+Cisco IOS devices do not have a standard shell. The Cisco scan scans devices that have the type "cisco" and
+does a "server" scan and a "remote_system" scan on these devices.
 
 .h3 dns 
 
+For all interfaces, set the host name to the host name that DNS has given it. Also, for all servers where the name 
+is an IP address, set the host name to the corresponding name in DNS.
+
 .h3 vbox  
+
+Determine for all VirtualBox managers which machines are running on it.
 
 .h3 status 
 
+Determines the status of the servers. In its simple form, it tests whether the server responds to a ping.
+
+If under
+.fixed scan_scripts
+there is a script
+.fixednospace status_
+.inospace name
+.fixednospace .sh
+, where
+.i name
+is the name of the server, then that script is used to determine the status of the server.
+If the script has an exit code 0, then the server is up.
 
 .h3 internet 
 
+Uses
+.fixed traceroute
+to determine where the break-out to the Internet is. The last IP address 
+that is in the database table "interfaces" is considered as belonging to the 
+server that has the interface to the Internet.
+
 .h3 database_integrity
 
+Does a number of integrity checks on the database:
 
+- In
+.fixednospace interfaces
+, the
+.fixed subnet
+field is filled, pointing to the subnet ID that it is connected to.
+- Unlikely IP addresses are deleted: 225.x.x.x, 127.x.x.x and IP addresses that are not numeric
+x.x.x.x
+- Interfaces without host are deleted.
+- If there is a list of subnets in the file
+.fixednospace ignore_subnet
+, these subnets and the interfaces on these subnets are deleted.
+- Duplicate IP addresses are deleted from the database (this feature is debatable and may be removed later)
+- Servers without interfaces are deleted.
