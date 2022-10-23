@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 tmp=/tmp/scan_cisco.$$
 tmp1=/tmp/scan_cisco.$$.1
 tmp2=/tmp/scan_cisco.$$.2
