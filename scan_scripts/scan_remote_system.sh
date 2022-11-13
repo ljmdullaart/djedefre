@@ -33,16 +33,27 @@ for interface in $(cat $tmp) ; do
 	else
 		sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 '
 	fi
+	cidr=''
 	if $sshcmd$interface which ip | grep -q ip ; then
 		echo "    ip addr"
 		$sshcmd$interface ip addr |
 			grep -v '127.0.0.1' |
 			sed -n 's/.*inet \(.*\)\/\(.*\) brd.*/\1 \2/p' | 
-			while read ip cidr ; do
+			sed 's/^/    /'
+		$sshcmd$interface ip addr |
+			grep -v '127.0.0.1' |
+			sed -n 's/.*inet \(.*\)\/\(.*\) brd.*/\1 \2/p' | 
+			while read ip rcidr ; do
+				echo "    read ip=$ip  rcidr=$rcidr"
+				echo "    add interface  $ip $serverid"
 				add_if $ip $serverid
-				nwaddr=$(ipcalc $ip/$cidr | sed -n 's/\/.*//;s/^Network:\s*//p')
-				add_subnet $nwaddr $cidr
-				echo "     $nwaddr $cidr"
+				if [ "$rcidr" != "" ] ; then
+					nwaddr=$(ipcalc $ip/$rcidr | sed -n 's/\/.*//;s/^Network:\s*//p')
+					echo "    add subnet $nwaddr $rcidr"
+					add_subnet $nwaddr $rcidr
+					echo "     $nwaddr $rcidr"
+				fi
+				rcidr=''
 			done
 	elif $sshcmd$interface which ifconfig | grep -q ifconfig ; then
 		echo "    ifconfig"
@@ -50,11 +61,13 @@ for interface in $(cat $tmp) ; do
 		grep -v '127.0.0.1' |
 		sed -n 's/.*inet \(.*\) netmask \(.*\) br.*/\1 \2/p' |
 			while read ip mask ; do
+				echo "    add interface  $ip $serverid"
 				add_if $ip $serverid
 				nwaddr=$(ipcalc $ip/$mask | sed -n 's/\/.*//;s/^Network:\s*//p')
-				cidr=$(ipcalc -b $ip/$mask | sed -n 's/Netmask:.*= //')
-				add_subnet $nwaddr $cidr
-				echo "     $nwaddr $cidr"
+				rcidr=$(ipcalc -b $ip/$mask | sed -n 's/Netmask:.*= //')
+				echo "    add subnet $nwaddr $rcidr"
+				add_subnet $nwaddr $rcidr
+				echo "     $nwaddr $rcidr"
 			done
 	fi
 
