@@ -4,6 +4,7 @@ use Tk;
 use Tk::PNG;
 use Tk::Photo;
 use Image::Magick;
+use Tk::JBrowseEntry;
 use DBI;
 use File::Spec;
 use File::Slurp;
@@ -271,6 +272,7 @@ my @nw_linefrom;
 my @nw_lineto;
 my $nw_qline=0;
 my $nw_info_frame;
+my $nw_button_frame;
 
 my $linetest;
 
@@ -463,7 +465,11 @@ sub network_frame {
 	$nw_info_frame = $subframe->Frame(
 		-borderwidth => 3,
 	)->pack(-side=>'right');
-
+	$nw_button_frame = $subframe->Frame(
+		-borderwidth => 3,
+	)->pack(-side=>'top');
+	$nw_button_frame->Button ( -width=>20,-text=>'Export canvas', -command=>sub {$Message='';nw_export();})->pack(-side=>'left');
+	
 	my $nw_frame = $subframe->Frame(
 		-borderwidth => 3,
 		-height      => 900,
@@ -482,7 +488,6 @@ sub network_frame {
 			nw_set_linearray();
 			nw_clearall();
 			nw_drawall();
-			nw_export();
 		}
 	});
 	$nw_canvas->bind( 'draggable', '<1>'                   => sub{ drag_start();});
@@ -493,6 +498,9 @@ sub network_frame {
 }
 
 sub nw_export(){
+	if (defined $nw_canvas){
+		$nw_canvas->postscript(-file => "djedefre_network.ps");
+	}
 }
 
 sub nw_merge_servers{
