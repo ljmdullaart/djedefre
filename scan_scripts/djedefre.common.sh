@@ -62,7 +62,7 @@ parse_config (){
 		if [ "$var" != "" ] ; then logfile="$var" ; fi
 	fi
 }
-
+echo -n '.'
 parse_config '/etc/djedefre.config'
 parse_config '/etc/djedefre.conf'
 parse_config '/opt/djedefre/etc/djedefre.config'
@@ -84,6 +84,7 @@ if [ -f /var/local/etc/network.definitions ] ; then networkdefinitions=/var/loca
 if [ -f ~/.network.definitions ] ; then networkdefinitions=~/.network.definitions ; fi
 if [ -f network.definitions ] ; then networkdefinitions=network.definitions ; fi
 
+echo -n '.'
 ignore_subnet=none
 if [ -f ignore_subnet ] ; then
         ignore_subnet=ignore_subnet
@@ -95,15 +96,18 @@ elif [ -f database/ignore_subnet ] ; then
         ignore_subnet=database/ignore_subnet
 fi
 
+echo -n '.'
 ignores=/tmp/djedefre.ignores
 touch $ignores
 
 if [ -f $ignore_subnet ] ; then
-        sed 's/\// /' $ignore_subnet  | while read net cidr ; do
+        sed -n 's/\// /p' $ignore_subnet  | while read net cidr ; do
                 nmap -sLn  $net/$cidr | sed 's/.* //' | grep '[0-9]' >$ignores
 	done
+	grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' $ignore_subnet  >$ignores
 fi
 
+echo -n '.'
 #  _                   _             
 # | | ___   __ _  __ _(_)_ __   __ _ 
 # | |/ _ \ / _` |/ _` | | '_ \ / _` |
@@ -136,7 +140,7 @@ add_if(){
 	interface="$1"
 	server="$2"
 	db_retval=0
-	if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+	if [[ $interface =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
 		if grep -q $interface $ignores ; then
 			:
 		else
@@ -154,6 +158,16 @@ add_if(){
 			fi
 			if_old=$(sqlite3 "$database" "SELECT id FROM interfaces WHERE ip='$interface'")
 			db_retval="$if_old"
+			ids=$(sqlite3 "$database" "SELECT id FROM subnet")
+			for snid in $ids; do
+				nwadr=$(sqlite3 "$database" "SELECT nwaddress FROM subnet WHERE id=$snid")
+				if [[ $nwadr  =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+					cidr=$(sqlite3 "$database" "SELECT cidr FROM subnet WHERE id=$snid")
+					if echo $interface | grepcidr $nwadr/$cidr ; then
+						sqlite3 "$database" "UPDATE interfaces SET subnet=$snid WHERE ip='$interface'"
+					fi
+				fi
+			done
 		fi
 	else
 		db_retval=0
@@ -198,7 +212,22 @@ add_subnet(){
 	fi
 }
 
+if_net(){
+	ips=$(sqlite3 "$database" "SELECT ip FROM interfaces")
+	for interface in $ips ; do
 
+		ids=$(sqlite3 "$database" "SELECT id FROM subnet")
+		for snid in $ids; do
+			nwadr=$(sqlite3 "$database" "SELECT nwaddress FROM subnet WHERE id=$snid")
+			if [[ $nwaddress =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+				cidr=$(sqlite3 "$database" "SELECT cidr FROM subnet WHERE id=$snid")
+				if echo $interface | grepcidr $nwadr/$cidr ; then
+					sqlite3 "$database" "UPDATE interfaces SET subnet=$snid WHERE ip='$interface'"
+				fi
+			fi
+		done
+	done
+}
 
 
 if [ "$verbose" = "yes" ] ; then
