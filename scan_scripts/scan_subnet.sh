@@ -29,7 +29,7 @@ fi
 echo Scan subnets
 sed 's/^/    /' $tmp1
 echo '-------------------'
-cat $tmp1 | while read id ip cidr ; do
+grep -v Internet $tmp1 | while read id ip cidr ; do
 
 		echo  "    $ip / $cidr"
 		if [ "$cidr" != '' ] ; then
@@ -54,5 +54,8 @@ sort -u $tmp | while read if id; do
 	fi
 	
 done
+
+if_net;
+
 rm -f $tmp
 rm -f $tmp1
