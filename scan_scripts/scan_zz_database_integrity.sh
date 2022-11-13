@@ -20,6 +20,31 @@ elif [ "$1" != '' ] ; then
 fi
 
 
+echo '.'
+ips=$(sqlite3 "$database" "SELECT ip FROM interfaces")
+echo '.'
+for interface in $ips ; do
+	echo "Interface $interface"
+	ids=$(sqlite3 "$database" "SELECT id FROM subnet")
+	for snid in $ids; do
+		nwadr=$(sqlite3 "$database" "SELECT nwaddress FROM subnet WHERE id=$snid")
+		cidr=$(sqlite3 "$database" "SELECT cidr FROM subnet WHERE id=$snid")
+		if echo $interface | grepcidr $nwadr/$cidr ; then
+			echo "    $nwadr/$cidr -> $snid"
+			sqlite3 "$database" "UPDATE interfaces SET subnet=$snid WHERE ip='$interface'"
+		fi
+	done
+done
+
+
+if [ "$verbose" = "yes" ] ; then
+	echo "Configs read are $configs"
+	echo "networkdefinitions = $networkdefinitions"
+	echo "database           = $database"
+	echo "logfile            = $logfile"
+	echo "$db_retval"
+fi
+
 #CREATE TABLE subnet (
 #          id         integer primary key autoincrement,
 #          nwaddress  string,
@@ -121,22 +146,26 @@ elif [ -f database/ignore_subnet ] ; then
 	ignore_subnet=database/ignore_subnet
 fi
 
-if [ -f $ignore_subnet ] ; then
-	sed 's/\// /' $ignore_subnet  | while read net cidr ; do
-		nmap -sLn  $net/$cidr | sed 's/.* //' | grep '[0-9]' > $tmp
-		sqlite3 -separator ' ' $database "SELECT id,host,ip FROM interfaces" > $tmp2
-		grep -v '^$' $tmp2 | while read ifid host ip ; do
-			echo "    Remove $net $cidr"
-			if grep -q $ifid $tmp ; then
-				qif=$(sqlite3 -separator ' ' $database "SELECT COUNT(id) FROM interfaces WHERE host=$host");
-				if [ "$qif" = 1 ] ; then
-					sqlite3 -separator ' ' $database "DELETE FROM server WHERE host=$host"
-				fi
-				sqlite3 -separator ' ' $database "DELETE FROM interfaces WHERE id=$id"
-			fi
-		done
-	done
-fi
+#if [ -f $ignore_subnet ] ; then
+#	sed -n 's/\// /p' $ignore_subnet  | while read net cidr ; do
+#		nmap -sLn  $net/$cidr | sed 's/.* //' | grep '[0-9]' > $tmp
+#		sqlite3 -separator ' ' $database "SELECT id,host,ip FROM interfaces" > $tmp2
+#		grep -v '^$' $tmp2 | while read ifid host ip ; do
+#			echo "    Remove $net $cidr"
+#			if grep -q $ifid $tmp ; then
+#				if [ "$host" != "" ] ; then
+#					qif=$(sqlite3 -separator ' ' $database "SELECT COUNT(id) FROM interfaces WHERE host=$host");
+#					if [ "$qif" = 1 ] ; then
+#						echo "        Removing host $host :qif=$qif"
+#						sqlite3 -separator ' ' $database "DELETE FROM server WHERE id=$host"
+#					fi
+#				fi
+#				echo "        Removing interface $id"
+#				sqlite3 -separator ' ' $database "DELETE FROM interfaces WHERE id=$ifid"
+#			fi
+#		done
+#	done
+#fi
 
 #
 echo Remove duplicate interfaces
@@ -164,30 +193,13 @@ for interface in "${interfaces[@]}" ; do
 done
 
 # 
-echo remove interfaces without server
+#echo remove interfaces without server
 #
-sqlite3 -separator ' ' $database "SELECT * FROM interfaces WHERE host IS NULL"
-sqlite3 -separator ' ' $database "DELETE   FROM interfaces WHERE host IS NULL"
+#sqlite3 -separator ' ' $database "SELECT * FROM interfaces WHERE host IS NULL"
+#sqlite3 -separator ' ' $database "DELETE   FROM interfaces WHERE host IS NULL"
 
 
 #
-echo Remove hosts without interfaces
-#
-for server in "${servers[@]}" ; do
-	read id name < <(echo $server)
-	found=no
-	for interface in "${interfaces[@]}" ; do
-		read ifid ip host < <(echo $interface)
-		if [ "$id" = "$host" ] ; then
-			found=yes
-		fi
-	done
-	if [ $found = no ] ; then
-		echo "    removed $id $name"
-		sqlite3 -separator ' ' $database "DELETE FROM server  WHERE id=$id"
-	fi
-done
-
 
 rm -f $tmp
 rm -f $tmp2
