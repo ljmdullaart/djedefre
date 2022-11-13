@@ -36,6 +36,9 @@ for server_id in $(cat $tmp) ; do
 		echo "Ping for $name" >> status.check.log
 		up=0
 		for interface in $(sqlite3 "$database" "SELECT ip FROM interfaces WHERE host=$server_id") ; do
+			if arping -c1 -q $interface ; then
+				up=1
+			fi
 			if ping -c1 -W1 -q $interface ; then
 				up=1
 			fi
