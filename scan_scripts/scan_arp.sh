@@ -60,12 +60,6 @@ grep ssh $tmp |
 sort -u $tmp1 | while read ip mac; do
 	if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 		host=$(sqlite3  -separator ' ' "$database" "SELECT host FROM interfaces WHERE ip='$ip'")
-		add_if $ip
-		if [ "$host" = "" ] ; then
-			add_server "$ip"
-			sqlite3  "$database" "UPDATE interfaces SET host=$db_retval WHERE ip='$ip'"
-		fi
-		
 		sqlite3  "$database" "UPDATE interfaces SET macid='$mac' WHERE ip='$ip'"
 	fi
 
