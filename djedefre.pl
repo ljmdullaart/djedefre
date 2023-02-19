@@ -127,79 +127,6 @@ sub connect_db {
 	return $db;
 }
  
-sub init_db {
-	connect_db();
-	my $schema='';
-	$schema="
-	create table if not exists interfaces (
-  	  id        integer primary key autoincrement,
-  	  macid     string,
-  	  ip        string,
-  	  hostname  string,
-	  host      integer,
-	  subnet    integer,
-	  access    string
-	);
-	";
-	$db->do($schema) or die $db->errstr;
-	$schema="
-	create table if not exists subnet (
-  	  id         integer primary key autoincrement,
-  	  nwaddress  string,
-  	  cidr       integer,
-	  xcoord     integer,
-	  ycoord     integer,
-	  name       string,
-	  options    string,
-	  access     string
-	);
-	";
-	$db->do($schema) or die $db->errstr;
-	$schema="
-	create table if not exists server (
-  	  id         integer primary key autoincrement,
-  	  name       string,
-  	  xcoord     integer,
-  	  ycoord     integer,
-	  type       string,
-  	  interfaces string,
-	  access     string,
-	  status     string,
-	  last_up    integer,
-	  options    string
-	);
-	";
-	$db->do($schema) or die $db->errstr;
-	$schema="
-	create table if not exists command (
-  	  id         integer primary key autoincrement,
-  	  host       string,
-	  button     string,
-	  command    string
-	);
-	";
-	$db->do($schema) or die $db->errstr;
-	$schema="
-	create table if not exists pages (
-	  id         integer primary key autoincrement,
-	  page       string,
-          tbl        string,
-          item       integer,
-          xcoord     integer,
-          ycoord     integer
-	);
-	";
-	$db->do($schema) or die $db->errstr;
-	$schema="
-	create table if not exists config (
-  	  id         integer primary key autoincrement,
-  	  attribute  string,
-	  item       string,
-	  value      string
-	);
-	";
-	$db->do($schema) or die $db->errstr;
-}
 
 sub db_insert_subnet {
 	(my $nwaddress,my $cidr,my $arpcmd)=@_;
@@ -1243,8 +1170,8 @@ sub repeat {
 	print "repeat\n";
 }
 
+connect_db;
 
-init_db();
 my $button_frame=$main_window->Frame(
 	-height      => 100,
 	-width       => 1505
