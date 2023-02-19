@@ -20,18 +20,20 @@ elif [ "$1" != '' ] ; then
 fi
 
 
-echo '.'
+echo 'Set subnet ID on interfaces'
 ips=$(sqlite3 "$database" "SELECT ip FROM interfaces")
-echo '.'
+
 for interface in $ips ; do
 	echo "Interface $interface"
 	ids=$(sqlite3 "$database" "SELECT id FROM subnet")
 	for snid in $ids; do
 		nwadr=$(sqlite3 "$database" "SELECT nwaddress FROM subnet WHERE id=$snid")
 		cidr=$(sqlite3 "$database" "SELECT cidr FROM subnet WHERE id=$snid")
-		if echo $interface | grepcidr $nwadr/$cidr ; then
-			echo "    $nwadr/$cidr -> $snid"
-			sqlite3 "$database" "UPDATE interfaces SET subnet=$snid WHERE ip='$interface'"
+		if [ "$nwadr" != "Internet" ] ; then
+			if echo $interface | grepcidr $nwadr/$cidr ; then
+				echo "    $nwadr/$cidr -> $snid"
+				sqlite3 "$database" "UPDATE interfaces SET subnet=$snid WHERE ip='$interface'"
+			fi
 		fi
 	done
 done
@@ -198,6 +200,15 @@ done
 #sqlite3 -separator ' ' $database "SELECT * FROM interfaces WHERE host IS NULL"
 #sqlite3 -separator ' ' $database "DELETE   FROM interfaces WHERE host IS NULL"
 
+echo Remove non-existing servers
+
+for interface in "${interfaces[@]}" ; do
+	read ifid ip host < <(echo $interface)
+	hid=$(sqlite3 -separator ' ' $database "SELECT id FROM server WHERE id=$host")
+	if [ "$hid" = "" ] ; then
+		sqlite3 -separator ' ' $database "DELETE FROM interfaces WHERE host=$host"
+	fi
+done
 
 #
 
