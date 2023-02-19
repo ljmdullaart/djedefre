@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#
+#   Dit is de ellendeling met de extra subnetten
+#
 
 
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
@@ -47,9 +50,16 @@ serverid=$db_retval
 
 ip addr |
 	grep -v '127.0.0.1' |
+	sed -n 's/.*inet \(.*\)\/\(.*\) brd.*/\1 \2/p' 
+ip addr |
+	grep -v '127.0.0.1' |
 	sed -n 's/.*inet \(.*\)\/\(.*\) brd.*/\1 \2/p' | 
-	while read ip cidr ; do
+	while read ip mycidr ; do
+		echo "serverid=$serverid ip=$ip cidr=$mycidr"
 		add_if $ip $serverid
-		nwaddr=$(ipcalc $ip/$cidr | sed -n 's/\/.*//;s/^Network:\s*//p')
-		add_subnet $nwaddr $cidr
+		echo "   serverid=$serverid ip=$ip cidr=$mycidr"
+		nwaddr=$(ipcalc $ip/$mycidr | sed -n 's/\/.*//;s/^Network:\s*//p')
+		echo "   serverid=$serverid ip=$ip nnaddr=$nwaddr cidr=$mycidr"
+		add_subnet $nwaddr $mycidr
+		mycidr=24
 	done
