@@ -52,6 +52,7 @@ for host in $(cat $tmp) ; do
 					cidr=$(sed -n "s/^Network:.*$net\///p" $tmp2 | head -1) ;
 					echo "existing:$existing      net:$net     cidr:$cidr"
 					sqlite3  -separator ' '  $database "INSERT INTO subnet (nwaddress,cidr) VALUES ('$net',$cidr)"
+					cidr=''
 				else 
 					echo "        Existing subnet $existing for $net"
 				fi
