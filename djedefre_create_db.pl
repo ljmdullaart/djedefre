@@ -95,11 +95,13 @@ create table if not exists server (
 	xcoord     integer,
 	ycoord     integer,
 	type       string,
-	interfaces string,
-	access     string,
 	status     string,
 	last_up    integer,
-	options    string
+	options    string,
+	ostype     string,
+	os         string,
+	processor  string,
+	memory     string
 	);
 ";
 $db->do($schema) or die $db->errstr;
@@ -110,6 +112,14 @@ create table if not exists command (
 	button     string,
 	command    string
 );
+";
+$db->do($schema) or die $db->errstr;
+$schema="
+create table if not exists details (
+	id         integer,
+	type       string,
+	os         string
+	);
 ";
 $db->do($schema) or die $db->errstr;
 $schema="

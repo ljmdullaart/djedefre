@@ -11,15 +11,15 @@ use File::Slurp;
 use File::Slurper qw/ read_text /;
 use File::HomeDir;
 
-my $topdir='.';
-my $image_directory="$topdir/images";
-my $scan_directory ="$topdir/scan_scripts";
-my $dbfile="$topdir/database/djedefre.db";
-my $configfilename="djedefre.conf";
-my $canvas_xsize=1500;
-my $canvas_ysize=1200;
-my $subframe;
+my $topdir='.';					# Top directory; base for finding files
+my $image_directory="$topdir/images";		# image-files. like logo's
+my $scan_directory ="$topdir/scan_scripts";	# Scab scripts for networ discovery and status
+my $dbfile="$topdir/database/djedefre.db";	# Database file where the network is stored
+my $configfilename="djedefre.conf";		# File for configuration options
+my $canvas_xsize=1500;				# default x-suize of the network drawning; configurable
+my $canvas_ysize=1200;				# default y-suize of the network drawning; configurable
 my $main_frame;
+my $subframe;
 my $last_message='Welcome';
 my @subnets;
 my $dragid=0;
@@ -33,6 +33,19 @@ sub uniq {
     my %seen;
     grep !$seen{$_}++, @_;
 }
+
+#                            
+#  _ __   __ _ _ __ ___  ___ 
+# | '_ \ / _` | '__/ __|/ _ \
+# | |_) | (_| | |  \__ \  __/
+# | .__/ \__,_|_|  |___/\___|
+# |_|                        
+#                   __ _                       _   _             
+#   ___ ___  _ __  / _(_) __ _ _   _ _ __ __ _| |_(_) ___  _ __  
+#  / __/ _ \| '_ \| |_| |/ _` | | | | '__/ _` | __| |/ _ \| '_ \ 
+# | (_| (_) | | | |  _| | (_| | |_| | | | (_| | |_| | (_) | | | |
+#  \___\___/|_| |_|_| |_|\__, |\__,_|_|  \__,_|\__|_|\___/|_| |_|
+# 
 
 sub parseconfig {
 	my ($ConfigFileSpec)=@_;
@@ -60,12 +73,12 @@ sub parseconfig {
 	}
 }
 
-parseconfig('/etc/djedefre.conf');
-parseconfig('/opt/djedefre/etc/djedefre.conf');
-parseconfig('/var/local/etc/djedefre.conf');
+parseconfig("/etc/$configfilename");
+parseconfig("/opt/djedefre/etc/$configfilename");
+parseconfig("/var/local/etc/$configfilename");
 $ConfigFileSpec = File::HomeDir->my_home . "/.$configfilename";
 parseconfig($ConfigFileSpec);
-parseconfig('djedefre.conf');
+parseconfig("$configfilename");
 
 sub clear_subframe {
 	$subframe->destroy();
@@ -181,6 +194,10 @@ my @nw_type;
 my @nw_text;
 my @nw_status;
 my @nw_ipaddress;
+my @nw_ostype;
+my @nw_os;
+my @nw_processor;
+my @nw_memory;
 my @nw_cidr;
 my @nw_options;
 my @nw_recordid;
@@ -250,7 +267,7 @@ sub nw_drawall {
 			$nw_statusid[$i]=$nw_canvas->createOval($nw_xcoord[$i]+10,$nw_ycoord[$i]-10,$nw_xcoord[$i]+15,$nw_ycoord[$i]-5,-fill=>'red');
 		}
 		else {
-			$nw_statusid[$i]=$nw_canvas->createOval($nw_xcoord[$i]+10,$nw_ycoord[$i]-10,$nw_xcoord[$i]+15,$nw_ycoord[$i]-5,-fill=>'grey');
+			#$nw_statusid[$i]=$nw_canvas->createOval($nw_xcoord[$i]+10,$nw_ycoord[$i]-10,$nw_xcoord[$i]+15,$nw_ycoord[$i]-5,-fill=>'grey');
 		}
 	}
 }
@@ -312,10 +329,10 @@ sub nw_set_objarray {
 		$nw_recordid[$nw_nxtfree]=$id;
 		$nw_nxtfree++;
 	}
-	my $sql = 'SELECT id,name,xcoord,ycoord,type,interfaces,status,options FROM server';
+	my $sql = 'SELECT id,name,xcoord,ycoord,type,interfaces,status,options,ostype,os,processor,memory FROM server';
 	my $sth = $db->prepare($sql);
 	$sth->execute();
-	while((my $id,my $name, my $x,my $y,my $type,my $interfaces,my $status,my $options) = $sth->fetchrow()){
+	while((my $id,my $name, my $x,my $y,my $type,my $interfaces,my $status,my $options,my $ostype,my $os,my $processor,my $memory) = $sth->fetchrow()){
 		$nw_tmpx=$nw_tmpx+50;
 		if ($nw_tmpx > ($canvas_xsize-50)){
 			$nw_tmpy=$nw_tmpy+50;
@@ -333,6 +350,10 @@ sub nw_set_objarray {
 		$nw_recordid[$nw_nxtfree]=$id;
 		$nw_ipaddress[$nw_nxtfree]=$interfaces;
 		$nw_options[$nw_nxtfree]=$options;
+		$nw_ostype[$nw_nxtfree]=$ostype;
+		$nw_os[$nw_nxtfree]=$os;
+		$nw_processor[$nw_nxtfree]=$processor;
+		$nw_memory[$nw_nxtfree]=$memory;
 		$nw_nxtfree++;
 	}
 }
@@ -558,9 +579,31 @@ sub nw_fill_info {
 				$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$ifarray[$i])->pack(-side=>'right');
 			}
 			$local_frame=$nw_frame_for_info->Frame()->pack(-side=>'top');
-			$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Status')->pack(-side=>'left');
+
+			my $local_framestatus=$local_frame->Frame()->pack(-side=>'top');
+			$local_framestatus->Label ( -anchor => 'w',-width=>10,-text=>'Status')->pack(-side=>'left');
 			$nw_this_status=$nw_status[$id];
-			$local_frame->Label ( -anchor => 'w',-width=>30,-textvariable=>\$nw_this_status)->pack(-side=>'right');
+			$local_framestatus->Label ( -anchor => 'w',-width=>30,-textvariable=>\$nw_this_status)->pack(-side=>'right');
+
+			my $local_frameostype=$local_frame->Frame()->pack(-side=>'top');
+			$local_frameostype->Label ( -anchor => 'w',-width=>10,-text=>'OS type')->pack(-side=>'left');
+			my $nw_this_ostype=$nw_ostype[$id];
+			$local_frameostype->Label ( -anchor => 'w',-width=>30,-textvariable=>\$nw_this_ostype)->pack(-side=>'right');
+
+			my $local_frameos=$local_frame->Frame()->pack(-side=>'top');
+			$local_frameos->Label ( -anchor => 'w',-width=>10,-text=>'OS ')->pack(-side=>'left');
+			my $nw_this_os=$nw_os[$id];
+			$local_frameos->Label ( -anchor => 'w',-width=>30,-textvariable=>\$nw_this_os)->pack(-side=>'right');
+
+			my $local_frameprocessor=$local_frame->Frame()->pack(-side=>'top');
+			$local_frameprocessor->Label ( -anchor => 'w',-width=>10,-text=>'Processor ')->pack(-side=>'left');
+			my $nw_this_processor=$nw_processor[$id];
+			$local_frameprocessor->Label ( -anchor => 'w',-width=>30,-textvariable=>\$nw_this_processor)->pack(-side=>'right');
+
+			my $local_framememory=$local_frame->Frame()->pack(-side=>'top');
+			$local_framememory->Label ( -anchor => 'w',-width=>10,-text=>'Memory ')->pack(-side=>'left');
+			my $nw_this_memory=$nw_memory[$id];
+			$local_framememory->Label ( -anchor => 'w',-width=>30,-textvariable=>\$nw_this_memory)->pack(-side=>'right');
 
 
 		}
@@ -1016,22 +1059,32 @@ sub list_fill_output {
 
 sub out_servers {
 	my $htmlstring='';
-	my $sql = 'SELECT id,name,xcoord,ycoord,type,interfaces,status,options FROM server ORDER BY id';
+	my $sql = 'SELECT id,name,xcoord,ycoord,type,interfaces,status,options,ostype,os,processor,memory FROM server ORDER BY id';
 	my $sth = $db->prepare($sql);
 	my $list_servers_frame=$list_output_frame->Frame()->pack(-side=>'left');
 	$sth->execute();
 	my $column_headers=$list_servers_frame->Frame()->pack(-side=>'top');
+	#### column headers in sequence
 	$column_headers->Label(-text=>"Servers",-width=>20,-font=>"arial 18",-anchor=>'w')->pack(-side=>'top');
 	$column_headers->Label(-text=>"ID",-width=>5,-font=>"arial 14",-anchor=>'w')->pack(-side=>'left');
 	$column_headers->Label(-text=>"Name",-width=>15,-font=>"arial 14",-anchor=>'w')->pack(-side=>'left');
 	$column_headers->Label(-text=>"Type",-width=>15,-font=>"arial 14",-anchor=>'w')->pack(-side=>'left');
 	$column_headers->Label(-text=>"Status",-width=>10,-font=>"arial 14",-anchor=>'w')->pack(-side=>'left');
+	$column_headers->Label(-text=>"OS type",-width=>15,-font=>"arial 14",-anchor=>'w')->pack(-side=>'left');
+	$column_headers->Label(-text=>"OS",-width=>35,-font=>"arial 14",-anchor=>'w')->pack(-side=>'left');
+	$column_headers->Label(-text=>"Processor",-width=>40,-font=>"arial 14",-anchor=>'w')->pack(-side=>'left');
+	$column_headers->Label(-text=>"Memory",-width=>10,-font=>"arial 14",-anchor=>'w')->pack(-side=>'left');
 	my $column_boxes=$list_servers_frame->Frame()->pack(-side=>'bottom');
 	my $scroll = $column_boxes->Scrollbar( );
+	#### column width WATCH THE , at the end of line!
 	my $columns=[
 		$column_boxes->Listbox(-height=> 500,-width=>5,-font=>"arial 14"),
 		$column_boxes->Listbox(-height=> 500,-width=>15,-font=>"arial 14"),
 		$column_boxes->Listbox(-height=> 500,-width=>15,-font=>"arial 14"),
+		$column_boxes->Listbox(-height=> 500,-width=>10,-font=>"arial 14"),
+		$column_boxes->Listbox(-height=> 500,-width=>15,-font=>"arial 14"),
+		$column_boxes->Listbox(-height=> 500,-width=>35,-font=>"arial 14"),
+		$column_boxes->Listbox(-height=> 500,-width=>40,-font=>"arial 14"),
 		$column_boxes->Listbox(-height=> 500,-width=>10,-font=>"arial 14")
 	];
 	foreach my $lstbx (@$columns){
@@ -1047,14 +1100,23 @@ sub out_servers {
 	foreach my $list (@$columns) {
 		$list->pack(-side => 'left'); 
 	}
-	while((my $id,my $name, my $x,my $y,my $type,my $interfaces,my $status,my $options) = $sth->fetchrow()){
+	#### Add the extra variable here
+	while((my $id,my $name, my $x,my $y,my $type,my $interfaces,my $status,my $options,my $ostype,my $os,my $processor,my $memory) = $sth->fetchrow()){
 		$type='server' unless defined $type;
 		$status='' unless defined $status;
-		
+		$ostype='' unless defined $ostype;
+		$os='' unless defined $os;
+		$os=~s/ENTERPRISE/ENTRPR/;
+		$processor='' unless defined $processor;
+		$memory='' unless defined $memory;
 		${$columns}[0]->insert('end',$id);
 		${$columns}[1]->insert('end',$name);
 		${$columns}[2]->insert('end',$type);
 		${$columns}[3]->insert('end',$status);
+		${$columns}[4]->insert('end',$ostype);
+		${$columns}[5]->insert('end',$os);
+		${$columns}[6]->insert('end',$processor);
+		${$columns}[7]->insert('end',$memory);
 	}
 
 }
