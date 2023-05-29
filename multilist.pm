@@ -51,7 +51,7 @@ sub ml_new {
 	(my $parent,my $height,my $side)=@_;
 	$mlframe->destroy if Tk::Exists($mlframe);
 	$mlframe=$parent->Frame(-height=>$height)->pack(-side=>$side);
-	$mlheight=$height;
+	$mlheight=$height*0.5;
 }
 	
 

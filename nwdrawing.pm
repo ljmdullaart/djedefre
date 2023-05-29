@@ -14,6 +14,8 @@ use File::Slurper qw/ read_text /;
 use File::HomeDir;
 use Data::Dumper;
 
+require selector;
+
 my $NW_DEBUG=1;
 
 sub nw_debug {
@@ -36,7 +38,11 @@ my $nw_cbmove=\&dump;
 my $nw_cbtype=\&dump;
 my $nw_cbname=\&dump;
 my $nw_cbmerge=\&dump;
-my $nw_cbdelete=\&dump;
+my $nw_cbdelete=\&dump;	# delete completely
+my $nw_cbpage=\&dump;
+
+our @pagelist;
+our @realpagelist;
 
 sub nw_callback {
 	(my $type, my $func)=@_;
@@ -45,6 +51,7 @@ sub nw_callback {
 	elsif ($type eq 'name'){ $nw_cbname=$func; }
 	elsif ($type eq 'delete'){ $nw_cbdelete=$func; }
 	elsif ($type eq 'merge'){ $nw_cbmerge=$func; }
+	elsif ($type eq 'page'){ $nw_cbpage=$func; }
 }
 
 
@@ -102,6 +109,8 @@ sub nw_frame_canvas_destroy {
 
 sub nw_frame_canvas_create {
 	(my $parent)=@_;
+print "Pagelist:\n";
+for (@pagelist){print "pg: $_\n";}
 	$lnw_canvas_frame->destroy if Tk::Exists($lnw_canvas_frame);
 	$lnw_canvas_frame=$parent->Frame(
 		-borderwidth => 3,
@@ -241,8 +250,30 @@ sub nw_drawlines {
 			}
 		}
 		my $line;
+		if ($linetype==2){ $line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => 'LightGrey',-width => 15,-tags=>['scalable']); }
+		$lines[$i]->{'draw'}=$line;
+	}
+	for my $i (0 .. $#lines){
+		my $obj1=$lines[$i]->{'from'};
+		my $obj2=$lines[$i]->{'to'};
+		my $linetype=$lines[$i]->{'type'};
+		my $obj1_idx=$refobj[$obj1];
+		my $obj2_idx=$refobj[$obj2];
+		(my $x1,my $x2,my $y1,my $y2)=(0,0,0,0);
+		for my $j (0 .. $#objects){
+			if (defined $objects[$j]->{'newid'} ){
+				if ($objects[$j]->{'newid'}==$obj1){
+					$x1=$objects[$j]->{'x'};
+					$y1=$objects[$j]->{'y'};
+				}
+				if ($objects[$j]->{'newid'}==$obj2){
+					$x2=$objects[$j]->{'x'};
+					$y2=$objects[$j]->{'y'};
+				}
+			}
+		}
+		my $line;
 		if ($linetype==1){ $line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-tags=>['scalable']); }
-		elsif ($linetype==2){ $line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => 'LightGrey',-width => 15,-tags=>['scalable']); }
 		$lines[$i]->{'draw'}=$line;
 	}
 }
@@ -360,6 +391,13 @@ sub nw_drag_end {
 #        my $nw_info_frame;
 #                my $nw_info_top;
 
+#  _        __          __                          
+# (_)_ __  / _| ___    / _|_ __ __ _ _ __ ___   ___ 
+# | | '_ \| |_ / _ \  | |_| '__/ _` | '_ ` _ \ / _ \
+# | | | | |  _| (_) | |  _| | | (_| | | | | | |  __/
+# |_|_| |_|_|  \___/  |_| |_|  \__,_|_| |_| |_|\___|
+#    
+# our @realpagelist;
 my $typechoice;
 
 sub nw_show_info_redo {
@@ -415,6 +453,7 @@ sub nw_show_info_create {
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Interfaces')->pack(-side=>'left');
 		my @ifarray=@{$objects[$objidx]{interfaces}};
+		my @pgarray=@{$objects[$objidx]{pages}};
 		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$ifarray[0])->pack(-side=>'right');
 		for (my $i=1; $i<=$#ifarray; $i++){
 			$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
@@ -431,6 +470,16 @@ sub nw_show_info_create {
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Button ( -width=>10,-text=>'Merge', -command=>sub {$Message='';nw_set_merge($name,$id,$table,$merge);nw_frame_canvas_redo() })->pack(-side=>'left');
 		$local_frame->Entry ( -width=>30,-textvariable=>\$merge)->pack(-side=>'right');
+		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+		selector({
+			options  	=> \@realpagelist,
+			selected	=> \@pgarray,
+			parent  	=> $local_frame,
+			callback 	=> sub {(my $act, my $pg)=@_; nw_page_change($name,$id,$table,$act,$pg);},
+			height  	=> 5,
+			width   	=> 40,
+			title    	=> 'On pages'
+		});
 
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Button ( -width=>10,-text=>'Delete', -command=>sub {$Message='';nw_delete_object($name,$id,$table);nw_frame_canvas_redo() })->pack(-side=>'left');
@@ -442,6 +491,7 @@ sub nw_show_info_create {
 		my $nwaddress=$objects[$objidx]->{'nwaddress'};
 		my $cidr=$objects[$objidx]->{'cidr'};
 		my $subn;
+		my @pgarray=@{$objects[$objidx]{pages}};
 		if (defined $cidr){ $subn="$nwaddress / $cidr";}
 		else {  $subn=$nwaddress; }		# for example: nwaddress=Internet
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
@@ -457,6 +507,17 @@ sub nw_show_info_create {
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Subnet')->pack(-side=>'left');
 		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$subn)->pack(-side=>'right');
+
+		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+		selector({
+			options  	=> \@realpagelist,
+			selected	=> \@pgarray,
+			parent  	=> $local_frame,
+			callback 	=> sub {(my $act, my $pg)=@_; nw_page_change($name,$id,$table,$act,$pg);},
+			height  	=> 5,
+			width   	=> 40,
+			title    	=> 'On pages'
+		});
 
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Button ( -width=>10,-text=>'Delete', -command=>sub {$Message='';nw_delete_object($name,$id,$table);nw_frame_canvas_redo() })->pack(-side=>'left');
@@ -484,5 +545,9 @@ sub nw_delete_object {
 	$nw_cbdelete->($table,$id,$name);
 }
 	
+sub nw_page_change {
+	(my $name,my $id,my $table,my $action,my $page)=@_;
+	$nw_cbpage->($table,$id,$name,$action,$page);
+}
 
 1;
