@@ -18,6 +18,7 @@ use lib $FindBin::Bin;
 require multilist;
 require selector;
 require nwdrawing;
+require standard;
 
 my $topdir='.';						# Top directory; base for finding files
 my $image_directory="$topdir/images";	 		# image-files. like logo's
@@ -56,49 +57,12 @@ sub debug {
 
 my $ConfigFileSpec;
 
-sub uniq {
-    my %seen;
-    grep !$seen{$_}++, @_;
-}
-
 sub nxttmploc {
 	$nw_tmpx=$nw_tmpx+100;
 	if ($nw_tmpx > ($canvas_xsize-200)){
 		$nw_tmpy=$nw_tmpy+100;
 		$nw_tmpx=100;
 	}
-}
-
-sub ipisinsubnet {
-	(my $ip, my $subnet)=@_;
-	my @octets=split ('\.',$ip);
-	my $ipbin=256*(256*(256*$octets[0]+$octets[1])+$octets[2])+$octets[3];
-	my $net; my $cidr;
-	if ($subnet=~/([0-9]*)\.([0-9]*)\.([0-9]*)\.([0-9]*)\/([0-9]*)/){
-		$net=256*(256*(256*$1+$2)+$3)+$4;
-		$cidr=$5;
-		my $a=0xffffffff;
-		my $b=$a<<(32-$cidr);
-		my $c=$b&0xffffffff;
-		if (($net & $c)==($ipbin & $c)){
-			return 1;
-		}
-		else {
-			return 0;
-		}
-	}
-	elsif ($subnet=~/Internet/){
-		if ($ip=~/Internet/){
-			return 1;
-		}
-		else { return 0;}
-	}
-	else {
-		print "subnet $subnet is not recognized\n";
-		$Message= "subnet $subnet is not recognized\n";
-
-	}
-	return 0;
 }
 
 #      _       _	_
@@ -647,7 +611,6 @@ sub fill_pagelist {
                 push @realpagelist,$p;
 
         }
-	push @pagelist,'Manage pages';
 }
 
 sub display_top_page {		# Top-page is L3 drawing of all servers and subnets
@@ -807,7 +770,6 @@ sub display_selected_page {	# What to do if a page was selected from the menubar
 	(my $pagename)=@_;
 	if ($pagename eq 'none'){ logoframe() ; }
 	elsif ($pagename eq 'top'){ display_top_page ; }
-	elsif ($pagename eq 'Manage pages'){manage_pages();}
 	else {
 		$l3_showpage=$pagename;
 		display_other_page();
