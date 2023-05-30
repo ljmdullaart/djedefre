@@ -250,8 +250,10 @@ sub nw_drawlines {
 			}
 		}
 		my $line;
-		if ($linetype==2){ $line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => 'LightGrey',-width => 15,-tags=>['scalable']); }
-		$lines[$i]->{'draw'}=$line;
+		if ($linetype==2){
+			$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => 'LightGrey',-width => 15,-tags=>['scalable']);
+			$lines[$i]->{'draw'}=$line;
+		}
 	}
 	for my $i (0 .. $#lines){
 		my $obj1=$lines[$i]->{'from'};
@@ -273,8 +275,10 @@ sub nw_drawlines {
 			}
 		}
 		my $line;
-		if ($linetype==1){ $line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-tags=>['scalable']); }
-		$lines[$i]->{'draw'}=$line;
+		if ($linetype==1){
+			$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-tags=>['scalable']);
+			$lines[$i]->{'draw'}=$line;
+		}
 	}
 }
 
