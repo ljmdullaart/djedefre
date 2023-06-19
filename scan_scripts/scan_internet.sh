@@ -64,7 +64,7 @@ inetif=$(sqlite3 $database "SELECT id FROM interfaces WHERE ip='Internet'")
 inethost=$(sqlite3 $database "SELECT host FROM interfaces WHERE ip='Internet'")
 
 if [ "$inetif" = "" ] ; then
-	sqlite3 $database  "INSERT INTO interfaces (host,subnet,ip) VALUES ($lasthost,$inetnet,'Internet')"
+	sqlite3 $database  "INSERT INTO interfaces (host,subnet,ip,switch) VALUES ($lasthost,$inetnet,'Internet',-1)"
 #elif [ "$inethost" != "$lasthost" ] ; then
 	#sqlite3 $database  "INSERT INTO interfaces (host,subnet,ip) VALUES ($lasthost,$inetnet,'Internet')"
 else

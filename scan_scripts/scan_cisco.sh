@@ -40,7 +40,7 @@ for host in $(cat $tmp) ; do
 				existing=$(sqlite3  -separator ' ' "$database" "SELECT ip FROM interfaces WHERE ip='$ifip'")
 				if [ "$existing" = "" ] ; then
 					echo "        -> new interface: $ifip on $host"
-					sqlite3  -separator ' '  $database "INSERT INTO interfaces (ip,host) VALUES ('$ifip',$host)"
+					sqlite3  -separator ' '  $database "INSERT INTO interfaces (ip,host,switch) VALUES ('$ifip',$host,-1)"
 				else
 					echo "        -> Claiming interface: $ifip on $host"
 					sqlite3  -separator ' '  $database "UPDATE interfaces SET host=$host WHERE  ip='$ifip'"

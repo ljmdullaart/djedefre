@@ -147,9 +147,9 @@ add_if(){
 			if_old=$(sqlite3 "$database" "SELECT id FROM interfaces WHERE ip='$interface'")
 			if [ "$if_old" = "" ] ; then
 				if [ "$server" = "" ] ; then
-					sqlite3 "$database" "INSERT INTO interfaces (ip) VALUES ('$interface')"
+					sqlite3 "$database" "INSERT INTO interfaces (ip,switch) VALUES ('$interface',-1)"
 				else
-					sqlite3 "$database" "INSERT INTO interfaces (ip,host) VALUES ('$interface','$server')"
+					sqlite3 "$database" "INSERT INTO interfaces (ip,host,switch) VALUES ('$interface','$server',-1)"
 				fi
 			else
 				if [ "$server" != "" ] ; then

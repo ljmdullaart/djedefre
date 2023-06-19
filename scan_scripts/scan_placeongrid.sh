@@ -20,7 +20,7 @@ elif [ "$1" != '' ] ; then
 fi
 
 
-grid=25
+grid=50
 
 if [ "$1" != "" ] ; then
 	grid=$1
@@ -61,4 +61,20 @@ cat $tmp |
 		sqlite3 $database "UPDATE subnet SET xcoord=$x WHERE id=$id"
 		sqlite3 $database "UPDATE subnet SET ycoord=$y WHERE id=$id"
 	done
+
+sqlite3 -separator ' '  $database "SELECT id,xcoord,ycoord FROM pages" >$tmp
+cat $tmp |
+	while read id x y ; do
+		x=$x+$halfgrid
+		y=$y+$halfgrid
+		x=$x/$grid
+		y=$y/$grid
+		x=$x*$grid
+		y=$y*$grid
+		sqlite3 $database "UPDATE pages SET xcoord=$x WHERE id=$id"
+		echo $database "UPDATE pages SET xcoord=$x WHERE id=$id"
+		sqlite3 $database "UPDATE pages SET ycoord=$y WHERE id=$id"
+	done
+
+
 rm -f $tmp

@@ -53,7 +53,7 @@ sort -u $tmp3 | while read if to mac rest ; do
 	echo "ip=$if mac=$mac"
 	ifid=$(sqlite3  -separator ' ' "$database" "SELECT id FROM interfaces WHERE ip='$if'")
 	if [ "$ifid" = "" ] ; then
-		sqlite3  -separator ' '  $database "INSERT INTO interfaces (ip) VALUES ('$if')"
+		sqlite3  -separator ' '  $database "INSERT INTO interfaces (ip,switch) VALUES ('$if',-1)"
 		echo "    added $if"
 	else
 		echo "    $if = $ifid"

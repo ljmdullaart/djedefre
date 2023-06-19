@@ -44,7 +44,7 @@ grep -v Internet $tmp1 | while read id ip cidr ; do
 sort -u $tmp | while read if id; do
 	ifid=$(sqlite3  -separator ' ' "$database" "SELECT id FROM interfaces WHERE ip='$if'")
 	if [ "$ifid" = "" ] ; then
-		sqlite3  -separator ' '  $database "INSERT INTO interfaces (ip) VALUES ('$if')"
+		sqlite3  -separator ' '  $database "INSERT INTO interfaces (ip,switch) VALUES ('$if',-1)"
 	fi
 	sqlite3 "$database" "UPDATE interfaces SET subnet='$id' WHERE ip='$if'"
 	host=$(sqlite3  -separator ' ' "$database" "SELECT host FROM interfaces WHERE ip='$if'")
