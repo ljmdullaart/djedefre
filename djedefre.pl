@@ -6,6 +6,7 @@ use Tk::PNG;
 use Tk::Photo;
 use Image::Magick;
 use Tk::JBrowseEntry;
+use Tk::Pane;
 use Data::Dumper;
 use DBI;
 use File::Spec;
@@ -15,10 +16,14 @@ use File::HomeDir;
 
 use FindBin;
 use lib $FindBin::Bin;
+use List::MoreUtils qw(first_index);
 require multilist;
 require selector;
 require nwdrawing;
 require standard;
+require dje_db;
+require l2input;
+require managepages;
 
 my $topdir='.';						# Top directory; base for finding files
 my $image_directory="$topdir/images";	 		# image-files. like logo's
@@ -36,17 +41,18 @@ my $page='none';						# name of the page to display
 my $nw_tmpx=100;
 my $nw_tmpy=100;
 
-my $main_window;
+our $main_window;
 my $main_window_height=500;
 my $main_window_width=500;
-my $main_frame;
+our $main_frame;
 my $subframe;
-my $button_frame;
+our $button_frame;
 
 my $managepg_pagename;
 
 my $DEB_FRAME=1;
-my $DEBUG=1;
+my $DEB_DB=2;
+my $DEBUG=0;
 
 sub debug {
 	(my $level, my $message)=@_;
@@ -63,29 +69,6 @@ sub nxttmploc {
 		$nw_tmpy=$nw_tmpy+100;
 		$nw_tmpx=100;
 	}
-}
-
-#      _       _	_
-#   __| | __ _| |_ __ _| |__   __ _ ___  ___
-#  / _` |/ _` | __/ _` | '_ \ / _` / __|/ _ \
-# | (_| | (_| | || (_| | |_) | (_| \__ \  __/
-#  \__,_|\__,_|\__\__,_|_.__/ \__,_|___/\___|
-#
-
-my $db;
-
-sub connect_db {
-	$db = DBI->connect("dbi:SQLite:dbname=".$dbfile)
-		or die $DBI::errstr;
-	return $db;
-}
-
-sub dosql{
-	(my $statement)=@_;
-        my $sql = $statement;
-        my $sth = $db->prepare($sql);
-        $sth->execute();
-	return $sth;
 }
 
 #  _			     _____ 
@@ -123,8 +106,8 @@ sub l3_objects {
 			WHERE  pages.page='$l3_showpage' AND pages.tbl='subnet'
 		";
 	}
-	my $sth = dosql($sql);
-	while((my $id,my $nwaddress, my $cidr,my $x,my $y,my $name) = $sth->fetchrow()){
+	my $sth = db_dosql($sql);
+	while((my $id,my $nwaddress, my $cidr,my $x,my $y,my $name) = db_getrow()){
 		if ((!defined $x) || !(defined $y)){
 			nxttmploc();
 			$x=$nw_tmpx unless defined $x;
@@ -155,8 +138,8 @@ sub l3_objects {
 			WHERE  pages.page='$l3_showpage' AND pages.tbl='server'
 		";
 	}
-	my $sth = dosql($sql);
-	while((my $id,my $name, my $x,my $y,my $type,my $interfaces,my $status,my $options,my $ostype,my $os,my $processor,my $memory) = $sth->fetchrow()){
+	my $sth = db_dosql($sql);
+	while((my $id,my $name, my $x,my $y,my $type,my $interfaces,my $status,my $options,my $ostype,my $os,my $processor,my $memory) = db_getrow()){
 		$type='server' unless defined $type;
 		if ((!defined $x) || !(defined $y)){
 			nxttmploc();
@@ -191,14 +174,14 @@ sub l3_objects {
 		my $table=$l3_obj[$i]->{'table'};
 		if ($table eq 'server'){
 			my $sql = "SELECT ip FROM interfaces WHERE host=$id";
-			my $sth = dosql($sql);
-			while((my $ip) = $sth->fetchrow()){
+			my $sth = db_dosql($sql);
+			while((my $ip) = db_getrow()){
 				push @{$l3_obj[$i]{interfaces}}, $ip;
 			}
 			splice @{$l3_obj[$i]{pages}};
 			my $sql = "SELECT page FROM pages WHERE tbl='server' AND item=$id";
-			my $sth = dosql($sql);
-			while ((my $item) = $sth->fetchrow()){
+			my $sth = db_dosql($sql);
+			while ((my $item) = db_getrow()){
 				push @{$l3_obj[$i]{pages}}, $item
 			}
 			
@@ -207,8 +190,8 @@ sub l3_objects {
 			push @{$l3_obj[$i]{pages}},' ';
 			splice @{$l3_obj[$i]{pages}};
 			my $sql = "SELECT page FROM pages WHERE tbl='subnet' AND item=$id";
-			my $sth = dosql($sql);
-			while ((my $item) = $sth->fetchrow()){
+			my $sth = db_dosql($sql);
+			while ((my $item) = db_getrow()){
 				push @{$l3_obj[$i]{pages}}, $item
 			}
 		}
@@ -225,8 +208,8 @@ sub l3_lines {
 			my $obj_id=$l3_obj[$i]->{'newid'};
 			splice my @interfacelist;
 			my $sql = "SELECT ip FROM interfaces WHERE host='$orig_id'";
-			my $sth = dosql($sql);
-			while((my $ip) = $sth->fetchrow()){
+			my $sth = db_dosql($sql);
+			while((my $ip) = db_getrow()){
 				push @interfacelist,$ip;
 			}
 			for my $j ( 0 .. $#l3_obj){
@@ -312,30 +295,30 @@ sub l3_type {
 	(my $table, my $id, my $type)=@_;
 	if ($table eq 'server'){
 		#my $sql = "UPDATE $table SET type='$type' WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
-		dosql("UPDATE $table SET type='$type' WHERE id=$id");
+		db_dosql("UPDATE $table SET type='$type' WHERE id=$id");
 	}
 	l3_renew_content();
 }
 sub l3_name {
 	(my $table, my $id, my $name)=@_;
-	my $sql = "UPDATE $table SET name='$name' WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
+	my $sql = "UPDATE $table SET name='$name' WHERE id=$id"; db_dosql($sql);
 	l3_renew_content();
 }
 sub l3_delete {
 	(my $table, my $id, my $name)=@_;
-	my $sql = "DELETE FROM $table WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
+	my $sql = "DELETE FROM $table WHERE id=$id";  db_dosql($sql);
 	l3_renew_content();
 }
 sub l3_move {
 	(my $table, my $id, my $x, my $y)=@_;
 	my $sql;
 	if ( $l3_showpage eq 'top'){
-		$sql = "UPDATE $table SET xcoord=$x WHERE id=$id"; dosql($sql);
-		$sql = "UPDATE $table SET ycoord=$y WHERE id=$id"; dosql($sql);
+		$sql = "UPDATE $table SET xcoord=$x WHERE id=$id"; db_dosql($sql);
+		$sql = "UPDATE $table SET ycoord=$y WHERE id=$id"; db_dosql($sql);
 	}
 	else {
-		$sql = "UPDATE pages SET xcoord=$x WHERE item=$id AND tbl='$table' AND page='$l3_showpage'"; dosql($sql);
-		$sql = "UPDATE pages SET ycoord=$y WHERE item=$id AND tbl='$table' AND page='$l3_showpage'"; dosql($sql);
+		$sql = "UPDATE pages SET xcoord=$x WHERE item=$id AND tbl='$table' AND page='$l3_showpage'"; db_dosql($sql);
+		$sql = "UPDATE pages SET ycoord=$y WHERE item=$id AND tbl='$table' AND page='$l3_showpage'"; db_dosql($sql);
 	}
 }
 
@@ -345,17 +328,15 @@ sub l3_merge {
 		my $targetid=$id;
 		if ($target =~/^(\d+\.\d+\.\d+\.\d+)/){
 			my $sql = "SELECT host FROM interfaces WHERE ip='$1'";
-			my $sth = $db->prepare($sql);
-			$sth->execute();
-			while((my $host) = $sth->fetchrow()){
+			my $sth=db_dosql($sql);
+			while((my $host) = db_getrow()){
 				$targetid=$host;
 			}
 		}
 		elsif ($target=~/^([A-Za-z]\w*)/){
 			my $sql = "SELECT id FROM server WHERE name='$1'";
-			my $sth = $db->prepare($sql);
-			$sth->execute();
-			while((my $host) = $sth->fetchrow()){
+			my $sth =  db_dosql($sql);
+			while((my $host) = db_getrow()){
 				$targetid=$host;
 			}
 		}
@@ -364,18 +345,18 @@ sub l3_merge {
 		}
 		else {
 			my $sql = "SELECT id FROM interfaces WHERE host=$id";
-			my $sth=dosql($sql);
+			my $sth=db_dosql($sql);
 			my @iflist;
 			splice @iflist;
-			while((my $ifid) = $sth->fetchrow()){
+			while((my $ifid) = db_getrow()){
 				push @iflist,$ifid;
 			}
 			foreach(@iflist){
 				my $sql = "UPDATE interfaces SET host=$targetid WHERE id=$_";
-				dosql($sql);
+				db_dosql($sql);
 			}
-			dosql("DELETE FROM server WHERE id=$id");
-			dosql("DELETE FROM pages  WHERE item=$id AND tbl='server'");
+			db_dosql("DELETE FROM server WHERE id=$id");
+			db_dosql("DELETE FROM pages  WHERE item=$id AND tbl='server'");
 		}
 	}
 	l3_renew_content();
@@ -464,9 +445,8 @@ sub listing_servers{
 	ml_colhead(@ar);
 	ml_create();
 	my $sql = 'SELECT id,name,type,ostype,os,processor,memory FROM server ORDER BY id';
-	my $sth = $db->prepare($sql);
-	$sth->execute();
-	while((my $id,my $name,my $type,my $ostype,my $os,my $processor,my $memory) = $sth->fetchrow()){
+	my $sth =  db_dosql($sql);
+	while((my $id,my $name,my $type,my $ostype,my $os,my $processor,my $memory) = db_getrow()){
 		$type='server' unless defined $type;
 		$ostype='' unless defined $ostype;
 		$os='' unless defined $os;
@@ -507,9 +487,8 @@ sub listing_subnets {
 	ml_colhead(@ar);
 	ml_create();
 	my $sql = 'SELECT id,nwaddress,cidr,xcoord,ycoord,name FROM subnet ORDER BY id';
-	my $sth = $db->prepare($sql);
-	$sth->execute();
-	while((my $id,my $nwaddress,my $cidr, my $x,my $y,my $name) = $sth->fetchrow()){
+	my $sth =  db_dosql($sql);
+	while((my $id,my $nwaddress,my $cidr, my $x,my $y,my $name) = db_getrow()){
 		$name="$nwaddress/$cidr" unless defined $name;
 		$name="$nwaddress/$cidr" if ($name eq '');
 		$ar[0]=$id;
@@ -547,22 +526,19 @@ sub listing_interfaces {
 	ml_create();
 	my @servers=[];
 	my $sql = 'SELECT id,name FROM server';
-	my $sth = $db->prepare($sql);
-	$sth->execute();
-	while((my $id,my $name) = $sth->fetchrow()){
+	my $sth =  db_dosql($sql);
+	while((my $id,my $name) = db_getrow()){
 		$servers[$id]=$name;
 	}
 	my @subnets=[];
 	my $sql = 'SELECT id,nwaddress,cidr FROM subnet';
-	my $sth = $db->prepare($sql);
-	$sth->execute();
-	while((my $id,my $nwaddress,my $cidr) = $sth->fetchrow()){
+	my $sth =  db_dosql($sql);
+	while((my $id,my $nwaddress,my $cidr) = db_getrow()){
 		$subnets[$id]="$nwaddress/$cidr";
 	}
 	my $sql = 'SELECT id,macid,ip,hostname,host,subnet,access FROM interfaces ORDER BY id';
-	my $sth = $db->prepare($sql);
-	$sth->execute();
-	while((my $id,my $macid,my $ip,my $hostname,my $host,my $subnet,my $access) = $sth->fetchrow()){
+	my $sth =  db_dosql($sql);
+	while((my $id,my $macid,my $ip,my $hostname,my $host,my $subnet,my $access) = db_getrow()){
 		my $name=$servers[$host];
 		$name=$hostname unless defined $name;
 		my $snet;
@@ -581,222 +557,8 @@ sub listing_interfaces {
 		ml_insert(@ar);
 	}
 }
-		
-#                              
-#  _ __   __ _  __ _  ___  ___ 
-# | '_ \ / _` |/ _` |/ _ \/ __|
-# | |_) | (_| | (_| |  __/\__ \
-# | .__/ \__,_|\__, |\___||___/
-# |_|          |___/    
+
 #
-
-our @pagelist;
-our @realpagelist;
-my $currentpage='none';
-my $selectedpage='none';
-my $selectedrealpage='none';
-my $pageselectframe;
-my $realpageselectframe;
-
-sub fill_pagelist {
-	splice @pagelist;
-	splice @realpagelist;
-	push @pagelist,'none';
-	push @pagelist,'top';
-        my $sql = "SELECT DISTINCT item FROM config WHERE attribute LIKE 'page:%'";
-        my $sth = $db->prepare($sql);
-        $sth->execute();
-        while((my $p) = $sth->fetchrow()){
-                push @pagelist,$p;
-                push @realpagelist,$p;
-
-        }
-}
-
-sub display_top_page {		# Top-page is L3 drawing of all servers and subnets
-	$Message='';
-	$l3_showpage='top';
-	$main_frame->destroy if Tk::Exists($main_frame);
-	debug ($DEB_FRAME,"11 Create main_frame");
-	$main_frame=$main_window->Frame(
-		-height      => 1005,
-		-width       => 1505
-	)->pack(-side =>'top');
-	make_l3_plot($main_frame);
-}
-
-sub display_other_page {
-	$Message='';
-	$main_frame->destroy if Tk::Exists($main_frame);
-	debug ($DEB_FRAME,"11 Create main_frame");
-	$main_frame=$main_window->Frame(
-		-height      => 1005,
-		-width       => 1505
-	)->pack(-side =>'top');
-	make_l3_plot($main_frame);
-}
-
-my $manage_pages_change_frame;
-my @managepagesgrid;
-my $selected_type='l3';
-my @managepg_selection;
-my @managepg_options;
-sub manage_pages {
-	$Message='';
-	$main_frame->destroy if Tk::Exists($main_frame);
-	debug ($DEB_FRAME,"12 Create main_frame for manage pages");
-	$main_frame=$main_window->Frame(
-		-height      => 0.8*$main_window_height,
-		-width       => $main_window_width
-	)->pack(-side =>'top');
-	for my $i (0 .. 5){
-		for my $j (0 .. 4){
-			$managepagesgrid[$i][$j]=$main_frame->Frame();
-		}
-	}
-	for my $i (0 .. 5){
-		Tk::grid(@{$managepagesgrid[$i]});
-	}
-	my @pagetypes;
-	$pagetypes[0]='l3';
-	$pagetypes[1]='l2';
-	my $pagename;
-	$managepagesgrid[1][0]->Entry ( -width=>32,-textvariable=>\$pagename)->pack(-side=>'left');
-	$managepagesgrid[1][1]->Button ( -width=>10,-text=>'Add page', -command=>sub {$Message='';manage_pages_add_action($pagename);})->pack(-side=>'left');
-	make_realpageselectframe($managepagesgrid[1][2]);
-	$managepagesgrid[1][3]->Label(-text=>'Select a page')->pack();
-	$managepagesgrid[2][2]->JBrowseEntry(
-		-variable => \$selected_type, 
-		-width=>30, 
-		-choices => \@pagetypes, 
-		-height=>10
-	)->pack();
-	$managepagesgrid[2][3]->Button ( -width=>10,-text=>'Change Type', -command=>sub {
-		dosql("UPDATE config SET value='$selected_type' WHERE attribute='page:type' AND item='$selectedrealpage'");
-		print "UPDATE config SET value='$selected_type' WHERE attribute='page:type' AND item='$selectedrealpage'\n";
-	})->pack();
-	$managepagesgrid[4][3]->Button ( -width=>10,-text=>'Delete page', -command=>sub {
-		$Message='';
-		manage_pages_del_action($selectedrealpage);
-		$selectedrealpage='none';
-	})->pack(-side=>'right');
-}
-
-sub mgpg_selector_callback {
-	(my $func, my $arg)=@_;
-	(my $table, my $id, my $name)=split(':',$arg);
-	if ($func eq 'del'){
-		dosql("DELETE FROM pages WHERE tbl='$table' AND item=$id AND page='$managepg_pagename'");
-	}
-	elsif ($func eq 'add'){
-		dosql("DELETE FROM pages WHERE tbl='$table' AND item=$id AND page='$managepg_pagename'");
-		dosql("INSERT INTO pages (page,tbl,item) VALUES ('$managepg_pagename','$table',$id)");
-	}
-}
-
-sub manage_pages_change_action {
-	(my $pgname)=@_;
-	$managepg_pagename=$pgname;
-	my @servers;
-	my @subnets;
-	splice @servers;
-	splice @managepg_options;
-	my $sth=dosql("SELECT id,name FROM server");
-	while((my $id,my $name) = $sth->fetchrow()){
-		$servers[$id]=$name;
-		push @managepg_options,"server:$id:$name";
-	}
-	splice @subnets;
-	my $sth=dosql("SELECT id,name,nwaddress,cidr FROM subnet");
-	while((my $id,my $name,my $nwaddress,my $cidr) = $sth->fetchrow()){
-		$name="$nwaddress/$cidr" unless defined $name;
-		$subnets[$id]=$name;
-		push @managepg_options,"subnet:$id:$name";
-	}
-	splice @managepg_selection;
-	my $sth=dosql("SELECT tbl,item FROM pages WHERE page='$pgname'");
-	while((my $tbl,my $item) = $sth->fetchrow()){
-		my $sname='';
-		if ($tbl eq 'subnet'){
-			$sname=$subnets[$item] if defined $subnets[$item];
-		}
-		elsif ($tbl eq 'server'){
-			$sname=$servers[$item] if defined $servers[$item];
-		}
-		push @managepg_selection, "$tbl:$item:$sname";
-	}
-	my $cbfunc=\&mgpg_selector_callback;
-	selector({
-		options		=> \@managepg_options,
-		selected	=> \@managepg_selection,
-		parent		=> $manage_pages_change_frame,
-		callback	=> $cbfunc
-	});
-		
-}
-
-sub manage_pages_del_action {
-	(my $pgname)=@_;
-	dosql("DELETE FROM config WHERE item='$pgname'");
-	dosql("DELETE FROM pages  WHERE page='$pgname'");
-	fill_pagelist();
-	make_pageselectframe( $button_frame);
-	manage_pages();
-}
-
-
-sub manage_pages_add_action {
-	(my $pageadd)=@_;
-	fill_pagelist();
-	my $flag=0;
-	for (@pagelist){ 
-		if ($_ eq $pageadd) { $flag=1; }
-	}
-	if ($flag==0){
-        	my $sql = "INSERT INTO config (attribute,item,value) VALUES ('page:type','$pageadd','l3')";
-        	my $sth = $db->prepare($sql);
-        	$sth->execute();
-	}
-	else {
-		$Message="Page $pageadd already exists";
-	}
-	fill_pagelist();
-	make_pageselectframe( $button_frame);
-	manage_pages();
-}
-		
-
-sub display_selected_page {	# What to do if a page was selected from the menubar
-	(my $pagename)=@_;
-	if ($pagename eq 'none'){ logoframe() ; }
-	elsif ($pagename eq 'top'){ display_top_page ; }
-	else {
-		$l3_showpage=$pagename;
-		display_other_page();
-	}
-}
-
-sub make_realpageselectframe {	# drop-down in the menu-bar
-	(my $parent)=@_;
-	$realpageselectframe->destroy if Tk::Exists($realpageselectframe);
-	fill_pagelist();
-	debug ($DEB_FRAME,"18 Create pageselectframe");
-	$realpageselectframe=$parent->Frame()->pack(-side=>'right');
-	$realpageselectframe->JBrowseEntry(-variable => \$selectedrealpage, -width=>30, -choices => \@realpagelist, -height=>10)->pack();
-	
-}
-sub make_pageselectframe {	# drop-down in the menu-bar
-	(my $parent)=@_;
-	$pageselectframe->destroy if Tk::Exists($pageselectframe);
-	fill_pagelist();
-	debug ($DEB_FRAME,"18 Create pageselectframe");
-	$pageselectframe=$parent->Frame()->pack(-side=>'right');
-	$pageselectframe->Label ( -anchor => 'w',-width=>10,-text=>'Page')->pack(-side=>'left');
-	$pageselectframe->JBrowseEntry(-variable => \$selectedpage, -width=>25, -choices => \@pagelist, -height=>10, -browsecmd => sub { display_selected_page ($selectedpage);} )->pack();
-	
-}
-
-	
 #  __  __       _       
 # |  \/  | __ _(_)_ __  
 # | |\/| |/ _` | | '_ \ 
@@ -805,7 +567,7 @@ sub make_pageselectframe {	# drop-down in the menu-bar
 #   
 
 
-connect_db();
+connect_db($dbfile);
 
 fill_pagelist();
 #
@@ -847,6 +609,16 @@ $button_frame->Button(-text => "Manage pages",-width=>20, -command =>sub {
 	)->pack(-side =>'top');
 	manage_pages()
 })->pack(-side=>'left');
+$button_frame->Button(-text => "Layer 2 input",-width=>20, -command =>sub {
+	$Message='';
+	$main_frame->destroy if Tk::Exists($main_frame);
+	debug ($DEB_FRAME,"21 Create main_frame");
+	$main_frame=$main_window->Frame(
+		-height      => 1005,
+		-width       => 1505
+	)->pack(-side =>'top');
+	l2input()
+})->pack(-side=>'left');
 debug ($DEB_FRAME,"22 Create button_frame_pgsel");
 my $button_frame_pgsel=$button_frame->Frame()->pack(-side=>'right');
 make_pageselectframe($button_frame_pgsel);
@@ -865,6 +637,13 @@ $main_window->after(1000,\&repeat);
 MainLoop;
 # print "$_\n" for keys %INC;
 
+#  _                                            
+# | | ___   __ _  ___    _ __   __ _  __ _  ___ 
+# | |/ _ \ / _` |/ _ \  | '_ \ / _` |/ _` |/ _ \
+# | | (_) | (_| | (_) | | |_) | (_| | (_| |  __/
+# |_|\___/ \__, |\___/  | .__/ \__,_|\__, |\___|
+#          |___/        |_|          |___/  
+
 sub logoframe {
 	$Message='';
 	$main_frame->destroy if Tk::Exists($main_frame);
@@ -876,3 +655,4 @@ sub logoframe {
 	$main_frame->Label(-text=>'Djedefre', -width=>1500)->pack(-side=>'top');
 	$main_frame->Label(-image => $image)->pack(-side=>'top');
 }
+	

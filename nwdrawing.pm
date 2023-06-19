@@ -109,8 +109,6 @@ sub nw_frame_canvas_destroy {
 
 sub nw_frame_canvas_create {
 	(my $parent)=@_;
-print "Pagelist:\n";
-for (@pagelist){print "pg: $_\n";}
 	$lnw_canvas_frame->destroy if Tk::Exists($lnw_canvas_frame);
 	$lnw_canvas_frame=$parent->Frame(
 		-borderwidth => 3,
@@ -284,8 +282,10 @@ sub nw_drawlines {
 
 sub nw_undrawlines {
 	for my $i (0 .. $#lines){
-		if ($lines[$i]->{'draw'}>-1){
-			$nw_canvas->delete($lines[$i]->{'draw'});
+		if (defined $lines[$i]->{'draw'}){
+			if ($lines[$i]->{'draw'}>-1){
+				$nw_canvas->delete($lines[$i]->{'draw'});
+			}
 		}
 		$lines[$i]->{'draw'}=-1;
 	}
@@ -489,7 +489,7 @@ sub nw_show_info_create {
 		$local_frame->Button ( -width=>10,-text=>'Delete', -command=>sub {$Message='';nw_delete_object($name,$id,$table);nw_frame_canvas_redo() })->pack(-side=>'left');
 		
 	}
-	else {
+	elsif ($table eq 'subnet'){
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>40,-text=>'subnet information')->pack(-side=>'left');
 		my $nwaddress=$objects[$objidx]->{'nwaddress'};

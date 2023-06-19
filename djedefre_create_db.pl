@@ -71,7 +71,9 @@ create table if not exists interfaces (
 	hostname  string,
 	host      integer,
 	subnet    integer,
-	access    string
+	access    string,
+	switch    integer,
+	port      integer
 	);
 ";
 $db->do($schema) or die $db->errstr;
@@ -130,6 +132,29 @@ create table if not exists pages (
 	item       integer,
 	xcoord     integer,
 	ycoord     integer
+	);
+";
+$db->do($schema) or die $db->errstr;
+$schema="
+create table if not exists switch (
+	id         integer primary key autoincrement,
+	switch     string,
+	server     integer,
+	name       string,
+	ports      integer
+	);
+";
+$db->do($schema) or die $db->errstr;
+$schema="
+create table if not exists l2connect (
+	id         integer primary key autoincrement,
+	name       string,
+	from_tbl   string,
+	from_id    integer,
+	from_port  integer,
+	to_tbl     string,
+	to_id      integer,
+	to_port    integer
 	);
 ";
 $db->do($schema) or die $db->errstr;
