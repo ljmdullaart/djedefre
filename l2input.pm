@@ -47,7 +47,6 @@ sub l2i__reconnect{
 	
 
 sub l2input {
-	print "l2input\n";
 	$Message='';
 	$main_frame->destroy if Tk::Exists($main_frame);
 	debug ($DEB_FRAME,"12 Create main_frame for manage pages");

@@ -10,6 +10,7 @@
 our $buttonframe;
 our @pagelist;
 our @realpagelist;
+our $l3_showpage;
 my $currentpage='none';
 my $selectedpage='none';
 my $selectedrealpage='none';
@@ -96,12 +97,14 @@ sub manage_pages {
 sub mgpg_selector_callback {
 	(my $func, my $arg)=@_;
 	(my $table, my $id, my $name)=split(':',$arg);
+	db_dosql ("SELECT xcoord,ycoord FROM $table WHERE id=$id");
+	(my $x,my $y)=db_getrow();
 	if ($func eq 'del'){
 		db_dosql("DELETE FROM pages WHERE tbl='$table' AND item=$id AND page='$managepg_pagename'");
 	}
 	elsif ($func eq 'add'){
 		db_dosql("DELETE FROM pages WHERE tbl='$table' AND item=$id AND page='$managepg_pagename'");
-		db_dosql("INSERT INTO pages (page,tbl,item) VALUES ('$managepg_pagename','$table',$id)");
+		db_dosql("INSERT INTO pages (page,tbl,item,xcoord,ycoord) VALUES ('$managepg_pagename','$table',$id,$x,$y)");
 	}
 }
 
