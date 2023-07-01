@@ -56,55 +56,115 @@ my @managepagesgrid;
 my $selected_type='l3';
 my @managepg_selection;
 my @managepg_options;
+my @pagetypes;
+$pagetypes[0]='l3';
+$pagetypes[1]='l2';
+my $pagename='none';
+my $pagetype='l3';
+
 sub manage_pages {
 	$Message='';
 	$main_frame->destroy if Tk::Exists($main_frame);
-	debug ($DEB_FRAME,"12 Create main_frame for manage pages");
 	$main_frame=$main_window->Frame(
 	)->pack(-side =>'top');
-	for my $i (0 .. 5){
-		for my $j (0 .. 4){
-			$managepagesgrid[$i][$j]=$main_frame->Frame();
+	my $pagemngtframe=$main_frame->Frame()->pack(-side =>'left');
+	my $pagecontentframe=$main_frame->Frame()->pack(-side =>'right');
+
+	fill_pagelist();
+	my $pagelistbox=$pagemngtframe->Scrolled("Listbox",-scrollbars=>'e',-height=>20,-width=>28)->pack(-side =>'top');
+	$pagelistbox->insert('end',@realpagelist);
+	$pagelistbox->bind('<<ListboxSelect>>' => sub {my @sel=$pagelistbox->curselection;$pagename=$realpagelist[$sel[0]];manage_pages();});
+	$pagemngtframe->Optionmenu(-variable=>\$pagetype, -options=>\@pagetypes,-width=>27)->pack(-side=>'top');
+	$pagemngtframe->Entry ( -width=>32,-textvariable=>\$pagename)->pack(-side=>'top');
+	my $buttonpageframe=$pagemngtframe->Frame()->pack(-side=>'top');
+	$buttonpageframe->Button (
+		-width=>10,
+		-text=>'Set type',
+		-command=>sub {
+			db_dosql("UPDATE config SET value='$pagetype' WHERE attribute='page:type' AND item='$pagename'");
 		}
+	)->pack(-side=>'left');
+	$buttonpageframe->Button (
+		-width=>10,
+		-text=>'Add page', 
+		-command=>sub {
+			manage_pages_add_action($pagename);
+		}
+	)->pack(-side=>'left');
+	$buttonpageframe->Button (
+		-width=>10,
+		-text=>'Delete page',
+		-command=>sub {
+			manage_pages_del_action($pagename);
+		}
+	)->pack(-side=>'right');
+
+	my @items;
+	splice @items;
+	db_dosql("SELECT id,name FROM server ORDER BY name");
+	while ((my $id, my $name)=db_getrow()){
+		push @items,"server:$id:$name";
 	}
-	for my $i (0 .. 5){
-		Tk::grid(@{$managepagesgrid[$i]});
+	db_dosql("SELECT id,nwaddress,cidr FROM subnet ORDER BY nwaddress");
+	while ((my $id, my $nwaddress,my $cidr)=db_getrow()){
+		push @items,"subnet:$id:$nwaddress/$cidr";
 	}
-	my @pagetypes;
-	$pagetypes[0]='l3';
-	$pagetypes[1]='l2';
-	my $pagename;
-	$managepagesgrid[1][0]->Entry ( -width=>32,-textvariable=>\$pagename)->pack(-side=>'left');
-	$managepagesgrid[1][1]->Button ( -width=>10,-text=>'Add page', -command=>sub {$Message='';manage_pages_add_action($pagename);})->pack(-side=>'left');
-	make_realpageselectframe($managepagesgrid[1][2]);
-	$managepagesgrid[1][3]->Label(-text=>'Select a page')->pack();
-	$managepagesgrid[2][2]->JBrowseEntry(
-		-variable => \$selected_type, 
-		-width=>30, 
-		-choices => \@pagetypes, 
-		-height=>10
-	)->pack();
-	$managepagesgrid[2][3]->Button ( -width=>10,-text=>'Change Type', -command=>sub {
-		db_dosql("UPDATE config SET value='$selected_type' WHERE attribute='page:type' AND item='$selectedrealpage'");
-	})->pack();
-	$managepagesgrid[4][3]->Button ( -width=>10,-text=>'Delete page', -command=>sub {
-		$Message='';
-		manage_pages_del_action($selectedrealpage);
-		$selectedrealpage='none';
-	})->pack(-side=>'right');
+	db_dosql("SELECT id,name FROM switch ORDER BY name");
+	while ((my $id, my $name)=db_getrow()){
+		push @items,"switch:$id:$name";
+	}
+	my @selected;
+	splice @selected;
+	db_dosql ("	SELECT server.id AS id,name FROM server
+			INNER JOIN pages ON pages.item=server.id
+			WHERE pages.page='$pagename' AND pages.tbl='server'
+			ORDER BY name
+	");
+	while ((my $id, my $name)=db_getrow()){
+		push @selected,"server:$id:$name";
+	}
+	db_dosql ("	SELECT subnet.id AS id,nwaddress,cidr FROM subnet
+			INNER JOIN pages ON pages.item=subnet.id
+			WHERE pages.page='$pagename' AND pages.tbl='switch'
+			ORDER BY nwaddress
+	");
+	while ((my $id, my $nwaddress,my $cidr)=db_getrow()){
+		push @selected,"subnet:$id:$nwaddress/$cidr";
+	}
+	db_dosql ("	SELECT switch.id AS id,name FROM switch
+			INNER JOIN pages ON pages.item=switch.id
+			WHERE pages.page='$pagename' AND pages.tbl='switch'
+			ORDER BY name
+	");
+	while ((my $id, my $name)=db_getrow()){
+		push @selected,"switch:$id:$name";
+	}
+	my $cbfunc=\&mgpg_selector_callback;
+	selector({
+		options		=> \@items,
+		selected	=> \@selected,
+		parent		=> $pagecontentframe,
+		callback	=> $cbfunc
+	});
+
+
 }
 
 sub mgpg_selector_callback {
 	(my $func, my $arg)=@_;
 	(my $table, my $id, my $name)=split(':',$arg);
-	db_dosql ("SELECT xcoord,ycoord FROM $table WHERE id=$id");
-	(my $x,my $y)=db_getrow();
+	if ($table ne 'switch'){
+		db_dosql ("SELECT xcoord,ycoord FROM $table WHERE id=$id");
+		(my $x,my $y)=db_getrow();
+	}
+	$x=100 unless defined $x;
+	$y=100 unless defined $y;
 	if ($func eq 'del'){
-		db_dosql("DELETE FROM pages WHERE tbl='$table' AND item=$id AND page='$managepg_pagename'");
+		db_dosql("DELETE FROM pages WHERE tbl='$table' AND item=$id AND page='$pagename'");
 	}
 	elsif ($func eq 'add'){
-		db_dosql("DELETE FROM pages WHERE tbl='$table' AND item=$id AND page='$managepg_pagename'");
-		db_dosql("INSERT INTO pages (page,tbl,item,xcoord,ycoord) VALUES ('$managepg_pagename','$table',$id,$x,$y)");
+		db_dosql("DELETE FROM pages WHERE tbl='$table' AND item=$id AND page='$pagename'");
+		db_dosql("INSERT INTO pages (page,tbl,item,xcoord,ycoord) VALUES ('$pagename','$table',$id,$x,$y)");
 	}
 }
 

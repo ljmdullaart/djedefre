@@ -36,13 +36,6 @@ sub nxttmploc {
 }
 
 
-#  __  __       _       
-# |  \/  | __ _(_)_ __  
-# | |\/| |/ _` | | '_ \ 
-# | |  | | (_| | | | | |
-# |_|  |_|\__,_|_|_| |_|
-#   
-
 
 connect_db($config{'dbfile'});
 
@@ -69,7 +62,7 @@ sub l3_objects {
 		}
 		$name="$nwaddress/$cidr" unless defined $name;
 		push @l3_obj, {
-			newid	=> $id*2,
+			newid	=> $id*4,
 			id	=> $id,
 			x	=> $x,
 			y	=> $y,
@@ -80,6 +73,25 @@ sub l3_objects {
 			table	=> 'subnet'
 		}
 	}
+	$sql="  SELECT switch.id,name,ports,pages.xcoord,pages.ycoord
+		FROM switch
+		INNER JOIN pages ON pages.item = switch.id
+		WHERE  pages.page='$l3_showpage' AND pages.tbl='switch'
+	";
+	db_dosql($sql);
+	while ((my $id,my $name,my $ports,my $x,my $y)=db_getrow()){
+		push @l3_obj, {
+			newid   => $id*4+2,
+			id	=> $id,
+			x	=> $x,
+			y	=> $y,
+			logo	=> 'switch',
+			name	=> $name,
+			ports	=> $ports,
+			table	=> 'switch'
+		};
+	}
+
 		
 		
 	if ($l3_showpage eq 'top'){
@@ -102,7 +114,7 @@ sub l3_objects {
 		}
 		$name='' unless defined $name;
 		push @l3_obj, {
-			newid	=> $id*2+1,
+			newid	=> $id*4+1,
 			id	=> $id,
 			x	=> $x,
 			y	=> $y,
@@ -156,8 +168,17 @@ my @l3_line;
 sub l3_lines {
 	my @interfacelist;
 	splice @l3_line;
+
+	my @ifserver;
+	db_dosql("SELECT id,host FROM interfaces");
+	while ((my $id, my $host)=db_getrow()){
+		$ifserver[$id]=$host;
+	}
+	for my $k (0 .. $#ifserver){
+		print "ifserver $k  $ifserver[$k]\n" if defined $ifserver[$k];
+	}
 	for my $i ( 0 .. $#l3_obj){
-		if ($l3_obj[$i]->{'table'} ne 'subnet'){
+		if ($l3_obj[$i]->{'table'} eq 'server'){
 			my $orig_id=$l3_obj[$i]->{'id'};
 			my $obj_id=$l3_obj[$i]->{'newid'};
 			splice my @interfacelist;
@@ -192,7 +213,7 @@ sub l3_lines {
 			my $options=$l3_obj[$i]->{'options'};
 			if ($options=~/vboxhost:([0-9]*),/ ){
 				my $hostid=$1;
-				my $host=$hostid*2+1;
+				my $host=$hostid*4+1;
 				for my $j ( 0 .. $#l3_obj){
 					if (($hostid == $l3_obj[$j]->{'id'}) && ($l3_obj[$j]->{'table'} eq 'server')){
 						push @l3_line, {
@@ -204,6 +225,41 @@ sub l3_lines {
 				}
 			}
 		}
+		if ($l3_obj[$i]->{'table'} eq 'switch'){
+			$obj_id=$l3_obj[$i]->{'newid'};
+			my $sw_id=$l3_obj[$i]->{'id'};
+			my $sw_newid=$l3_obj[$i]->{'newid'};
+			print "Found a switch $sw_id, $sw_newid\n";
+			db_dosql("SELECT to_tbl,to_id FROM l2connect WHERE from_tbl='switch' AND from_id=$sw_id");
+			while ((my $to_tbl,my $to_id)=db_getrow()){
+				my $to_srv=$to_id;
+				if ( $to_tbl eq 'interfaces'){
+					$to_srv=$ifserver[$to_id];
+					$to_tbl='server';
+				}
+				print "	switch is connected to $to_tbl interface:$to_id  server:$to_srv\n";
+				for my $j ( 0 .. $#l3_obj){
+					my $con_id=$l3_obj[$j]->{'id'};
+					my $con_tbl=$l3_obj[$j]->{'table'};
+					my $con_newid=$l3_obj[$j]->{'newid'};
+					my $con_srv=$con_id;
+					if($con_tbl eq 'interfaces'){
+						$con_srv=$ifserver[$con_id];
+						$con_tbl='server';
+					}
+					print "		test if on page: $to_tbl eq $con_tbl && $to_srv == $con_id\n";
+					if (($to_tbl eq $con_tbl) && ($to_srv == $con_id)){
+						print "			yes: push $sw_newid to $con_newid\n";
+						push @l3_line, {
+							from    => $sw_newid,
+							to	=> $con_newid,
+							type	=> 1
+						}
+					}
+				}
+			}
+		}
+
 	}
 }
 					

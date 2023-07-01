@@ -15,13 +15,18 @@ our $mainframe;
 my @l2i_switchlist;
 my $l2i_selectedswitch='';
 my $l2i_addswitch='';
+my $l2i_addswitchid=-1;
 my $l2i_qtyports=16;
 my @l2i_connect;
 my @l2i_switchports;
+my @l2i_allswitchports;
 my @l2i_setif;
+my @l2i_setsw;
+my @l2i_disco;
+		
 my $l2i_buttonsettext='';
 
-sub l2i__add_a_switch {
+sub l2i_add_a_switch {
 	print "Add switch $l2i_addswitch\n";
 	if ($l2i_addswitch ne ''){
 		db_dosql("DELETE FROM switch WHERE name='$l2i_addswitch'");
@@ -30,32 +35,93 @@ sub l2i__add_a_switch {
 	l2input();
 }
 
-sub l2i__del_a_switch {
+sub l2i_del_a_switch {
 	print "Add switch $l2i_addswitch\n";
 	if ($l2i_addswitch ne ''){
 		db_dosql("DELETE FROM switch WHERE name='$l2i_addswitch'");
+		db_dosql("UPDATE interfaces SET switch=-1 WHERE switch=$l2i_addswitchid");
+		db_dosql("DELETE FROM l2connect WHERE from_tbl='switch' AND from_id=$l2i_addswitchid");
+		db_dosql("DELETE FROM l2connect WHERE to_tbl='switch' AND to_id=$l2i_addswitchid");
 	}
 	l2input();
 }
 
-sub l2i__reconnect{
+sub l2i_disconnect {
+	(my $switch, my $port)=@_;
+	db_dosql ("SELECT from_tbl,from_id,from_port,to_tbl,to_id,to_port FROM l2connect WHERE from_tbl='switch' AND from_id=$switch AND from_port=$port");
+	if ((my $from_tbl,my $from_id,my $from_port,my $to_tbl,my $to_id,my $to_port)=db_getrow()){
+		if ($to_tbl eq 'interfaces'){
+			db_dosql ("UPDATE interfaces SET switch=-1 WHERE id=$to_id");
+			db_dosql ("DELETE FROM l2connect WHERE from_id=$switch AND from_port=$port");
+		}
+		elsif ($to_tbl eq 'switch'){
+			db_dosql ("DELETE FROM l2connect WHERE from_id=$switch AND from_port=$port");
+			db_dosql ("DELETE FROM l2connect WHERE to_id=$switch AND to_port=$port");
+		}
+	}
+	db_dosql ("SELECT from_tbl,from_id,from_port,to_tbl,to_id,to_port FROM l2connect WHERE to_tbl='switch' AND to_id=$switch AND to_port=$port");
+	if ((my $from_tbl,my $from_id,my $from_port,my $to_tbl,my $to_id,my $to_port)=db_getrow()){
+		db_dosql ("DELETE FROM l2connect WHERE from_id=$switch AND from_port=$port");
+		db_dosql ("DELETE FROM l2connect WHERE to_id=$switch AND to_port=$port");
+	}
+		
+}
+
+sub l2i_reconnect{
 
 	print "reconnect @_\n";
+	for my $i (0 .. $l2i_qtyports) {
+		print "Switch $l2i_addswitch connect port $i to interface $l2i_setif[$i]\n";
+		if (defined $l2i_setif[$i]){
+			if ($l2i_setif[$i] ne ''){
+				(my $ifid,my $server,my $ip, my @mac)=split (':',$l2i_setif[$i]);
+				l2i_disconnect($l2i_addswitchid,$i);
+				db_dosql "UPDATE interfaces SET switch=$l2i_addswitchid WHERE id=$ifid";
+				db_dosql "INSERT INTO l2connect (from_tbl,from_id,from_port,to_tbl,to_id,to_port) VALUES ('switch',$l2i_addswitchid,$i,'interfaces',$ifid,0)";
+			}
+		}
+	}
+	for my $i (0 .. $l2i_qtyports) {
+		print "Switch $l2i_addswitch connect port $i to switchport  $l2i_setsw[$i]\n";
+		if (defined $l2i_setsw[$i]){
+			if ($l2i_setsw[$i] ne ''){
+				(my $sw2,my $name,my $port)=split (':',$l2i_setsw[$i]);
+				$port=~s/port //;
+				l2i_disconnect($l2i_addswitchid,$i);
+				l2i_disconnect($sw2,$port);
+				db_dosql "INSERT INTO l2connect (from_tbl,from_id,from_port,to_tbl,to_id,to_port) VALUES ('switch',$l2i_addswitchid,$i,'switch',$sw2,$port)";
+			}
+		}
+	}
+	for my $i (0 .. $l2i_qtyports) {
+		if ($l2i_disco[$i]>0){
+			print "Disconnect port $i\n";
+			l2i_disconnect($l2i_addswitchid,$i);
+		}
+	}
 	
 
 }
 	
 
 sub l2input {
+	print "l2input with switch=$l2i_addswitch\n";
+	$l2i_addswitchid=-1;
+	if (defined $l2i_addswitch){
+		if ($l2i_addswitch ne ''){
+			db_dosql("SELECT id FROM switch WHERE name='$l2i_addswitch'");
+			($l2i_addswitchid)=db_getrow();
+		}
+	}
+	splice @l2i_setif;
+	splice @l2i_setsw;
 	$Message='';
 	$main_frame->destroy if Tk::Exists($main_frame);
-	debug ($DEB_FRAME,"12 Create main_frame for manage pages");
 	$main_frame=$main_window->Frame(
 		#-height      => 0.8*$main_window_height,
 		#-width       => $main_window_width
 	)->pack(-side =>'top');
 	my $switchframe=$main_frame->Frame()->pack(-side =>'left');
-	#my $switchlistbox=$switchframe->Scrolled("Listbox", -scrollbars=>'e',-width=>28,-height=>20)->pack(-side=>'top');
 	my $portframe = $main_frame->Scrolled("Frame",-scrollbars=>'e',-height=>400)->pack(-side =>'right');
 	my $sth=db_dosql("SELECT name FROM switch");
 	my $i=0;
@@ -75,9 +141,9 @@ sub l2input {
 	$switchframe->Entry ( -width=>32,-textvariable=>\$l2i_addswitch)->pack(-side=>'top');
 
 	my $buttoswitchframe=$switchframe->Frame()->pack(-side=>'top');
-	$buttoswitchframe->Button ( -width=>10,-text=>'Set qty ports',-command=>sub{ l2i__add_a_switch();})->pack(-side=>'left');
-	$buttoswitchframe->Button ( -width=>10,-text=>'Add switch',   -command=>sub{ l2i__add_a_switch();})->pack(-side=>'left');
-	$buttoswitchframe->Button ( -width=>10,-text=>'Delete',       -command=>sub{ l2i__del_a_switch();})->pack(-side=>'left');
+	$buttoswitchframe->Button ( -width=>10,-text=>'Set qty ports',-command=>sub{ l2i_add_a_switch();})->pack(-side=>'left');
+	$buttoswitchframe->Button ( -width=>10,-text=>'Add switch',   -command=>sub{ l2i_add_a_switch();})->pack(-side=>'left');
+	$buttoswitchframe->Button ( -width=>10,-text=>'Delete',       -command=>sub{ l2i_del_a_switch();})->pack(-side=>'left');
 
 	my $sth=db_dosql("SELECT id,ports FROM switch WHERE name='$l2i_addswitch'");
 	(my $switchid,$l2i_qtyports)=db_getrow();
@@ -92,12 +158,26 @@ sub l2input {
 	}
 	my @freeif;
 	splice @freeif;
-	$sth=db_dosql("SELECT id,macid,ip,host FROM interfaces WHERE switch=-1");
+	push @freeif,'';
+	$sth=db_dosql("SELECT id,macid,ip,host FROM interfaces");
 	while ((my $id,my $macid,my $ip,my $host)= db_getrow()){
 		my $server=' ';
 		if (defined $hostnames[$host]){$server=$hostnames[$host];}
 		push @freeif,"$id:$server:$ip:$macid";
 	}
+	my @tmp=sort { (split(/:/,$a))[1] cmp (split(/:/,$b))[1]} @freeif;
+	@freeif=@tmp;
+	splice @l2i_allswitchports;
+	push @l2i_allswitchports,'';
+	db_dosql("SELECT id,name,ports FROM switch");
+	while ((my $id, my $switch, my $ports)=db_getrow()){
+		for my $i (0 .. $ports) {
+			push @l2i_allswitchports,"$id:$switch:port $i";
+		}
+	}
+	#
+	# "from" is always a switchport. "to" is either an interface or a switchport
+	#
 	$sth=db_dosql("SELECT from_port,to_tbl,to_id,to_port FROM l2connect WHERE from_tbl='switch' AND from_id=$switchid");
 	while ((my $from_port,my $to_tbl,my $to_id,my $to_port)= db_getrow()){
 		if ($to_tbl eq 'switch'){
@@ -113,23 +193,55 @@ sub l2input {
 			$l2i_connect[$to_port]="switch:$from_id:$from_port";
 		}
 	}
+	for my $i (0 .. $#l2i_connect){
+		(my $type, my $id, my $port)=split (':',$l2i_connect[$i]);
+		if ($type eq 'interfaces'){
+			db_dosql ("SELECT host,ip FROM interfaces WHERE id=$id");
+			if ((my $host,my $ip)=db_getrow()){
+				db_dosql ("SELECT name FROM server WHERE id=$host");
+				(my $name)=db_getrow();
+				$name=$ip unless defined $name;
+				$l2i_connect[$i]="$name:$type:$ip:$port";
+			}
+		}
+		elsif ($type eq 'switch'){
+			db_dosql ("SELECT name FROM switch WHERE id=$id");
+			if ((my $name)=db_getrow()){
+				$l2i_connect[$i]="switch:$name port:$port";
+			}
+		}
+	}
 	my $portbuttonframe=$portframe->Frame()->pack(-side=>'top');
+	$portbuttonframe->Label ( -text=>'Switch:')->pack(-side=>'left');
+	$portbuttonframe->Label ( -textvariable=>\$l2i_addswitch,-justify => 'left', -width=>50)->pack(-side=>'left');
 	$portbuttonframe->Button (
-		-text=>'(re)connect all changes',
-		-command=>sub {print "reconnect\n";}
-	)->pack(-side=>'top');
+		-text=>'(re/dis)connect all changes',
+		-command=>sub {l2i_reconnect();}
+	)->pack(-side=>'right');
 	for my $i (0 .. $l2i_qtyports) {
 		my $perportframe=$portframe->Frame()->pack(-side=>'top');
 		$perportframe->Label (-text=>"Port $i",-width=>10)->pack(-side=>'left');
-		$perportframe->Label (-text=>$l2i_connect[$i],-width=>50)->pack(-side=>'left');
-		my $selifdrop=$perportframe->JBrowseEntry(
+		$perportframe->Label (-text=>$l2i_connect[$i],-width=>50)->pack(-side=>'left');		# current connection
+		my $selifdrop=$perportframe->JBrowseEntry(						# New interface to connect
 			-variable => \$l2i_setif[$i],
 			-width=>25,
 			-choices => \@freeif,
 			-height=>10,
 			-browsecmd => sub {
 				$l2i_buttonsettext="Connect port $i on switch $l2i_addswitch to ${\$l2i_setif[$i]}";
-			} )->pack(-side=>'right');
+			}
+		)->pack(-side=>'left');
+		my $selswdrop=$perportframe->JBrowseEntry(						# New interface to connect
+			-variable => \$l2i_setsw[$i],
+			-width=>25,
+			-choices => \@l2i_allswitchports,
+			-height=>10,
+			-browsecmd => sub {
+				print "connect to switchport $l2i_setsw[$i]";
+			}
+		)->pack(-side=>'left');
+		$l2i_disco[$i]=0;
+		$perportframe->Checkbutton(-text => 'Disconnect', -variable => \$l2i_disco[$i], -width=>10)->pack(-side=>'left');
 		
 	}
 
