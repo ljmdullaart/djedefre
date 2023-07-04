@@ -526,6 +526,26 @@ sub nw_show_info_create {
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Button ( -width=>10,-text=>'Delete', -command=>sub {$Message='';nw_delete_object($name,$id,$table);nw_frame_canvas_redo() })->pack(-side=>'left');
 	}
+	elsif ($table eq 'switch'){
+		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+		$local_frame->Label ( -anchor => 'w',-width=>40,-text=>'Switch information')->pack(-side=>'left');
+		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'ID')->pack(-side=>'left');
+		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$id)->pack(-side=>'right');
+		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+		$local_frame->Button ( -width=>10,-text=>'Name', -command=>sub {$Message='';nw_set_name($name,$id,$table);})->pack(-side=>'left');
+		$local_frame->Entry ( -width=>30,-textvariable=>\$name)->pack(-side=>'right');
+		my @arr=@{$objects[$objidx]->{'connected'}};
+		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+		$local_frame->Label ( -anchor => 'w',-width=>40,-text=>'Connections')->pack(-side=>'left');
+		for (@arr){
+			(my $port,my $to_tbl,my $toname)=split ':';
+			$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+			$local_frame->Label ( -anchor => 'w',-width=>20,-text=>"port $port")->pack(-side=>'left');
+			$local_frame->Label ( -anchor => 'w',-width=>20,-text=>$toname)->pack(-side=>'right');
+		}
+			
+	}
 }
 
 sub nw_set_type {
