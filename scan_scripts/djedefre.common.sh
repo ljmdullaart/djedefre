@@ -62,7 +62,6 @@ parse_config (){
 		if [ "$var" != "" ] ; then logfile="$var" ; fi
 	fi
 }
-echo -n 'start '
 parse_config '/etc/djedefre.config'
 parse_config '/etc/djedefre.conf'
 parse_config '/opt/djedefre/etc/djedefre.config'
@@ -76,7 +75,6 @@ parse_config "$HOME/.djedefre.conf"
 parse_config 'djedefre.config'
 parse_config 'djedefre.conf'
 
-echo -n 'parsed '
 networkdefinitions=''
 if [ -f /etc/network.definitions ] ; then networkdefinitions=/etc/network.definitions ; fi
 if [ -f /opt/djedefre/etc/network.definitions ] ; then networkdefinitions=/opt/djedefre/etc/network.definitions ; fi
@@ -85,7 +83,6 @@ if [ -f /var/local/etc/network.definitions ] ; then networkdefinitions=/var/loca
 if [ -f ~/.network.definitions ] ; then networkdefinitions=~/.network.definitions ; fi
 if [ -f network.definitions ] ; then networkdefinitions=network.definitions ; fi
 
-echo -n ' networkdef '
 ignore_subnet=none
 if [ -f ignore_subnet ] ; then
         ignore_subnet=ignore_subnet
@@ -97,7 +94,6 @@ elif [ -f database/ignore_subnet ] ; then
         ignore_subnet=database/ignore_subnet
 fi
 
-echo -n ' ignoresubnet '
 ignores=/tmp/djedefre.ignores
 touch $ignores
 
@@ -108,7 +104,6 @@ if [ -f $ignore_subnet ] ; then
 	grep -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' $ignore_subnet  >$ignores
 fi
 
-echo -n ' ignores '
 #  _                   _             
 # | | ___   __ _  __ _(_)_ __   __ _ 
 # | |/ _ \ / _` |/ _` | | '_ \ / _` |
