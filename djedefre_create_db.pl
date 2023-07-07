@@ -148,7 +148,7 @@ $db->do($schema) or die $db->errstr;
 $schema="
 create table if not exists l2connect (
 	id         integer primary key autoincrement,
-	name       string,
+	vlan       string,
 	from_tbl   string,
 	from_id    integer,
 	from_port  integer,

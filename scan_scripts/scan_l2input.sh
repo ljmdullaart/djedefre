@@ -28,7 +28,7 @@ for switch in $(cat $tmp) ; do
 	if ssh $switch mca-dump > $tmp1 2>/dev/null ; then
 		if grep "model_display" $tmp1  | grep -q 'US' ; then
 			cat  $tmp1 |
-			   jq -r '.port_table[] | "\(.port_idx) \(.mac_table[].mac)"' |
+			   jq -r '.port_table[] | "\(.port_idx) \(.mac_table[].mac)  \(.mac_table[].vlan)"' |
 			   sed "s/^/$switch /"
 			echo "UPDATE switch SET switch='switch' WHERE name='$switch'" |
 			   sqlite3  -separator ' ' "$database"
@@ -37,14 +37,14 @@ for switch in $(cat $tmp) ; do
 			cat  $tmp1  |
 			   jq '.vap_table[]' | sed -n 's/",//;s/.*"mac": "//p' |
 			   cat -n  |
-			   sed "s/^/$switch /"
+			   sed "s/^/$switch /;s/$/ 0/"
 			echo "UPDATE switch SET switch='accesspoint' WHERE name='$switch'" |
 			   sqlite3  -separator ' ' "$database"
 		fi
 	fi
 done | sed 's/\t/ /g' | sort -u  > $tmp2
 
-cat $tmp2 | while read switch port mac devtype ; do
+cat $tmp2 | while read switch port mac vlan ; do
 	ifid=$(echo "SELECT id FROM interfaces WHERE macid='$mac'"  | sqlite3  -separator ' ' "$database" | head -1)
 	hostid=$(echo "SELECT host FROM interfaces WHERE macid='$mac'"  | sqlite3  -separator ' ' "$database" | head -1)
 	if [ "$hostid" != '' ] ; then
@@ -52,15 +52,24 @@ cat $tmp2 | while read switch port mac devtype ; do
 	else
 		hostname=unknown
 	fi
+	if [ "$vlan" = "" ] ; then
+		vlan=0
+	fi
 	switchid=$(echo "SELECT id FROM switch WHERE name='$switch'" | sqlite3  -separator ' ' "$database")
 	switchname=$(echo "SELECT name FROM switch WHERE name='$switch'" | sqlite3  -separator ' ' "$database")
 	qport=$(grep "$switch *$port " $tmp2 | wc -l)
 	if [ $qport -eq  1 ] ; then
 		if [ "$ifid" != '' ] ; then
+			ovlan=$(echo "SELECT vlan FROM l2connect WHERE to_tbl='interfaces' AND to_id=$ifid" | sqlite3 "$database")
+			if [ "$ovlan" != "" ] ; then
+				if [ "$vlan" = 0 ] ; then
+					vlan=$ovlan
+				fi
+			fi
 			echo "DELETE FROM l2connect WHERE to_tbl='interfaces' AND to_id=$ifid" | sqlite3 "$database"
 			echo "INSERT INTO l2connect 
-				(from_tbl,from_id,from_port,to_tbl,to_id,to_port)
-				VALUES ('switch',$switchid,$port,'interfaces',$ifid,0)
+				(from_tbl,from_id,from_port,to_tbl,to_id,to_port,vlan)
+				VALUES ('switch',$switchid,$port,'interfaces',$ifid,0,$vlan)
 			" | sqlite3 "$database"
 		fi
 	else

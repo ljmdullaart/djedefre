@@ -101,6 +101,7 @@ sub l3_objects {
 			ports	=> $ports,
 			table	=> 'switch'
 		};
+		my $newid   =$id*4+2;
 	}
 	if ($l3_showpage eq 'top'){
 		$sql = 'SELECT id,name,xcoord,ycoord,type,interfaces,status,options,ostype,os,processor,memory FROM server';
@@ -183,7 +184,6 @@ sub l3_objects {
 			my $sth = db_dosql($sql);
 			while ((my $to_tbl,my $to_id,my $from_port) = db_getrow()){
 				my $name;
-				print @hostnames;
 				if ($to_tbl eq 'interfaces'){
 					 $name=$hostnames[$to_id];
 				}
@@ -192,7 +192,6 @@ sub l3_objects {
 				}
 				else { $name='';}
 				$name='' unless defined $name;
-				print "switch connect $from_port:$to_tbl:$name\n";
 				push @{$l3_obj[$i]{connected}}, "$from_port:$to_tbl:$name";
 			}
 			my $sql = "SELECT from_tbl,from_id,to_port FROM l2connect WHERE to_tbl='switch' AND to_id=$id ORDER BY to_port";
@@ -297,7 +296,23 @@ sub l3_lines {
 							from    => $sw_newid,
 							to	=> $con_newid,
 							type	=> 1
-						}
+						};
+					}
+				}
+			}
+			db_dosql("SELECT from_tbl,from_id FROM l2connect WHERE to_tbl='switch' AND to_id=$sw_id");
+			while ((my $from_tbl,my $from_id)=db_getrow()){
+				for my $j ( 0 .. $#l3_obj){
+					my $con_id=$l3_obj[$j]->{'id'};
+					my $con_tbl=$l3_obj[$j]->{'table'};
+					my $con_newid=$l3_obj[$j]->{'newid'};
+					my $con_srv=$con_id;
+					if (($from_tbl eq $con_tbl) && ($from_id == $con_id)){
+						push @l3_line, {
+							from    => $sw_newid,
+							to	=> $con_newid,
+							type	=> 1
+						};
 					}
 				}
 			}
