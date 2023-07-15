@@ -28,9 +28,13 @@ my @l2i_vlans;
 my $l2i_buttonsettext='';
 
 sub l2i_add_a_switch {
+	(my $type)=@_;
 	if ($l2i_addswitch ne ''){
 		if(db_dosql("DELETE FROM switch WHERE name='$l2i_addswitch'")>0){print "l2i_add_a_switch sql error\n";}
                 if(db_dosql("INSERT INTO switch (name,ports) VALUES ('$l2i_addswitch',$l2i_qtyports)")>0){print "l2i_add_a_switch sql error\n";}
+	}
+	if (defined $type){
+		db_dosql("UPDATE switch SET switch='$type' WHERE name='$l2i_addswitch'");
 	}
 	l2input();
 }
@@ -73,6 +77,8 @@ sub l2i_reconnect{
 			if ($l2i_setif[$i] ne ''){
 				(my $ifid,my $server,my $ip, my @mac)=split (':',$l2i_setif[$i]);
 				l2i_disconnect($l2i_addswitchid,$i);
+				$l2i_vlans[$i]=1 unless defined $l2i_vlans[$i];
+				if ($l2i_vlans[$i] eq ''){ $l2i_vlans[$i]=1; }
 				db_dosql "UPDATE interfaces SET switch=$l2i_addswitchid WHERE id=$ifid";
 				db_dosql "INSERT INTO l2connect (vlan,from_tbl,from_id,from_port,to_tbl,to_id,to_port) VALUES ($l2i_vlans[$i],'switch',$l2i_addswitchid,$i,'interfaces',$ifid,0)";
 			}
@@ -85,6 +91,8 @@ sub l2i_reconnect{
 				$port=~s/port //;
 				l2i_disconnect($l2i_addswitchid,$i);
 				l2i_disconnect($sw2,$port);
+				$l2i_vlans[$i]=1 unless defined $l2i_vlans[$i];
+				if ($l2i_vlans[$i] eq ''){ $l2i_vlans[$i]=1; }
 				db_dosql "INSERT INTO l2connect (vlan,from_tbl,from_id,from_port,to_tbl,to_id,to_port) VALUES ($l2i_vlans[$i],'switch',$l2i_addswitchid,$i,'switch',$sw2,$port)";
 			}
 		}
@@ -141,9 +149,11 @@ sub l2input {
 	$switchframe->Entry ( -width=>32,-textvariable=>\$l2i_addswitch)->pack(-side=>'top');
 
 	my $buttoswitchframe=$switchframe->Frame()->pack(-side=>'top');
-	$buttoswitchframe->Button ( -width=>10,-text=>'Set qty ports',-command=>sub{ l2i_add_a_switch();})->pack(-side=>'left');
-	$buttoswitchframe->Button ( -width=>10,-text=>'Add switch',   -command=>sub{ l2i_add_a_switch();})->pack(-side=>'left');
-	$buttoswitchframe->Button ( -width=>10,-text=>'Delete',       -command=>sub{ l2i_del_a_switch();})->pack(-side=>'left');
+	$buttoswitchframe->Button ( -width=>15,-text=>'Add switch',      -command=>sub{ l2i_add_a_switch('switch');})->pack(-side=>'left');
+	$buttoswitchframe->Button ( -width=>15,-text=>'Add Accesspoint', -command=>sub{ l2i_add_a_switch('accesspoint');})->pack(-side=>'left');
+	my $buttoswitchframe=$switchframe->Frame()->pack(-side=>'top');
+	$buttoswitchframe->Button ( -width=>15,-text=>'Delete',          -command=>sub{ l2i_del_a_switch();})->pack(-side=>'left');
+	$buttoswitchframe->Button ( -width=>15,-text=>'Set qty ports',   -command=>sub{ l2i_add_a_switch();})->pack(-side=>'left');
 
 	my $sth=db_dosql("SELECT id,ports FROM switch WHERE name='$l2i_addswitch'");
 	(my $switchid,$l2i_qtyports)=db_getrow();
