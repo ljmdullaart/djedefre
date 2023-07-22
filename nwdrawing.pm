@@ -14,6 +14,9 @@ use File::Slurper qw/ read_text /;
 use File::HomeDir;
 use Data::Dumper;
 
+our %config;
+our @colors ;
+
 require selector;
 
 my $NW_DEBUG=1;
@@ -40,18 +43,22 @@ my $nw_cbname=\&dump;
 my $nw_cbmerge=\&dump;
 my $nw_cbdelete=\&dump;	# delete completely
 my $nw_cbpage=\&dump;
+my $nw_cbcolor=\&dump;
+
 
 our @pagelist;
 our @realpagelist;
 
 sub nw_callback {
 	(my $type, my $func)=@_;
-	if ($type eq 'move'){ $nw_cbmove=$func; }
-	elsif ($type eq 'type'){ $nw_cbtype=$func; }
-	elsif ($type eq 'name'){ $nw_cbname=$func; }
+	if (0==1) {}
+	elsif ($type eq 'color'){ $nw_cbcolor=$func; }
 	elsif ($type eq 'delete'){ $nw_cbdelete=$func; }
 	elsif ($type eq 'merge'){ $nw_cbmerge=$func; }
+	elsif ($type eq 'move'){ $nw_cbmove=$func; }
+	elsif ($type eq 'name'){ $nw_cbname=$func; }
 	elsif ($type eq 'page'){ $nw_cbpage=$func; }
+	elsif ($type eq 'type'){ $nw_cbtype=$func; }
 }
 
 
@@ -248,8 +255,8 @@ sub nw_drawlines {
 			}
 		}
 		my $line;
-		if ($linetype==2){
-			$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => 'LightGrey',-width => 15,-tags=>['scalable']);
+		if ($linetype eq 'vbox'){
+			$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => $config{'line:color:vbox'},-width => 15,-tags=>['scalable']);
 			$lines[$i]->{'draw'}=$line;
 		}
 	}
@@ -273,8 +280,22 @@ sub nw_drawlines {
 			}
 		}
 		my $line;
-		if ($linetype==1){
-			$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-tags=>['scalable']);
+		my $linecolor;
+		if ($linetype =~/^([0-9][0-9]*)$/){
+			my $num=$1;
+			$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => $config{"line:color:vlan$num"},-tags=>['scalable']);
+			$lines[$i]->{'draw'}=$line;
+		}
+		elsif ($linetype=~/^vlan/){
+			$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => $config{"line:color:$linetype"},-tags=>['scalable']);
+			$lines[$i]->{'draw'}=$line;
+		}
+		elsif ($linetype=~/^vbox/){
+			$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => $config{"line:color:$linetype"},-tags=>['scalable']);
+			$lines[$i]->{'draw'}=$line;
+		}
+		else {
+			$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => $linetype,-tags=>['scalable']);
 			$lines[$i]->{'draw'}=$line;
 		}
 	}
@@ -416,6 +437,7 @@ sub nw_show_info_destroy {
 	
 sub nw_show_info_create {
 	(my $parent, my $objidx)=@_;
+	my @netcolors;
 	my $local_frame;
 	$nw_info_inside=$parent->Frame(-borderwidth => 3,-height=>1000 )->pack(-side=>'top' );
 	my $name=$objects[$objidx]->{'name'};
@@ -494,6 +516,8 @@ sub nw_show_info_create {
 		$local_frame->Label ( -anchor => 'w',-width=>40,-text=>'subnet information')->pack(-side=>'left');
 		my $nwaddress=$objects[$objidx]->{'nwaddress'};
 		my $cidr=$objects[$objidx]->{'cidr'};
+		$netcolors[$id]=$objects[$objidx]->{'color'};
+		$netcolors[$id]='black' unless defined $netcolors[$id];
 		my $subn;
 		my @pgarray=@{$objects[$objidx]{pages}};
 		if (defined $cidr){ $subn="$nwaddress / $cidr";}
@@ -523,6 +547,20 @@ sub nw_show_info_create {
 			title    	=> 'On pages'
 		});
 
+		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+		$local_frame->Label(-text=>'Color',-width=>20)->pack(-side=>'left');
+		my $this=$local_frame->Label(-text=>' ',-width=>5, -bg => $netcolors[$id])->pack(-side=>'left');
+		$local_frame->Optionmenu(
+			-variable       => \$netcolors[$id],
+			-options        => [@colors],
+			-width          => 30,
+			-command        => sub {
+				$this->configure(-bg=>$netcolors[$id]);
+				nw_color_net($name,$id,$table,$netcolors[$id]);
+			}
+		)->pack(-side=>'left');
+			
+			
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Button ( -width=>10,-text=>'Delete', -command=>sub {$Message='';nw_delete_object($name,$id,$table);nw_frame_canvas_redo() })->pack(-side=>'left');
 	}
@@ -564,6 +602,11 @@ sub nw_set_name {
 	$nw_cbname->($table,$id,$name);
 }
 
+sub nw_color_net {
+	(my $name,my $id,my $table,my $color)=@_;
+	$nw_cbcolor->($table,$id,$color);
+}
+	
 sub nw_delete_object {
 	(my $name,my $id,my $table)=@_;
 	$nw_cbdelete->($table,$id,$name);
