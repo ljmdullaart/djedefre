@@ -54,23 +54,25 @@ sub l3_objects {
 	}
 	my $sql;
 	if ($l3_showpage eq 'top'){
-		$sql = 'SELECT id,nwaddress,cidr,xcoord,ycoord,name FROM subnet';
+		$sql = 'SELECT id,nwaddress,cidr,xcoord,ycoord,name,options FROM subnet';
 	}
 	else {
-		$sql="	SELECT subnet.id,nwaddress,cidr,pages.xcoord,pages.ycoord,name
+		$sql="	SELECT subnet.id,nwaddress,cidr,pages.xcoord,pages.ycoord,name,subnet.options
 			FROM   subnet
 			INNER JOIN pages ON pages.item = subnet.id
 			WHERE  pages.page='$l3_showpage' AND pages.tbl='subnet'
 		";
 	}
 	my $sth = db_dosql($sql);
-	while((my $id,my $nwaddress, my $cidr,my $x,my $y,my $name) = db_getrow()){
+	while((my $id,my $nwaddress, my $cidr,my $x,my $y,my $name,my $options) = db_getrow()){
 		if ((!defined $x) || !(defined $y)){
 			nxttmploc();
 			$x=$nw_tmpx unless defined $x;
 			$y=$nw_tmpy unless defined $y
 		}
 		$name="$nwaddress/$cidr" unless defined $name;
+		my $color='black';
+		if ($options=~/color=([^;]*);/){$color=$1;}
 		push @l3_obj, {
 			newid	=> $id*4,
 			id	=> $id,
@@ -80,7 +82,8 @@ sub l3_objects {
 			name	=> $name,
 			nwaddress=> $nwaddress,
 			cidr	=> $cidr,
-			table	=> 'subnet'
+			table	=> 'subnet',
+			color	=> $color
 		}
 	}
 	$sql="  SELECT switch,switch.id,name,ports,pages.xcoord,pages.ycoord
@@ -238,19 +241,21 @@ sub l3_lines {
 					my $netw_id=$l3_obj[$j]->{'newid'};
 					my $netw=$l3_obj[$j]->{'nwaddress'};
 					my $cidr=$l3_obj[$j]->{'cidr'};
+					my $color=$l3_obj[$j]->{'color'};
+					$color='black' unless defined $color;
 					for (@interfacelist){
 						if (($_ eq 'Internet') && ($l3_obj[$j]->{'nwaddress'} eq 'Internet')){
 							push @l3_line, {
 								from	=> $netw_id,
 								to	=> $obj_id,
-								type	=> 1
+								type	=> $color
 							};
 						}
 						elsif (ipisinsubnet($_,"$netw/$cidr")==1){
 							push @l3_line, {
 								from	=> $netw_id,
 								to	=> $obj_id,
-								type	=> 1
+								type	=> $color
 							};
 						}
 					}
@@ -265,7 +270,7 @@ sub l3_lines {
 						push @l3_line, {
 							from	=> $obj_id,
 							to	=> $host,
-							type	=> 2
+							type	=> 'vbox'
 						}
 					}
 				}
@@ -275,9 +280,10 @@ sub l3_lines {
 			$obj_id=$l3_obj[$i]->{'newid'};
 			my $sw_id=$l3_obj[$i]->{'id'};
 			my $sw_newid=$l3_obj[$i]->{'newid'};
-			db_dosql("SELECT to_tbl,to_id FROM l2connect WHERE from_tbl='switch' AND from_id=$sw_id");
-			while ((my $to_tbl,my $to_id)=db_getrow()){
+			db_dosql("SELECT vlan,to_tbl,to_id FROM l2connect WHERE from_tbl='switch' AND from_id=$sw_id");
+			while ((my $vlan,my $to_tbl,my $to_id)=db_getrow()){
 				my $to_srv=$to_id;
+				$vlan=1 unless defined $vlan;
 				if ( $to_tbl eq 'interfaces'){
 					$to_srv=$ifserver[$to_id];
 					$to_tbl='server';
@@ -295,7 +301,7 @@ sub l3_lines {
 						push @l3_line, {
 							from    => $sw_newid,
 							to	=> $con_newid,
-							type	=> 1
+							type	=> $vlan
 						};
 					}
 				}
@@ -338,12 +344,13 @@ sub make_l3_plot {
 	$l3_plot_frame=$parent->Frame()->pack(-side=>'left');
 	l3_renew_content();
 	nw_frame($l3_plot_frame);
-	nw_callback ('move',\&l3_move);
-	nw_callback ('name',\&l3_name);
-	nw_callback ('type',\&l3_type);
+	nw_callback ('color',\&l3_color);
 	nw_callback ('delete',\&l3_delete);
 	nw_callback ('merge',\&l3_merge);
+	nw_callback ('move',\&l3_move);
+	nw_callback ('name',\&l3_name);
 	nw_callback ('page',\&l3_page);
+	nw_callback ('type',\&l3_type);
 	#nw_drawall();
 }
 sub cbdump {
@@ -359,6 +366,17 @@ sub l3_page {
 	l3_renew_content();
 }
 
+sub l3_color {
+	(my $table, my $id, my $color)=@_;
+	if ($table eq 'subnet'){
+		db_dosql("SELECT options FROM $table WHERE id=$id");
+		(my $opts)=db_getrow();
+		$opts=~s/color=[^;];//;
+		$opts="color=$color;$opts";
+		db_dosql("UPDATE $table SET options='$opts' WHERE id=$id");
+	}
+	l3_renew_content();
+}
 sub l3_type {
 	(my $table, my $id, my $type)=@_;
 	if ($table eq 'server'){
