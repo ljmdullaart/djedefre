@@ -51,6 +51,8 @@ is installed.
 - Make sure that there is a directory
 .fixed database
 and create it if it is not there
+- Create the database with 
+.fixed perl djedefre_create_db.pl
 - start the GUI with
 .fixed ./dedefre.pl &
 
@@ -60,47 +62,55 @@ You will be greeted with a cartouche depicting the hieroglyphs for Djedefre with
 
 The buttons give access to functionality:
 
-- List network provides several lists (servers, subnets, interfaces)
-- Plot network provides a drawing of the network
-- Options tell Djedefre to do or change something
+- "Listings" provides several lists (servers, subnets, interfaces)
+- "Manage pages" allows you to create pages with network drawing and determine what should be on those pages
+- "Layer 2 input" provides a way to add input for the layer-2 connections
+- Options provides settings for different items
+- "View page" has a selection list of pages that can be viewed. 
 
-At this point, when you press the "Plot network", you will get an empty drawing.
+At this point, when you select the page "top", you will get an empty drawing.
 
 .h2 Start scanning
 
 To get some information into the database, scan-scripts are used. These scan-scripts can be 
-launched from the "Options" page. Although it is possible to launch the scripts in any
-sequence you like, some scripts rely on information in the database. For example: the "subnet"
-scan scans all the subnets in the database. If there are no subnets, nothing is scanned.
+found in the directory 
+.fixed scan_scripts.
 
-The best start would be to scab the "local system". This launches the script
+The best start would be to scan the local system. Launch the script
 .fixed scan_local_system.sh
 in the
 .fixed scan_scripts
 directory in a separate
 .fixed xterm
-window. 
+window with:
 
-When the scan is finished, the plot page will show the local system and the subnets that it 
+.pre
+bash scan-scripts/scan_local_system.sh database/djedefre.pl 
+.pre
+
+When the scan is finished, the plot page "top" will show the local system and the subnets that it 
 is connected to.
 
 .img djedefre_localsys.xcf
 
 With the left mouse button, you can pick-up the server and the subnets and place them anywhere
-on the canvas that you like.
+on the canvas that you like. When a server or subnet is selected, an info-window opens on the right
+displaying some information about the selected item.
 
 .img djedefre_localsys2.xcf
 
-As there are now subnets in the database, a scan of the subnets is possible. Select "subnet" 
-under Scan scripts in the Options page. Again, an 
-.fixed xterm
-window opens, and when it is finished, the plot will look something like this:
+As there are now subnets in the database, a scan of the subnets is possible. 
+Run the script
+.fixed  scan_subnet.sh with:
+
+.pre
+bash scan-scripts/scan_subnet.sh database/djedefre.pl 
+.pre
+
 
 .img djedefre_subnet.xcf
 
-Servers are placed in neat little rows and can be placed anywhere on the canvas, again with the left mouse button.
-With the right mouse button, a detail window opens that allows you to change the type, change the name or merge servers together.
-It is also possible to delete the server or do a port scan on it. 
+
 
 .img djedefre_srvdet.xcf
 
@@ -226,20 +236,3 @@ to determine where the break-out to the Internet is. The last IP address
 that is in the database table "interfaces" is considered as belonging to the 
 server that has the interface to the Internet.
 
-.h3 database_integrity
-
-Does a number of integrity checks on the database:
-
-- In
-.fixednospace interfaces
-, the
-.fixed subnet
-field is filled, pointing to the subnet ID that it is connected to.
-- Unlikely IP addresses are deleted: 225.x.x.x, 127.x.x.x and IP addresses that are not numeric
-x.x.x.x
-- Interfaces without host are deleted.
-- If there is a list of subnets in the file
-.fixednospace ignore_subnet
-, these subnets and the interfaces on these subnets are deleted.
-- Duplicate IP addresses are deleted from the database (this feature is debatable and may be removed later)
-- Servers without interfaces are deleted.

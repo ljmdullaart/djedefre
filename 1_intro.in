@@ -17,3 +17,6 @@ first started.
 
 Some time ago, there was a tool called Cheops, that automated network discovery and gave 
 a nice drawing of the network. Cheops is now abandonware. Djedefre was pharaoh after Cheops.
+The main difference between Cheops and Djedefre is, that Djedefre assumes that the 
+network is managed. This means that there is access to at least some servers, routers 
+and switches.

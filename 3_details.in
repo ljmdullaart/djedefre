@@ -9,7 +9,7 @@ and is used by the GUI to show the network.
 
 The conceptual model (MCD) of the database is shown below.
 
-.img mcd.dia
+.img HALF  mcd.dia
 
 
 .h3 Subnet
