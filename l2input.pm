@@ -240,7 +240,10 @@ sub l2input {
 	$porttitleframe->Label (-text=>'VLAN',-width=>25)->pack(-side=>'left');
 	$porttitleframe->Label (-text=>'  ',-width=>12)->pack(-side=>'left');
 	for my $i (0 .. $l2i_qtyports) {
-		my $perportframe=$portframe->Frame()->pack(-side=>'top');
+		my $perportframe=$portframe->Frame(
+			-borderwidth	=>2,
+			-relief		=>'groove'
+		)->pack(-side=>'top');
 		$perportframe->Label (-text=>"Port $i",-width=>10)->pack(-side=>'left');
 		$perportframe->Label (-text=>$l2i_connect[$i],-width=>50)->pack(-side=>'left');		# current connection
 		my $selifdrop=$perportframe->JBrowseEntry(						# New interface to connect
