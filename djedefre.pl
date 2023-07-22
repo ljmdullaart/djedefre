@@ -13,6 +13,7 @@ use File::Spec;
 use File::Slurp;
 use File::Slurper qw/ read_text /;
 use File::HomeDir;
+use Module::Refresh;
 
 use FindBin;
 use lib $FindBin::Bin;
@@ -27,11 +28,13 @@ require managepages;
 require logopage;
 require listings;
 require l3drawing;
+require options;
 
 our %config;
+our @colors = qw/Black red DarkGreen NavyBlue gray Red Green Blue lightgrey  Yellow Cyan Magenta White Brown DarkSeaGreen DarkViolet/;
 $config{'topdir'}='.';
 $config{'image_directory'}="$config{'topdir'}/images";	 		# image-files. like logo's
-$config{'scan_directory'} ="$config{'topdir'}/scan_scripts";		# Scab scripts for networ discovery and status
+$config{'scan_directory'} ="$config{'topdir'}/scan_scripts";		# Scan scripts for networ discovery and status
 $config{'dbfile'}="$config{'topdir'}/database/djedefre.db";		# Database file where the network is stored
 my $canvas_xsize=1500;					# default x-size of the network drawning; configurable
 my $canvas_ysize=1200;					# default y-size of the network drawning; configurable
@@ -69,6 +72,7 @@ my $ConfigFileSpec;
 
 connect_db($config{'dbfile'});
 
+options_read();
 fill_pagelist();
 #
 #	Main Window
@@ -111,14 +115,21 @@ $button_frame->Button(-text => "Manage pages",-width=>20, -command =>sub {
 $button_frame->Button(-text => "Layer 2 input",-width=>20, -command =>sub {
 	$Message='';
 	$main_frame->destroy if Tk::Exists($main_frame);
-	debug ($DEB_FRAME,"21 Create main_frame");
 	$main_frame=$main_window->Frame(
 		-height      => 1005,
 		-width       => 1505
 	)->pack(-side =>'top');
 	l2input()
 })->pack(-side=>'left');
-debug ($DEB_FRAME,"22 Create button_frame_pgsel");
+$button_frame->Button(-text => "Options",-width=>20, -command =>sub {
+	$Message='';
+	$main_frame->destroy if Tk::Exists($main_frame);
+	$main_frame=$main_window->Frame(
+		-height      => 1005,
+		-width       => 1505
+	)->pack(-side =>'top');
+	options_window()
+})->pack(-side=>'left');
 my $button_frame_pgsel=$button_frame->Frame()->pack(-side=>'right');
 make_pageselectframe($button_frame_pgsel);
 
