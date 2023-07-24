@@ -107,17 +107,17 @@ sub l3_objects {
 		my $newid   =$id*4+2;
 	}
 	if ($l3_showpage eq 'top'){
-		$sql = 'SELECT id,name,xcoord,ycoord,type,interfaces,status,options,ostype,os,processor,memory FROM server';
+		$sql = 'SELECT id,name,xcoord,ycoord,type,interfaces,status,options,ostype,os,processor,memory,devicetype FROM server';
 	}
 	else {
-		$sql="	SELECT  server.id,name,pages.xcoord,pages.ycoord,type,interfaces,status,options,ostype,os,processor,memory
+		$sql="	SELECT  server.id,name,pages.xcoord,pages.ycoord,type,interfaces,status,options,ostype,os,processor,memory,devicetype
 			FROM   server
 			INNER JOIN pages ON pages.item = server.id
 			WHERE  pages.page='$l3_showpage' AND pages.tbl='server'
 		";
 	}
 	my $sth = db_dosql($sql);
-	while((my $id,my $name, my $x,my $y,my $type,my $interfaces,my $status,my $options,my $ostype,my $os,my $processor,my $memory) = db_getrow()){
+	while((my $id,my $name, my $x,my $y,my $type,my $interfaces,my $status,my $options,my $ostype,my $os,my $processor,my $memory,my $devicetype) = db_getrow()){
 		$type='server' unless defined $type;
 		if ((!defined $x) || !(defined $y)){
 			nxttmploc();
@@ -138,7 +138,8 @@ sub l3_objects {
 			ostype	=> $ostype,
 			os	=> $os,
 			processor => $processor,
-			memory	=> $memory
+			memory	=> $memory,
+			devicetype => $devicetype
 		};
 		my $max=$#l3_obj;
 		push @{$l3_obj[$max]{pages}},' ';
@@ -346,6 +347,7 @@ sub make_l3_plot {
 	nw_frame($l3_plot_frame);
 	nw_callback ('color',\&l3_color);
 	nw_callback ('delete',\&l3_delete);
+	nw_callback ('devicetype',\&l3_devicetype);
 	nw_callback ('merge',\&l3_merge);
 	nw_callback ('move',\&l3_move);
 	nw_callback ('name',\&l3_name);
@@ -377,6 +379,14 @@ sub l3_color {
 	}
 	l3_renew_content();
 }
+sub l3_devicetype {
+	(my $table, my $id, my $type)=@_;
+	if ($table eq 'server'){
+		#my $sql = "UPDATE $table SET type='$type' WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
+		db_dosql("UPDATE $table SET devicetype='$type' WHERE id=$id");
+	}
+	l3_renew_content();
+}
 sub l3_type {
 	(my $table, my $id, my $type)=@_;
 	if ($table eq 'server'){
@@ -392,6 +402,15 @@ sub l3_name {
 }
 sub l3_delete {
 	(my $table, my $id, my $name)=@_;
+	if ($table eq 'server'){
+		db_dosql("SELECT id FROM interfaces WHERE host=$id");
+		my @ifids; splice @ifids;
+		while ((my $ifid)=db_getrow()){ push @ifids,$ifid; }
+		for my $ifid (@ifids){
+			db_dosql("DELETE FROM l2connect WHERE to_tbl='interfaces' and to_id=$ifid");
+		}
+		db_dosql("DELETE FROM interfaces WHERE host=$id");
+	}
 	my $sql = "DELETE FROM $table WHERE id=$id";  db_dosql($sql);
 	l3_renew_content();
 }
