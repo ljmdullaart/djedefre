@@ -31,7 +31,8 @@ require l3drawing;
 require options;
 
 our %config;
-our @colors = qw/Black red DarkGreen NavyBlue gray Red Green Blue lightgrey  Yellow Cyan Magenta White Brown DarkSeaGreen DarkViolet/;
+our @colors =    qw/Black  DarkGreen Blue   SlateBlue4 tan4 cyan4   firebrick4 Orange Green NavyBlue lightgrey red gray Yellow Cyan Magenta White Brown DarkSeaGreen DarkViolet/;
+our @devicetypes=qw/server nas      network    pc     phone printer tablet/;
 $config{'topdir'}='.';
 $config{'image_directory'}="$config{'topdir'}/images";	 		# image-files. like logo's
 $config{'scan_directory'} ="$config{'topdir'}/scan_scripts";		# Scan scripts for networ discovery and status

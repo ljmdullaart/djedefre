@@ -13,9 +13,11 @@ use File::Slurp;
 use File::Slurper qw/ read_text /;
 use File::HomeDir;
 use Data::Dumper;
+use List::Util qw(first);
 
 our %config;
 our @colors ;
+our @devicetypes;
 
 require selector;
 
@@ -39,6 +41,7 @@ sub dump {
 
 my $nw_cbmove=\&dump;
 my $nw_cbtype=\&dump;
+my $nw_cbdevicetype=\&dump;
 my $nw_cbname=\&dump;
 my $nw_cbmerge=\&dump;
 my $nw_cbdelete=\&dump;	# delete completely
@@ -54,6 +57,7 @@ sub nw_callback {
 	if (0==1) {}
 	elsif ($type eq 'color'){ $nw_cbcolor=$func; }
 	elsif ($type eq 'delete'){ $nw_cbdelete=$func; }
+	elsif ($type eq 'devicetype'){ $nw_cbdevicetype=$func; }
 	elsif ($type eq 'merge'){ $nw_cbmerge=$func; }
 	elsif ($type eq 'move'){ $nw_cbmove=$func; }
 	elsif ($type eq 'name'){ $nw_cbname=$func; }
@@ -318,9 +322,13 @@ sub nw_drawobjects {
 		my $y=$objects[$i]->{'y'};
 		my $logo=$objects[$i]->{'logo'};
 		my $name=$objects[$i]->{'name'};
+		my $devicetype=$objects[$i]->{'devicetype'};
+		$devicetype='server' unless defined $devicetype;
+		my $devidx= first { $devicetypes[$_] eq $devicetype} 0..$#devicetypes;
+		my $txtcol=$colors[$devidx];
 		my $objectdraw=$nw_canvas->createImage($x, $y, -image=>$nw_logos{$logo} ,-tags=>['draggable','scalable']);
 		$objects[$i]->{'draw'}=$objectdraw;
-		$objects[$i]->{'namedraw'}=$nw_canvas->createText($x,$y+25,-text=>$name,-tags=>['scalable']);
+		$objects[$i]->{'namedraw'}=$nw_canvas->createText($x,$y+25,-text=>$name,-fill=>$txtcol,-tags=>['scalable']);
 		
 	}
 }
@@ -424,6 +432,7 @@ sub nw_drag_end {
 #    
 # our @realpagelist;
 my $typechoice;
+my $devicetypechoice;
 
 sub nw_show_info_redo {
 	my ($obj)=@_;
@@ -460,22 +469,52 @@ sub nw_show_info_create {
 		else {
 			$options='';
 		}
+
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'ID')->pack(-side=>'left');
 		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$id)->pack(-side=>'right');
+
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Button ( -width=>10,-text=>'Name', -command=>sub {$Message='';nw_set_name($name,$id,$table);nw_frame_canvas_redo() })->pack(-side=>'left');
 		$local_frame->Entry ( -width=>30,-textvariable=>\$name)->pack(-side=>'right');
+
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Type')->pack(-side=>'left');
 		$typechoice=$objects[$objidx]->{'logo'};
-		$local_frame->JBrowseEntry(-variable => \$typechoice, -width=>25, -choices => \@logolist, -height=>10, -browsecmd => sub { nw_set_type($typechoice,$id,$table,$drawid);nw_frame_canvas_redo() } )->pack(-side=>'right');
+		$local_frame->JBrowseEntry(
+			-variable => \$typechoice,
+			-width=>25,
+			-choices => \@logolist,
+			-height=>10,
+			-browsecmd => sub {
+				nw_set_type($typechoice,$id,$table,$drawid);
+				nw_frame_canvas_redo();
+			}
+		)->pack(-side=>'right');
+
+		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Devicetype')->pack(-side=>'left');
+		$devicetypechoice=$objects[$objidx]->{'devicetype'};
+		$devicetypechoice='server' unless defined $devicetypechoice;
+		$local_frame->JBrowseEntry(
+			-variable => \$devicetypechoice, 
+			-width=>25, 
+			-choices => \@devicetypes,
+			-height=>10,
+			-browsecmd => sub {
+				nw_set_devicetype($devicetypechoice,$id,$table,$drawid);
+				nw_frame_canvas_redo();
+			}
+		)->pack(-side=>'right');
+
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'OS type')->pack(-side=>'left');
 		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$ostype)->pack(-side=>'right');
+
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'OS')->pack(-side=>'left');
 		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$os,-wraplength =>200)->pack(-side=>'right');
+
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Interfaces')->pack(-side=>'left');
 		my @ifarray=@{$objects[$objidx]{interfaces}};
@@ -486,9 +525,11 @@ sub nw_show_info_create {
 			$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'  ')->pack(-side=>'left');
 			$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$ifarray[$i])->pack(-side=>'right');
 		}
+
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Processor')->pack(-side=>'left');
 		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$processor,-wraplength =>200)->pack(-side=>'right');
+
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Memory')->pack(-side=>'left');
 		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$memory)->pack(-side=>'right');
@@ -496,6 +537,7 @@ sub nw_show_info_create {
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Button ( -width=>10,-text=>'Merge', -command=>sub {$Message='';nw_set_merge($name,$id,$table,$merge);nw_frame_canvas_redo() })->pack(-side=>'left');
 		$local_frame->Entry ( -width=>30,-textvariable=>\$merge)->pack(-side=>'right');
+
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		selector({
 			options  	=> \@realpagelist,
@@ -512,6 +554,7 @@ sub nw_show_info_create {
 		
 	}
 	elsif ($table eq 'subnet'){
+
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>40,-text=>'subnet information')->pack(-side=>'left');
 		my $nwaddress=$objects[$objidx]->{'nwaddress'};
@@ -522,16 +565,19 @@ sub nw_show_info_create {
 		my @pgarray=@{$objects[$objidx]{pages}};
 		if (defined $cidr){ $subn="$nwaddress / $cidr";}
 		else {  $subn=$nwaddress; }		# for example: nwaddress=Internet
+
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'ID')->pack(-side=>'left');
 		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$id)->pack(-side=>'right');
+
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Button ( -width=>10,-text=>'Name', -command=>sub {$Message='';nw_set_name($name,$id,$table);})->pack(-side=>'left');
 		$local_frame->Entry ( -width=>30,-textvariable=>\$name)->pack(-side=>'right');
-		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Type')->pack(-side=>'left');
 		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>'Subnet')->pack(-side=>'right');
+
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Subnet')->pack(-side=>'left');
 		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$subn)->pack(-side=>'right');
@@ -567,13 +613,16 @@ sub nw_show_info_create {
 	elsif ($table eq 'switch'){
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>40,-text=>'Switch information')->pack(-side=>'left');
+
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'ID')->pack(-side=>'left');
 		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$id)->pack(-side=>'right');
+
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Button ( -width=>10,-text=>'Name', -command=>sub {$Message='';nw_set_name($name,$id,$table);})->pack(-side=>'left');
 		$local_frame->Entry ( -width=>30,-textvariable=>\$name)->pack(-side=>'right');
 		my @arr=@{$objects[$objidx]->{'connected'}};
+
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>40,-text=>'Connections')->pack(-side=>'left');
 		for (@arr){
@@ -589,7 +638,11 @@ sub nw_show_info_create {
 sub nw_set_type {
 	(my $tpchoice,my $id,my $table,my $drawid)=@_;
 	$nw_cbtype->($table,$id,$tpchoice);
+}
 
+sub nw_set_devicetype {
+	(my $tpchoice,my $id,my $table,my $drawid)=@_;
+	$nw_cbdevicetype->($table,$id,$tpchoice);
 }
 
 sub nw_set_merge {

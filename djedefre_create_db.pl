@@ -103,6 +103,7 @@ create table if not exists server (
 	ostype     string,
 	os         string,
 	processor  string,
+	devicetype	string,
 	memory     string
 	);
 ";
