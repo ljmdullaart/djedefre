@@ -1,3 +1,4 @@
+use Data::Dumper;
 
 #  _ _     _   _                 
 # | (_)___| |_(_)_ __   __ _ ___ 
@@ -57,19 +58,20 @@ sub listing_servers{
 	$ar[0]= 5;	# $id;
 	$ar[1]=20;	# $name;
 	$ar[2]=20;	# $type;
-	$ar[3]=20;	# $ostype;
-	$ar[4]=40;	# $os;
-	$ar[5]=35;	# $processor;
-	$ar[6]=15;	# $memory;
+	$ar[3]=15;	# $devicetype;
+	$ar[4]=15;	# $ostype;
+	$ar[5]=40;	# $os;
+	$ar[6]=35;	# $processor;
+	$ar[7]=15;	# $memory;
 	ml_colwidth(@ar);
 	splice @ar;
-	@ar=('ID','Name','Type','OS Type','OS','Processor','Memory');
+	@ar=('ID','Name','Type','Devicetype','OS Type','OS','Processor','Memory');
 	ml_colhead(@ar);
-	ml_create();
-	my $sql = 'SELECT id,name,type,ostype,os,processor,memory FROM server ORDER BY id';
+	my $sql = 'SELECT id,name,type,devicetype,ostype,os,processor,memory FROM server ORDER BY id';
 	my $sth =  db_dosql($sql);
-	while((my $id,my $name,my $type,my $ostype,my $os,my $processor,my $memory) = db_getrow()){
+	while((my $id,my $name,my $type,my $devicetype,my $ostype,my $os,my $processor,my $memory) = db_getrow()){
 		$type='server' unless defined $type;
+		$devicetype='server' unless defined $devicetype;
 		$ostype='' unless defined $ostype;
 		$os='' unless defined $os;
 		$os=~s/ADVENTERPRISE/ADVENTPR/;
@@ -78,12 +80,14 @@ sub listing_servers{
 		$ar[0]= $id;
 		$ar[1]= $name;
 		$ar[2]= $type;
-		$ar[3]= $ostype;
-		$ar[4]= $os;
-		$ar[5]= $processor;
-		$ar[6]= $memory;
+		$ar[3]= $devicetype;
+		$ar[4]= $ostype;
+		$ar[5]= $os;
+		$ar[6]= $processor;
+		$ar[7]= $memory;
 		ml_insert(@ar);
 	}
+	ml_create();
 		
 }
 
@@ -106,7 +110,6 @@ sub listing_subnets {
 	$ar[2]='Network';
 	$ar[3]='CIDR';
 	ml_colhead(@ar);
-	ml_create();
 	my $sql = 'SELECT id,nwaddress,cidr,xcoord,ycoord,name FROM subnet ORDER BY id';
 	my $sth =  db_dosql($sql);
 	while((my $id,my $nwaddress,my $cidr, my $x,my $y,my $name) = db_getrow()){
@@ -118,6 +121,7 @@ sub listing_subnets {
 		$ar[3]=$cidr;
 		ml_insert(@ar);
 	}
+	ml_create();
 }
 		
 my $listing_interfaces_frame;
@@ -129,21 +133,18 @@ sub listing_interfaces {
 	$listing_server_frame->Label(-text=>"Interfaces")->pack();
 	ml_new($listing_server_frame,$main_window_height*0.07,'top');
 	my @ar;
-	$ar[0]= 5;	# $id;
-	$ar[1]=20;	# $net;
-	$ar[2]=20;	# $host;
-	$ar[3]=20;	# $ip;
-	$ar[4]=20;	# $hostname;
-	$ar[5]=20;	# $mac;
+	$ar[0]= 5;
+	$ar[1]=20;
+	$ar[2]=20;
+	$ar[3]=20;
+	$ar[4]=20;
 	ml_colwidth(@ar);
 	$ar[0]='ID';
 	$ar[1]='MAC';
 	$ar[2]='IP';
 	$ar[3]='Name';
 	$ar[4]='Net';
-	$ar[5]='Host';
 	ml_colhead(@ar);
-	ml_create();
 	my @servers=[];
 	my $sql = 'SELECT id,name FROM server';
 	my $sth =  db_dosql($sql);
@@ -153,6 +154,7 @@ sub listing_interfaces {
 	my @subnets=[];
 	my $sql = 'SELECT id,nwaddress,cidr FROM subnet';
 	my $sth =  db_dosql($sql);
+	$subnets[0]=' ';
 	while((my $id,my $nwaddress,my $cidr) = db_getrow()){
 		$subnets[$id]="$nwaddress/$cidr";
 	}
@@ -160,22 +162,22 @@ sub listing_interfaces {
 	my $sth =  db_dosql($sql);
 	while((my $id,my $macid,my $ip,my $hostname,my $host,my $subnet,my $access) = db_getrow()){
 		my $name=$servers[$host];
-		$name=$hostname unless defined $name;
+		$name=' ' unless defined $name;
 		my $snet;
 		if (defined $subnets[$subnet]){
 			$snet=$subnets[$subnet];
 		}
 		else {
-			$snet='';
+			$snet=' ';
 		}
 		$ar[0]=$id;
 		$ar[1]=$macid;
 		$ar[2]=$ip;
 		$ar[3]=$name;
 		$ar[4]=$snet;
-		$ar[5]=$hostname;
 		ml_insert(@ar);
 	}
+	ml_create();
 }
 
 1;
