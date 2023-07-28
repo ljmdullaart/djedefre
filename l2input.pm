@@ -99,8 +99,8 @@ sub l2i_reconnect{
 	}
 	for my $i (0 .. $l2i_qtyports) {
 		if (defined $l2i_vlans[$i]){
-			db_dosql ("UPDATE l2connect SET vlan=$l2i_vlans[$i] WHERE from_id=$l2i_addswitchid AND from_port=$i");
-			db_dosql ("UPDATE l2connect SET vlan=$l2i_vlans[$i] WHERE to_id=$l2i_addswitchid AND to_port=$i AND to_tbl='switch'");
+			db_dosql ("UPDATE l2connect SET vlan='$l2i_vlans[$i]' WHERE from_id=$l2i_addswitchid AND from_port=$i");
+			db_dosql ("UPDATE l2connect SET vlan='$l2i_vlans[$i]' WHERE to_id=$l2i_addswitchid AND to_port=$i AND to_tbl='switch'");
 		}
 	}
 	for my $i (0 .. $l2i_qtyports) {
@@ -209,7 +209,8 @@ sub l2input {
 	}
 	for my $i (0 .. $#l2i_connect){
 		(my $type, my $id, my $port)=split (':',$l2i_connect[$i]);
-		if ($type eq 'interfaces'){
+		if (!($id=~/[0-9]+/)){}
+		elsif ($type eq 'interfaces'){
 			db_dosql ("SELECT host,ip FROM interfaces WHERE id=$id");
 			if ((my $host,my $ip)=db_getrow()){
 				db_dosql ("SELECT name FROM server WHERE id=$host");
