@@ -1,8 +1,8 @@
 #!/bin/bash
-#!/bin/bash
 
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 tmp=/tmp/scan_status.$$
+NOW=$(date -Iseconds | sed 's/+.*//')
 
 if [ -f $SCRIPTPATH/djedefre.common.sh ] ; then
 	. $SCRIPTPATH/djedefre.common.sh
@@ -27,6 +27,7 @@ for server_id in $(cat $tmp) ; do
 		echo "Script for $name" >> status.check.log
 		if bash "$SCRIPTPATH/status_$name.sh" ; then
 			sqlite3 "$database" "UPDATE server SET status='up' WHERE id=$server_id"
+			sqlite3 "$database" "UPDATE server SET last_up='$NOW' WHERE id=$server_id"
 			echo "    $name up" >> status.check.log
 		else
 			sqlite3 "$database" "UPDATE server SET status='down' WHERE id=$server_id"
@@ -42,9 +43,13 @@ for server_id in $(cat $tmp) ; do
 			if ping -c1 -W1 -q $interface ; then
 				up=1
 			fi
+			if nmap -Pn $interface -p 2968 | grep open ; then
+				up=1
+			fi
 		done
 		if [ $up = 1 ] ; then
 			sqlite3 "$database" "UPDATE server SET status='up' WHERE id=$server_id"
+			sqlite3 "$database" "UPDATE server SET last_up='$NOW' WHERE id=$server_id"
 			echo "    $name up" >> status.check.log
 		else
 			sqlite3 "$database" "UPDATE server SET status='down' WHERE id=$server_id"
