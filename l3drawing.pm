@@ -223,6 +223,11 @@ sub l3_lines {
 	splice @l3_line;
 
 	my @ifserver;
+	my %colorization;
+	db_dosql("SELECT item,value FROM config WHERE attribute='line:color'");
+	while ((my $item,my $value)=db_getrow()){
+		$colorization{$item}=$value;
+	}
 	db_dosql("SELECT id,host FROM interfaces");
 	while ((my $id, my $host)=db_getrow()){
 		$ifserver[$id]=$host;
@@ -281,8 +286,19 @@ sub l3_lines {
 			$obj_id=$l3_obj[$i]->{'newid'};
 			my $sw_id=$l3_obj[$i]->{'id'};
 			my $sw_newid=$l3_obj[$i]->{'newid'};
+			my $sw_name=$l3_obj[$i]->{'name'};
+			my $vlancolor;
 			db_dosql("SELECT vlan,to_tbl,to_id FROM l2connect WHERE from_tbl='switch' AND from_id=$sw_id");
 			while ((my $vlan,my $to_tbl,my $to_id)=db_getrow()){
+				if (defined $colorization{$vlan}){
+					$vlancolor=$colorization{$vlan};
+				}
+				elsif (defined $colorization{"vlan$vlan"}){
+					$vlancolor=$colorization{"vlan$vlan"};
+				}
+				else {
+					$vlancolor='black';
+				}
 				my $to_srv=$to_id;
 				$vlan=1 unless defined $vlan;
 				if ( $to_tbl eq 'interfaces'){
@@ -302,7 +318,7 @@ sub l3_lines {
 						push @l3_line, {
 							from    => $sw_newid,
 							to	=> $con_newid,
-							type	=> $vlan
+							type	=> $vlancolor
 						};
 					}
 				}
@@ -318,7 +334,7 @@ sub l3_lines {
 						push @l3_line, {
 							from    => $sw_newid,
 							to	=> $con_newid,
-							type	=> 1
+							type	=> $vlancolor
 						};
 					}
 				}
@@ -373,7 +389,9 @@ sub l3_color {
 	if ($table eq 'subnet'){
 		db_dosql("SELECT options FROM $table WHERE id=$id");
 		(my $opts)=db_getrow();
-		$opts=~s/color=[^;];//;
+		while ($opts=~/color=[^;]*;/){
+			$opts=~s/color=[^;]*;//;
+		}
 		$opts="color=$color;$opts";
 		db_dosql("UPDATE $table SET options='$opts' WHERE id=$id");
 	}

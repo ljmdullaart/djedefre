@@ -35,6 +35,11 @@ sub nw_debug {
 #	call-back
 #######################################################################
 
+#	all callbacks get as arguments:
+#	- table (server, subnet, switch)
+#	- id
+#	- rest are function specific arguments.
+
 sub dump {
 	print Dumper(@_);
 }
@@ -259,31 +264,6 @@ sub nw_drawlines {
 			}
 		}
 		my $line;
-		if ($linetype eq 'vbox'){
-			$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => $config{'line:color:vbox'},-width => 15,-tags=>['scalable']);
-			$lines[$i]->{'draw'}=$line;
-		}
-	}
-	for my $i (0 .. $#lines){
-		my $obj1=$lines[$i]->{'from'};
-		my $obj2=$lines[$i]->{'to'};
-		my $linetype=$lines[$i]->{'type'};
-		my $obj1_idx=$refobj[$obj1];
-		my $obj2_idx=$refobj[$obj2];
-		(my $x1,my $x2,my $y1,my $y2)=(0,0,0,0);
-		for my $j (0 .. $#objects){
-			if (defined $objects[$j]->{'newid'} ){
-				if ($objects[$j]->{'newid'}==$obj1){
-					$x1=$objects[$j]->{'x'};
-					$y1=$objects[$j]->{'y'};
-				}
-				if ($objects[$j]->{'newid'}==$obj2){
-					$x2=$objects[$j]->{'x'};
-					$y2=$objects[$j]->{'y'};
-				}
-			}
-		}
-		my $line;
 		my $linecolor;
 		if ($linetype =~/^([0-9][0-9]*)$/){
 			my $num=$1;
@@ -295,6 +275,10 @@ sub nw_drawlines {
 			$lines[$i]->{'draw'}=$line;
 		}
 		elsif ($linetype=~/^vbox/){
+			$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => $config{"line:color:$linetype"},-width => 15,-tags=>['scalable']);
+			$lines[$i]->{'draw'}=$line;
+		}
+		elsif (defined ($config{"line:color:$linetype"})){
 			$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => $config{"line:color:$linetype"},-tags=>['scalable']);
 			$lines[$i]->{'draw'}=$line;
 		}
