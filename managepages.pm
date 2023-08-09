@@ -22,6 +22,7 @@ sub fill_pagelist {
 	splice @realpagelist;
 	push @pagelist,'none';
 	push @pagelist,'top';
+	push @pagelist,'l2-top';
         my $sql = "SELECT DISTINCT item FROM config WHERE attribute LIKE 'page:%'";
         my $sth =  db_dosql($sql);
         while((my $p) = db_getrow()){

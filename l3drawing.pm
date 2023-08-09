@@ -87,11 +87,13 @@ sub l3_objects {
 			color	=> $color
 		}
 	}
+	
 	$sql="  SELECT switch,switch.id,name,ports,pages.xcoord,pages.ycoord
 		FROM switch
 		INNER JOIN pages ON pages.item = switch.id
 		WHERE  pages.page='$l3_showpage' AND pages.tbl='switch'
 	";
+	
 	db_dosql($sql);
 	while ((my $switchtype,my $id,my $name,my $ports,my $x,my $y)=db_getrow()){
 		$switchtype='switch' unless defined $switchtype;

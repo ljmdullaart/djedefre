@@ -17,7 +17,7 @@ cd /home/ljm/src/djedefre/scan_scripts
 
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
-for script in local_system subnet arp access type server dhcp  remote_system cisco dns dhcp arp  vbox  local_system internet  clean_if
+for script in local_system subnet arp access type server dhcp  remote_system cisco dns dhcp arp  vbox  local_system internet  clean_if l2input l2top
 do
 	bash $SCRIPTPATH/scan_$script.sh $dbfile
 	echo "$script done"
