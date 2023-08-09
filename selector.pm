@@ -62,24 +62,20 @@ sub selector {
 	$selector_selbox=$selector_mainframe->Scrolled("Listbox", -scrollbars=>'e',-width=>0.4*$width,-height=>$height)->pack(-side=>'right');
 	$selector_selbox->insert('end',@selector_selected);
 
-	$selector_selbox->bind('<<ListboxSelect>>' => sub {my @sel= $selector_selbox->curselection;$selector_selboxsel=@selector_selected[$sel[0]];print "Selected $selector_selboxsel\n";});
-	$selector_optbox->bind('<<ListboxSelect>>' => sub {my @opt= $selector_optbox->curselection;$selector_optboxsel=@selector_options[$opt[0]];print "Options $selector_optboxsel\n";});
+	$selector_selbox->bind('<<ListboxSelect>>' => sub {my @sel= $selector_selbox->curselection;$selector_selboxsel=@selector_selected[$sel[0]];});
+	$selector_optbox->bind('<<ListboxSelect>>' => sub {my @opt= $selector_optbox->curselection;$selector_optboxsel=@selector_options[$opt[0]];});
 
 }
 
 sub selector_add_action {
-print "selector_add_action\n";
 	my $exists=-1;
 	for my $a (@selector_selected) {
 		if ($a eq $selector_optboxsel){ $exists=1;}
-print "    found $a eq $selector_optboxsel\n";
 	}
 	if ($exists==-1){
 		push @selector_selected,$selector_optboxsel;
 		$selector_selbox->insert('end',$selector_optboxsel);
-print "    adding $selector_optboxsel to the box\n";
 	}
-print "    call selector_callback_function ('add',$selector_optboxsel)\n";
 	$selector_callback_function->('add',$selector_optboxsel);
 }
 sub selector_del_action{
