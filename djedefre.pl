@@ -40,6 +40,7 @@ $config{'dbfile'}="$config{'topdir'}/database/djedefre.db";		# Database file whe
 my $canvas_xsize=1500;					# default x-size of the network drawning; configurable
 my $canvas_ysize=1200;					# default y-size of the network drawning; configurable
 our $Message='';
+our $locked=0;
 my $last_message='Welcome';
 
 our $main_window;
@@ -47,6 +48,8 @@ our $main_window_height=500;
 our $main_window_width=500;
 our $main_frame;
 our $button_frame;
+
+
 
 
 my $DEB_FRAME=1;
@@ -62,6 +65,11 @@ sub debug {
 
 my $ConfigFileSpec;
 
+sub norepeat {
+	# do noting
+}
+
+our $repeat_sub=\&norepeat;
 
 #  __  __       _       
 # |  \/  | __ _(_)_ __  
@@ -73,7 +81,16 @@ my $ConfigFileSpec;
 
 connect_db($config{'dbfile'});
 
+db_dosql("SELECT value FROM config WHERE attribute='run:param' AND item='changed'");
+if ((my $val)=db_getrow()){
+	db_dosql("UPDATE config SET value='no' WHERE attribute='run:param' AND item='changed'");
+}
+else{
+	db_dosql("INSERT INTO config (attribute,item,value) values('run:param','changed','no')");
+}
+
 options_read();
+
 fill_pagelist();
 #
 #	Main Window
@@ -95,12 +112,7 @@ $main_frame=$main_window->Frame(
 )->pack(-side =>'top');
 $button_frame->Button(-text => "Listings",-width=>20, -command =>sub {
 	$Message='';
-	#$main_frame->destroy if Tk::Exists($main_frame);
-	#debug ($DEB_FRAME,"21 Create main_frame");
-	#$main_frame=$main_window->Frame(
-		#-height      => 1005,
-		#-width       => 1505
-	#)->pack(-side =>'top');
+	$repeat_sub=\&norepeat;
 	make_listing($main_frame);
 })->pack(-side=>'left');
 $button_frame->Button(-text => "Manage pages",-width=>20, -command =>sub {
@@ -111,6 +123,7 @@ $button_frame->Button(-text => "Manage pages",-width=>20, -command =>sub {
 		-height      => 1005,
 		-width       => 1505
 	)->pack(-side =>'top');
+	$repeat_sub=\&norepeat;
 	manage_pages()
 })->pack(-side=>'left');
 $button_frame->Button(-text => "Layer 2 input",-width=>20, -command =>sub {
@@ -120,6 +133,7 @@ $button_frame->Button(-text => "Layer 2 input",-width=>20, -command =>sub {
 		-height      => 1005,
 		-width       => 1505
 	)->pack(-side =>'top');
+	$repeat_sub=\&norepeat;
 	l2input()
 })->pack(-side=>'left');
 $button_frame->Button(-text => "Options",-width=>20, -command =>sub {
@@ -129,6 +143,7 @@ $button_frame->Button(-text => "Options",-width=>20, -command =>sub {
 		-height      => 1005,
 		-width       => 1505
 	)->pack(-side =>'top');
+	$repeat_sub=\&norepeat;
 	options_window()
 })->pack(-side=>'left');
 my $button_frame_pgsel=$button_frame->Frame()->pack(-side=>'right');
@@ -138,12 +153,15 @@ make_pageselectframe($button_frame_pgsel);
 my $image = $main_frame->Photo(-file => "$config{'image_directory'}/djedefre.gif");
 logoframe();
 
+
 sub repeat {
-	$main_window->after(1000,\&repeat);
-	$main_window_height=$main_window->height;
-	$main_window_width=$main_window->width;
+	if ($locked==0){
+		$main_window->after(60000,\&repeat);
+		$main_window_height=$main_window->height;
+		$main_window_width=$main_window->width;
+		&$repeat_sub;
+	}
 }
-$main_window->after(1000,\&repeat);
+$main_window->after(60000,\&repeat);
 
 MainLoop;
-# print "$_\n" for keys %INC;

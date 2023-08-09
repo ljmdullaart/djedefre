@@ -62,4 +62,5 @@ ip addr |
 		echo "   serverid=$serverid ip=$ip nnaddr=$nwaddr cidr=$mycidr"
 		add_subnet $nwaddr $mycidr
 		mycidr=24
+		sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 	done

@@ -40,7 +40,8 @@ for host in $(cat $tmp) ; do
 				existing=$(sqlite3  -separator ' ' "$database" "SELECT ip FROM interfaces WHERE ip='$ifip'")
 				if [ "$existing" = "" ] ; then
 					echo "        -> new interface: $ifip on $host"
-					sqlite3  -separator ' '  $database "INSERT INTO interfaces (ip,host,switch) VALUES ('$ifip',$host,-1)"
+					sqlite3  $database "INSERT INTO interfaces (ip,host,switch) VALUES ('$ifip',$host,-1)"
+					sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 				else
 					echo "        -> Claiming interface: $ifip on $host"
 					sqlite3  -separator ' '  $database "UPDATE interfaces SET host=$host WHERE  ip='$ifip'"
@@ -52,6 +53,7 @@ for host in $(cat $tmp) ; do
 					cidr=$(sed -n "s/^Network:.*$net\///p" $tmp2 | head -1) ;
 					echo "existing:$existing      net:$net     cidr:$cidr"
 					sqlite3  -separator ' '  $database "INSERT INTO subnet (nwaddress,cidr) VALUES ('$net',$cidr)"
+					sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 					cidr=''
 				else 
 					echo "        Existing subnet $existing for $net"
@@ -79,6 +81,7 @@ for h in $(cat $tmp) ; do
 		name=$(ssh $h sh version | sed -n 's/ uptime i.*//p')
 		echo "    $name"
 		sqlite3  -separator ' '  $database "UPDATE server SET name='$name' WHERE name='$h'"
+		sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 	fi
 done
 

@@ -239,8 +239,21 @@ sub manage_pages_add_action {
 }
 		
 
+my $selected_page='top';
+
+sub repeat_selected_page {
+	db_dosql("SELECT value FROM config WHERE attribute='run:param' AND item='changed'");
+	(my $changed)=db_getrow();
+	if ($changed eq 'yes'){
+		db_dosql("UPDATE config SET value='no' WHERE attribute='run:param' AND item='changed'");
+		display_selected_page($selected_page);
+	}
+}
+
 sub display_selected_page {	# What to do if a page was selected from the menubar
 	(my $pagename)=@_;
+	$selected_page=$pagename;
+	$repeat_sub=\&repeat_selected_page;
 	if ($pagename eq 'none'){ logoframe() ; }
 	elsif ($pagename eq 'top'){ display_top_page ; }
 	else {

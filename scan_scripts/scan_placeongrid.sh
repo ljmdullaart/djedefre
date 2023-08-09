@@ -76,5 +76,6 @@ cat $tmp |
 		sqlite3 $database "UPDATE pages SET ycoord=$y WHERE id=$id"
 	done
 
+sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 
 rm -f $tmp

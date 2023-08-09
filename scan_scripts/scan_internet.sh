@@ -1,4 +1,4 @@
-#host!/bin/bash
+#!/bin/bash
 
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 tmp=/tmp/scan_access.$$
@@ -22,6 +22,7 @@ if sqlite3 $database  'SELECT nwaddress FROM subnet' |grep Internet ; then
         echo "Internet is present"
 elif ping -c1 8.8.8.8 > /dev/null 2>/dev/null ; then
         sqlite3 $database  "INSERT INTO subnet (nwaddress,name) VALUES ('Internet','Internet')"
+	sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 else
         echo "No Internet."
 	exit 0
@@ -65,9 +66,9 @@ inethost=$(sqlite3 $database "SELECT host FROM interfaces WHERE ip='Internet'")
 
 if [ "$inetif" = "" ] ; then
 	sqlite3 $database  "INSERT INTO interfaces (host,subnet,ip,switch) VALUES ($lasthost,$inetnet,'Internet',-1)"
-#elif [ "$inethost" != "$lasthost" ] ; then
-	#sqlite3 $database  "INSERT INTO interfaces (host,subnet,ip) VALUES ($lasthost,$inetnet,'Internet')"
+	sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 else
 	sqlite3 $database "UPDATE interfaces SET host=$lasthost WHERE ip='Internet'"
+	sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 fi
 

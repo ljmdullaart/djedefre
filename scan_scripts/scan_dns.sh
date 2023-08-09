@@ -19,38 +19,6 @@ elif [ "$1" != '' ] ; then
 fi
 
 
-#CREATE TABLE subnet (
-#          id         integer primary key autoincrement,
-#          nwaddress  string,
-#          cidr       integer,
-#          xcoord     integer,
-#          ycoord     integer,
-#          name       string,
-#          options    string,
-#          access     string
-#        );
-#CREATE TABLE server (
-#          id         integer primary key autoincrement,
-#          name       string,
-#          xcoord     integer,
-#          ycoord     integer,
-#          type       string,
-#          interfaces string,
-#          access     string,
-#          status     string,
-#          last_up    integer,
-#          options    string
-#        );
-#
-##CREATE TABLE interfaces (
-#          id        integer primary key autoincrement,
-#          macid     string,
-#          ip        string,
-#          hostname  string
-#	   host      integer
-#          subnet    integer
-#        , access);
-#
 readarray -t interfaces < <(sqlite3 -separator ' ' $database 'SELECT id,ip FROM interfaces'          )
 readarray -t subnets    < <(sqlite3 -separator ' ' $database 'SELECT id,nwaddress,cidr FROM subnet'  )
 readarray -t servers    < <(sqlite3 -separator ' ' $database 'SELECT id,name FROM server'  )
@@ -61,6 +29,7 @@ for interface in "${interfaces[@]}" ; do
 	if host $ip > /dev/null 2>/dev/null ; then
 		hostname=$(host $ip | sed 's/.* //')
 		sqlite3  $database "UPDATE interfaces SET hostname='$hostname' WHERE id=$ifid"
+		sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 	fi
 done
 
@@ -70,6 +39,7 @@ for server in "${servers[@]}" ; do
 		if host $name > /dev/null 2>/dev/null ; then
 			hostname=$(host $name | sed 's/.* //')
 			sqlite3  $database "UPDATE server SET name='$hostname' WHERE id=$srvid"
+			sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 		fi
 	fi
 done

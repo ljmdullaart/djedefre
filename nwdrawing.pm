@@ -18,6 +18,7 @@ use List::Util qw(first);
 our %config;
 our @colors ;
 our @devicetypes;
+our $locked;
 
 require selector;
 
@@ -53,6 +54,7 @@ my $nw_cbdelete=\&dump;	# delete completely
 my $nw_cbpage=\&dump;
 my $nw_cbcolor=\&dump;
 
+my $last_info='';
 
 our @pagelist;
 our @realpagelist;
@@ -91,7 +93,12 @@ sub nw_frame {
 	nw_frame_canvas_create($nw_canvas_frame);
 	nw_drawlines();
 	nw_drawobjects();
-	$nw_info_frame->Label(-text=>'info', -width=>50)->pack();
+	if ($last_info eq ''){
+		$nw_info_frame->Label(-text=>'info', -width=>50)->pack();
+	}
+	else {
+		nw_show_info_redo($last_info)
+	}
 }
 #######################################################################
 # Package variables
@@ -343,6 +350,7 @@ my $dragindex;
 my $dragid;
 my $dragname;
 sub nw_drag_start {
+	$locked=1;
 	my $e = $nw_canvas->XEvent;
 	## get the screen position of the initial button press...
 	my ( $sx, $sy ) = ( $e->x, $e->y,,, );
@@ -403,6 +411,7 @@ sub nw_drag_end {
 	my $id=$objects[$dragobject]->{'id'};
 	$nw_cbmove->($table,$id,$cx,$cy);
 	nw_frame_canvas_redo;
+	$locked=0;
 }
 
 #        my $nw_info_frame;
@@ -431,11 +440,13 @@ sub nw_show_info_destroy {
 sub nw_show_info_create {
 	(my $parent, my $objidx)=@_;
 	my @netcolors;
+	$last_info=$objidx;
 	my $local_frame;
 	$nw_info_inside=$parent->Frame(-borderwidth => 3,-height=>1000 )->pack(-side=>'top' );
 	my $name=$objects[$objidx]->{'name'};
 	my $merge='';
 	my $table=$objects[$objidx]->{'table'};
+	$table='' unless defined $table;
 	my $type=$objects[$objidx]->{'logo'};
 	my $id=$objects[$objidx]->{'id'};
 	my $drawid=$objects[$objidx]->{'drawid'};

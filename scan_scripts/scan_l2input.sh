@@ -71,6 +71,7 @@ cat $tmp2 | while read switch port mac vlan ; do
 				(from_tbl,from_id,from_port,to_tbl,to_id,to_port,vlan)
 				VALUES ('switch',$switchid,$port,'interfaces',$ifid,0,$vlan)
 			" | sqlite3 "$database"
+			sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 		fi
 	else
 		echo "Switch $switchname port $port connected to $hostname"

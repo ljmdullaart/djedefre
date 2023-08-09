@@ -74,6 +74,7 @@ cat $tmp |
 				fi
 				if [ "$ntype" != "" ] ; then
 					sqlite3 "$database" "UPDATE server SET type='$ntype' WHERE id=$host"
+					sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 				fi
 	
 			fi

@@ -74,6 +74,7 @@ while read interface vboxhostid access ; do
 							else
 								prevopt=$(sqlite3 $database  "SELECT options FROM server WHERE id=$vboxid")
 								sqlite3 $database  "UPDATE server SET options='vboxhost:$vboxhostid,$prevopt' WHERE id=$vboxid"
+								sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 							fi
 						fi
 					#fi

@@ -51,6 +51,7 @@ sort -u $tmp | while read if id; do
 	if [ "$host" = "" ] ; then
 		add_server $if
 		sqlite3 "$database" "UPDATE interfaces SET host=$db_retval  WHERE ip='$if'"
+		sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 	fi
 	
 done

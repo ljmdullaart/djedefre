@@ -52,6 +52,7 @@ for interface in $(cat $tmp) ; do
 					echo "    add subnet $nwaddr $rcidr"
 					add_subnet $nwaddr $rcidr
 					echo "     $nwaddr $rcidr"
+					sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 				fi
 				rcidr=''
 			done
@@ -68,6 +69,7 @@ for interface in $(cat $tmp) ; do
 				echo "    add subnet $nwaddr $rcidr"
 				add_subnet $nwaddr $rcidr
 				echo "     $nwaddr $rcidr"
+				sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 			done
 	fi
 

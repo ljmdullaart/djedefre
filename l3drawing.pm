@@ -20,6 +20,7 @@
 
 my @l3_obj;
 our $l3_showpage='top';
+our $repeat_sub;
 
 
 my $nw_tmpx=100;

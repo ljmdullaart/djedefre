@@ -64,12 +64,14 @@ grep ssh $tmp |
 		if [ "$srvid" = "" ] ; then
 			if [ "$srvname" != "" ] ; then
 				add_server $srvname
+				sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 				srvid=$db_retval
 			fi
 		fi
 		if [ "$srvid" != "" ] ; then
 			for interface in $(cat $tmp2) ; do
 				add_if $interface $srvid
+				sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 			done
 		fi
 
@@ -87,6 +89,7 @@ cat $tmp | while read ifip ; do
 	add_server $newhost
 	srvid=$db_retval
 	add_if $ifip $srvid
+	sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 done
 
 # Try to name the hosts
@@ -96,6 +99,7 @@ cat $tmp | while read srvname ; do
 		newname=$(host $srvname |  sed 's/.* //;s/\..*//;s/.*NXDOMAIN.*//')
 		if [ "$newname" != "" ] ; then
 			sqlite3 "$database" "UPDATE server SET name='$newname' WHERE name='$srvname'"
+			sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 		fi
 	fi
 done
@@ -106,6 +110,7 @@ cat $tmp | while read srvid ; do
 	ifs=$(sqlite3 "$database" "SELECT ip FROM interfaces WHERE host=$srvid")
 	if [ "$ifs" = "" ] ; then
 		sqlite3 "$database" "DELETE FROM server WHERE id=$srvid"
+		sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 	fi
 done
 
