@@ -1,3 +1,7 @@
+
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+#INSTALL@ /opt/djedefre/listings.pm
+
 use Data::Dumper;
 
 #  _ _     _   _                 
@@ -30,6 +34,13 @@ sub make_listing {
 		)->pack(-side =>'bottom');
 		listing_servers($listing_listing_frame);
 	})->pack(-side=>'left');
+	$listing_button_frame->Button(-text => "Virtuals",-width=>20, -command =>sub {
+		$Message='';
+		$listing_listing_frame->destroy if Tk::Exists($listing_listing_frame);
+		$listing_listing_frame=$listing_frame->Frame(
+		)->pack(-side =>'bottom');
+		listing_virtual($listing_listing_frame);
+	})->pack(-side=>'left');
 	$listing_button_frame->Button(-text => "Subnets",-width=>20, -command =>sub {
 		$Message='';
 		$listing_listing_frame->destroy if Tk::Exists($listing_listing_frame);
@@ -47,6 +58,10 @@ sub make_listing {
 }
 
 my $listing_server_frame;
+sub list_sel_srv {
+	(my $id)=@_;
+	print "list_sel_srv: $id\n";
+}
 sub listing_servers{
 	(my $parent)=@_;
 	$listing_server_frame->destroy if Tk::Exists($listing_server_frame);
@@ -176,6 +191,44 @@ sub listing_interfaces {
 		$ar[3]=$name;
 		$ar[4]=$snet;
 		ml_insert(@ar);
+	}
+	ml_create();
+}
+
+sub listing_virtual {
+	(my $parent)=@_;
+	$listing_server_frame->destroy if Tk::Exists($listing_server_frame);
+	$listing_server_frame=$parent->Frame(
+	)->pack();
+	$listing_server_frame->Label(-text=>"Interfaces")->pack();
+	ml_new($listing_server_frame,$main_window_height*0.07,'top');
+	my @ar;
+	$ar[0]= 5;
+	$ar[1]=20;
+	$ar[2]=20;
+	ml_colwidth(@ar);
+	$ar[0]='ID';
+	$ar[1]='Virtual';
+	$ar[2]='Hypervisor';
+	ml_colhead(@ar);
+	my @servers=[];
+	my $sql = 'SELECT id,name FROM server';
+	my $sth =  db_dosql($sql);
+	while((my $id,my $name) = db_getrow()){
+		$servers[$id]=$name;
+	}
+	db_dosql("SELECT id,name,options FROM server WHERE options LIKE '%vboxhost%'");
+	while ((my $id, my $name, my $options)=db_getrow()){
+		my $host=-1;
+		if ($options=~/vboxhost:([^,]*)/){
+			$host=$1;
+		}
+		if ($host>-1){
+			$ar[0]=$id;
+			$ar[1]=$name;
+			$ar[2]=$servers[$host];
+			ml_insert(@ar);
+		}
 	}
 	ml_create();
 }
