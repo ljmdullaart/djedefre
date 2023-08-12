@@ -1,4 +1,6 @@
 #!/usr/bin/perl
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+#INSTALL@ /opt/djedefre/multilist.pm
   
 use strict;
 use warnings;
@@ -42,6 +44,11 @@ my $scroll;
 my $mlparent;
 my $mlfirst=0;
 
+sub ml_prt_cb {
+	(my $id)=@_;
+	print "Selected $id\n";
+}
+my $mlcallback=\&ml_prt_cb;
 
 sub scroll_listboxes {
 	my ($sb, $scrolled, $lbs, @args) = @_;
@@ -63,6 +70,7 @@ sub ml_new {
 	splice @colhead;
 	splice @mlcolval;
 	splice @mlcolumns;
+	$mlcallback=\&ml_prt_cb;
 }
 	
 
@@ -85,6 +93,11 @@ sub ml_colhead {
 		$colhead[$i]=$head[$i];
 		$qcol=$i;
 	}
+}
+
+sub ml_callback {
+	(my $cb)=@_;
+	$mlcallback=$cb;
 }
 
 sub ml_insert {
@@ -127,12 +140,12 @@ sub ml_create {
 		push @mlcolumns,$col;
 	}
 	foreach my $lstbx (@mlcolumns){
-		$lstbx->configure(-yscrollcommand => [ \&scroll_listboxes, $scroll,$lstbx, \@mlcolumns ])
+		$lstbx->configure(-yscrollcommand => [ \&scroll_listboxes, $scroll,$lstbx, \@mlcolumns ]);
+		$lstbx->bind('<<ListboxSelect>>' => sub {my $sel= $lstbx->curselection;my $id=$mlcolumns[0]->get($sel);$mlcallback->($id);});
 	}
 	$scroll->configure(-command => sub {
 		foreach my $list (@mlcolumns){
 			$list->yview(@_);
-			$list->bind('<<ListboxSelect>>' => sub {my $sel= $list->curselection;my $id=$mlcolumns[0]->get($sel);print "Selected $id\n";});
 		}
 	});
 	$scroll->pack(-side => 'right', -fill => 'y');
