@@ -1,4 +1,6 @@
 #!/usr/bin/perl
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+#INSTALL@ /opt/djedefre/djedefre
 use strict;
 
 use Tk;
@@ -18,17 +20,18 @@ use Module::Refresh;
 use FindBin;
 use lib $FindBin::Bin;
 use List::MoreUtils qw(first_index);
-require multilist;
-require selector;
-require nwdrawing;
-require standard;
+require config;
 require dje_db;
 require l2input;
-require managepages;
-require logopage;
-require listings;
 require l3drawing;
+require listings;
+require logopage;
+require managepages;
+require multilist;
+require nwdrawing;
 require options;
+require selector;
+require standard;
 
 our %config;
 our @colors =    qw/Black  DarkGreen Blue   SlateBlue4 tan4 cyan4   firebrick4 Orange Green NavyBlue lightgrey red gray Yellow Cyan Magenta White Brown DarkSeaGreen DarkViolet/;
@@ -36,7 +39,7 @@ our @devicetypes=qw/server nas      network    pc     phone printer tablet/;
 $config{'topdir'}='.';
 $config{'image_directory'}="$config{'topdir'}/images";	 		# image-files. like logo's
 $config{'scan_directory'} ="$config{'topdir'}/scan_scripts";		# Scan scripts for networ discovery and status
-$config{'dbfile'}="$config{'topdir'}/database/djedefre.db";		# Database file where the network is stored
+$config{'dbfile'}="$config{'topdir'}/djedefre/djedefre.db";		# Database file where the network is stored
 my $canvas_xsize=1500;					# default x-size of the network drawning; configurable
 my $canvas_ysize=1200;					# default y-size of the network drawning; configurable
 our $Message='';
@@ -64,6 +67,7 @@ sub debug {
 }
 
 my $ConfigFileSpec;
+config_get();
 
 sub norepeat {
 	# do noting
