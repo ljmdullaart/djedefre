@@ -1,4 +1,6 @@
 
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+#INSTALL@ /opt/djedefre/logopage.pm
 #  _                                            
 # | | ___   __ _  ___    _ __   __ _  __ _  ___ 
 # | |/ _ \ / _` |/ _ \  | '_ \ / _` |/ _` |/ _ \

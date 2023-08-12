@@ -1,4 +1,6 @@
 #!/usr/bin/perl
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+#INSTALL@ /opt/djedefre/standard.pm
 
 sub uniq {
     my %seen;

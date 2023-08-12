@@ -1,5 +1,7 @@
 #!/usr/bin/perl
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 
+#INSTALL@ /opt/djedefre/dje_db.pm
 use DBI;
 
 

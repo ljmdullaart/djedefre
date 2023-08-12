@@ -1,3 +1,5 @@
+#INSTALL@ /opt/djedefre/options.pm
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 #              _   _                 
 #   ___  _ __ | |_(_) ___  _ __  ___ 
 #  / _ \| '_ \| __| |/ _ \| '_ \/ __|

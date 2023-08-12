@@ -1,4 +1,6 @@
 
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+#INSTALL@ /opt/djedefre/l2input.pm
 
 #  _     ____    _                   _   
 # | |   |___ \  (_)_ __  _ __  _   _| |_ 

@@ -1,4 +1,5 @@
-
+#INSTALL@ /opt/djedefre/l3drawing.pm
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 #  _			     _____ 
 # | | __ _ _   _  ___ _ __  |___ / 
 # | |/ _` | | | |/ _ \ '__|   |_ \ 

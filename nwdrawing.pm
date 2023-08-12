@@ -1,4 +1,6 @@
 #!/usr/bin/perl
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+#INSTALL@ /opt/djedefre/nwdrawing.pm
 
 use strict;
 use warnings;

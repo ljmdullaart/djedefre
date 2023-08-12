@@ -1,4 +1,6 @@
 
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+#INSTALL@ /opt/djedefre/managepages.pm
 #                              
 #  _ __   __ _  __ _  ___  ___ 
 # | '_ \ / _` |/ _` |/ _ \/ __|
