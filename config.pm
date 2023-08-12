@@ -1,4 +1,6 @@
 #!/usr/bin/perl
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+#INSTALL@ /opt/djedefre/config.pm
 
 use File::Spec;
 use File::Slurp;
@@ -22,11 +24,13 @@ sub config_read {
 
 my $home=File::HomeDir->my_home;
 
-config_read('/etc/djedefre.rc');
-config_read('/var/lib/djedefre/djedefre.rc');
-config_read('/var/local/lib/djedefre/djedefre.rc');
-config_read("$home/.djedefre.rc");
-config_read(".djedefre.rc");
-config_read("djedefre.rc");
-
+sub config_get {
+	config_read('/etc/djedefre.rc');
+	config_read('/var/lib/djedefre/djedefre.rc');
+	config_read('/var/local/lib/djedefre/djedefre.rc');
+	config_read('/opt/djedefre/etc/djedefre.rc');
+	config_read("$home/.djedefre.rc");
+	config_read(".djedefre.rc");
+	config_read("djedefre.rc");
+}
 1;
