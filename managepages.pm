@@ -154,7 +154,7 @@ sub manage_pages {
 }
 
 sub mgpg_selector_callback {
-	(my $func, my $arg)=@_;
+	(my $func, my $arg,my $page)=@_;
 	(my $table, my $id, my $name)=split(':',$arg);
 	if ($table ne 'switch'){
 		db_dosql ("SELECT xcoord,ycoord FROM $table WHERE id=$id");
@@ -162,6 +162,8 @@ sub mgpg_selector_callback {
 	}
 	$x=100 unless defined $x;
 	$y=100 unless defined $y;
+	if (defined($page)){$pagename=$page;}
+print "-- $func,$arg,$page\n";
 	if ($func eq 'del'){
 		db_dosql("DELETE FROM pages WHERE tbl='$table' AND item=$id AND page='$pagename'");
 	}

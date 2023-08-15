@@ -21,6 +21,7 @@ use FindBin;
 use lib $FindBin::Bin;
 use List::MoreUtils qw(first_index);
 require config;
+require cloud;
 require dje_db;
 require l2input;
 require l3drawing;
@@ -139,6 +140,16 @@ $button_frame->Button(-text => "Layer 2 input",-width=>20, -command =>sub {
 	)->pack(-side =>'top');
 	$repeat_sub=\&norepeat;
 	l2input()
+})->pack(-side=>'left');
+$button_frame->Button(-text => "Cloud input",-width=>20, -command =>sub {
+	$Message='';
+	$main_frame->destroy if Tk::Exists($main_frame);
+	$main_frame=$main_window->Frame(
+		-height      => 1005,
+		-width       => 1505
+	)->pack(-side =>'top');
+	$repeat_sub=\&norepeat;
+	cloud_input()
 })->pack(-side=>'left');
 $button_frame->Button(-text => "Options",-width=>20, -command =>sub {
 	$Message='';

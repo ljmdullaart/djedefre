@@ -39,7 +39,7 @@ sub nw_debug {
 #######################################################################
 
 #	all callbacks get as arguments:
-#	- table (server, subnet, switch)
+#	- table (server, subnet, switch,cloud)
 #	- id
 #	- rest are function specific arguments.
 
@@ -162,7 +162,7 @@ sub nw_frame_canvas_export(){
 
 my %nw_logos;
 	
-my @logolist;
+our @logolist;
 sub nw_read_logos {
 	(my $parent,my $image_directory)=@_;
 	# Get the logo-types in a hash
@@ -314,6 +314,7 @@ sub nw_drawobjects {
 		my $x=$objects[$i]->{'x'};
 		my $y=$objects[$i]->{'y'};
 		my $logo=$objects[$i]->{'logo'};
+		$logo='server' unless defined $logo;
 		my $name=$objects[$i]->{'name'};
 		my $devicetype=$objects[$i]->{'devicetype'};
 		$devicetype='server' unless defined $devicetype;
@@ -365,7 +366,7 @@ sub nw_drag_start {
 	$draginfo{id}  = $id;
 	my @idarr=@{$id};
 	$dragid=$idarr[0];
-	for ($dragindex=0; ($dragindex<1+$#objects)&&($objects[$dragindex]->{'newid'}!=$dragid);$dragindex++){};
+	#for ($dragindex=0; ($dragindex<1+$#objects)&&($objects[$dragindex]->{'newid'}!=$dragid);$dragindex++){};
 	$draginfo{startx} = $draginfo{lastx} =$cx;
 	$draginfo{starty} = $draginfo{lasty} =$cy;
 	for my $i (0 .. $#objects){
@@ -472,7 +473,11 @@ sub nw_show_info_create {
 		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$id)->pack(-side=>'right');
 
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
-		$local_frame->Button ( -width=>10,-text=>'Name', -command=>sub {$Message='';nw_set_name($name,$id,$table);nw_frame_canvas_redo() })->pack(-side=>'left');
+		$local_frame->Button ( -width=>10,-text=>'Name', -command=>sub {
+			$Message='';
+			nw_set_name($name,$id,$table);
+			nw_frame_canvas_redo();
+		})->pack(-side=>'left');
 		$local_frame->Entry ( -width=>30,-textvariable=>\$name)->pack(-side=>'right');
 
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
@@ -551,7 +556,6 @@ sub nw_show_info_create {
 		
 	}
 	elsif ($table eq 'subnet'){
-
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>40,-text=>'subnet information')->pack(-side=>'left');
 		my $nwaddress=$objects[$objidx]->{'nwaddress'};
@@ -568,7 +572,11 @@ sub nw_show_info_create {
 		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$id)->pack(-side=>'right');
 
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
-		$local_frame->Button ( -width=>10,-text=>'Name', -command=>sub {$Message='';nw_set_name($name,$id,$table);})->pack(-side=>'left');
+		$local_frame->Button ( -width=>10,-text=>'Name', -command=>sub {
+			$Message='';
+			nw_set_name($name,$id,$table);
+			nw_frame_canvas_redo();
+		})->pack(-side=>'left');
 		$local_frame->Entry ( -width=>30,-textvariable=>\$name)->pack(-side=>'right');
 
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
@@ -616,10 +624,14 @@ sub nw_show_info_create {
 		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$id)->pack(-side=>'right');
 
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
-		$local_frame->Button ( -width=>10,-text=>'Name', -command=>sub {$Message='';nw_set_name($name,$id,$table);})->pack(-side=>'left');
+		$local_frame->Button ( -width=>10,-text=>'Name', -command=>sub {
+			$Message='';
+			nw_set_name($name,$id,$table);
+			nw_frame_canvas_redo();
+		})->pack(-side=>'left');
 		$local_frame->Entry ( -width=>30,-textvariable=>\$name)->pack(-side=>'right');
-		my @arr=@{$objects[$objidx]->{'connected'}};
 
+		my @arr=@{$objects[$objidx]->{'connected'}};
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>40,-text=>'Connections')->pack(-side=>'left');
 		for (@arr){
@@ -629,6 +641,59 @@ sub nw_show_info_create {
 			$local_frame->Label ( -anchor => 'w',-width=>20,-text=>$toname)->pack(-side=>'right');
 		}
 			
+	}
+	elsif ($table eq 'cloud'){
+		my $vendor=$objects[$objidx]->{'vendor'};
+		my $service=$objects[$objidx]->{'service'};
+		my @pgarray=@{$objects[$objidx]{pages}};
+		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+		$local_frame->Label ( -anchor => 'w',-width=>40,-text=>'Cloud service')->pack(-side=>'left');
+
+		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'ID')->pack(-side=>'left');
+		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$id)->pack(-side=>'right');
+
+		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+		$local_frame->Button ( -width=>10,-text=>'Name', -command=>sub {
+			$Message='';
+			nw_set_name($name,$id,$table);
+			nw_frame_canvas_redo();
+		})->pack(-side=>'left');
+		$local_frame->Entry ( -width=>30,-textvariable=>\$name)->pack(-side=>'right');
+
+		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Type')->pack(-side=>'left');
+		$typechoice=$objects[$objidx]->{'logo'};
+		$local_frame->JBrowseEntry(
+			-variable => \$typechoice,
+			-width=>25,
+			-choices => \@logolist,
+			-height=>10,
+			-browsecmd => sub {
+				nw_set_type($typechoice,$id,$table,$drawid);
+				nw_frame_canvas_redo();
+			}
+		)->pack(-side=>'right');
+
+		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Service')->pack(-side=>'left');
+		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$service)->pack(-side=>'left');
+		
+		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Vendor')->pack(-side=>'left');
+		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$vendor)->pack(-side=>'left');
+
+		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+		selector({
+			options  	=> \@realpagelist,
+			selected	=> \@pgarray,
+			parent  	=> $local_frame,
+			callback 	=> sub {(my $act, my $pg)=@_; nw_page_change($name,$id,$table,$act,$pg);},
+			height  	=> 5,
+			width   	=> 40,
+			title    	=> 'On pages'
+		});
+
 	}
 }
 

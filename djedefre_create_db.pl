@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+#INSTALL@ /opt/djedefre/djedefre_create_db
 use strict;
 use DBI;
 use File::Spec;
@@ -165,6 +166,18 @@ create table if not exists config (
 	attribute  string,
 	item       string,
 	value      string
+	);
+";
+$db->do($schema) or die $db->errstr;
+$schema="
+create table if not exists cloud (
+	id         integer primary key autoincrement,
+	name       string,
+        vendor     string,
+	type       string,
+	xcoord     integer,
+	ycoord     integer,
+	service    string
 	);
 ";
 $db->do($schema) or die $db->errstr;

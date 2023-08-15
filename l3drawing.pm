@@ -36,6 +36,11 @@ sub nxttmploc {
 		$nw_tmpy=100;
 	}
 }
+my $qobjtypes=4;
+my $objtsubnet=0;
+my $objtserver=1;
+my $objtswitch=2;
+my $objtcloud=3;
 
 
 
@@ -76,7 +81,7 @@ sub l3_objects {
 		my $color='black';
 		if ($options=~/color=([^;]*);/){$color=$1;}
 		push @l3_obj, {
-			newid	=> $id*4,
+			newid	=> $id*$qobjtypes+$objtsubnet,
 			id	=> $id,
 			x	=> $x,
 			y	=> $y,
@@ -99,7 +104,7 @@ sub l3_objects {
 	while ((my $switchtype,my $id,my $name,my $ports,my $x,my $y)=db_getrow()){
 		$switchtype='switch' unless defined $switchtype;
 		push @l3_obj, {
-			newid   => $id*4+2,
+			newid	=> $id*$qobjtypes+$objtswitch,
 			id	=> $id,
 			x	=> $x,
 			y	=> $y,
@@ -108,7 +113,7 @@ sub l3_objects {
 			ports	=> $ports,
 			table	=> 'switch'
 		};
-		my $newid   =$id*4+2;
+		my $newid   =$id*$qobjtypes+$objtswitch;
 	}
 	if ($l3_showpage eq 'top'){
 		$sql = 'SELECT id,name,xcoord,ycoord,type,interfaces,status,options,ostype,os,processor,memory,devicetype FROM server';
@@ -130,7 +135,7 @@ sub l3_objects {
 		}
 		$name='' unless defined $name;
 		push @l3_obj, {
-			newid	=> $id*4+1,
+			newid	=> $id*$qobjtypes+$objtserver,
 			id	=> $id,
 			x	=> $x,
 			y	=> $y,
@@ -150,6 +155,43 @@ sub l3_objects {
 		
 	}
 	
+	if ($l3_showpage eq 'top'){
+		$sql = 'SELECT id,name,xcoord,ycoord,type,vendor,service FROM cloud';
+	}
+	else {
+		$sql="	SELECT  cloud.id,name,pages.xcoord,pages.ycoord,type,vendor,service
+			FROM    cloud
+			INNER JOIN pages ON pages.item =  cloud.id
+			WHERE  pages.page='$l3_showpage' AND pages.tbl='cloud'
+		";
+	}
+	my $sth = db_dosql($sql);
+	while((my $id,my $name, my $x,my $y,my $type,my $vendor,my $service) = db_getrow()){
+		$type='server' unless defined $type;
+		$vendor='none' unless defined $vendor;
+		$service='server' unless defined $service;
+		if ((!defined $x) || !(defined $y)){
+			nxttmploc();
+			$x=$nw_tmpx unless defined $x;
+			$y=$nw_tmpy unless defined $y;
+		}
+		$name='' unless defined $name;
+		push @l3_obj, {
+			newid	=> $id*$qobjtypes+$objtcloud,
+			id	=> $id,
+			x	=> $x,
+			y	=> $y,
+			logo	=> $type,
+			name	=> $name,
+			table	=> 'cloud',
+			vendor  => $vendor,
+			service => $service
+		};
+		my $max=$#l3_obj;
+		push @{$l3_obj[$max]{pages}},' ';
+		
+	}
+
 
 	for my $i (0 .. $#l3_obj){
 		# Separate to prevent database locks
@@ -173,6 +215,15 @@ sub l3_objects {
 			push @{$l3_obj[$i]{pages}},' ';
 			splice @{$l3_obj[$i]{pages}};
 			my $sql = "SELECT page FROM pages WHERE tbl='subnet' AND item=$id";
+			my $sth = db_dosql($sql);
+			while ((my $item) = db_getrow()){
+				push @{$l3_obj[$i]{pages}}, $item
+			}
+		}
+		elsif($table eq 'cloud'){
+			push @{$l3_obj[$i]{pages}},' ';
+			splice @{$l3_obj[$i]{pages}};
+			my $sql = "SELECT page FROM pages WHERE tbl='cloud' AND item=$id";
 			my $sth = db_dosql($sql);
 			while ((my $item) = db_getrow()){
 				push @{$l3_obj[$i]{pages}}, $item
@@ -236,6 +287,9 @@ sub l3_lines {
 	while ((my $id, my $host)=db_getrow()){
 		$ifserver[$id]=$host;
 	}
+	db_dosql("SELECT id FROM subnet WHERE nwaddress='Internet'");
+	(my $Internet)=db_getrow();
+	my $newInternet=$Internet*$qobjtypes+$objtsubnet;
 	for my $i ( 0 .. $#l3_obj){
 		if ($l3_obj[$i]->{'table'} eq 'server'){
 			my $orig_id=$l3_obj[$i]->{'id'};
@@ -274,7 +328,7 @@ sub l3_lines {
 			my $options=$l3_obj[$i]->{'options'};
 			if ($options=~/vboxhost:([0-9]*),/ ){
 				my $hostid=$1;
-				my $host=$hostid*4+1;
+				my $host=$hostid*$qobjtypes+$objtserver;
 				for my $j ( 0 .. $#l3_obj){
 					if (($hostid == $l3_obj[$j]->{'id'}) && ($l3_obj[$j]->{'table'} eq 'server')){
 						push @l3_line, {
@@ -285,6 +339,7 @@ sub l3_lines {
 					}
 				}
 			}
+
 		}
 		if ($l3_obj[$i]->{'table'} eq 'switch'){
 			$obj_id=$l3_obj[$i]->{'newid'};
@@ -344,6 +399,15 @@ sub l3_lines {
 				}
 			}
 		}
+		if ($l3_obj[$i]->{'table'} eq 'cloud'){
+			my $obj_id=$l3_obj[$i]->{'newid'};
+			push @l3_line, {
+				from	=> $newInternet,
+				to	=> $obj_id,
+				type	=> 'black'
+			};
+			
+		}
 
 	}
 }
@@ -384,7 +448,7 @@ sub l3_page {
 	(my $table,my $id,my $name,my $action,my $page)=@_;
 	my $arg="$table:$id:$name";
 	$managepg_pagename=$page;
-	mgpg_selector_callback ($action,$arg);
+	mgpg_selector_callback ($action,$arg,$page);
 	l3_renew_content();
 }
 
@@ -412,6 +476,10 @@ sub l3_devicetype {
 sub l3_type {
 	(my $table, my $id, my $type)=@_;
 	if ($table eq 'server'){
+		#my $sql = "UPDATE $table SET type='$type' WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
+		db_dosql("UPDATE $table SET type='$type' WHERE id=$id");
+	}
+	elsif ($table eq 'cloud'){
 		#my $sql = "UPDATE $table SET type='$type' WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
 		db_dosql("UPDATE $table SET type='$type' WHERE id=$id");
 	}
