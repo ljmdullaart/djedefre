@@ -287,8 +287,12 @@ sub l3_lines {
 	while ((my $id, my $host)=db_getrow()){
 		$ifserver[$id]=$host;
 	}
-	db_dosql("SELECT id FROM subnet WHERE nwaddress='Internet'");
-	(my $Internet)=db_getrow();
+	db_dosql("SELECT id,options FROM subnet WHERE nwaddress='Internet'");
+	(my $Internet,my $Internetoptions)=db_getrow();
+	my $Internetcolor='black';
+	if ($Internetoptions=~/color=([^;]+);/){
+		$Internetcolor=$1;
+	}
 	my $newInternet=$Internet*$qobjtypes+$objtsubnet;
 	for my $i ( 0 .. $#l3_obj){
 		if ($l3_obj[$i]->{'table'} eq 'server'){
@@ -404,7 +408,7 @@ sub l3_lines {
 			push @l3_line, {
 				from	=> $newInternet,
 				to	=> $obj_id,
-				type	=> 'black'
+				type	=> $Internetcolor
 			};
 			
 		}
