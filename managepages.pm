@@ -13,16 +13,16 @@ our $buttonframe;
 our @pagelist;
 our @realpagelist;
 our $l3_showpage;
-my $currentpage='none';
-my $selectedpage='none';
-my $selectedrealpage='none';
+my $currentpage='Pages';
+my $selectedpage='Pages';
+my $selectedrealpage='Pages';
 my $pageselectframe;
 my $realpageselectframe;
 
 sub fill_pagelist {
 	splice @pagelist;
 	splice @realpagelist;
-	push @pagelist,'none';
+	push @pagelist,'Pages';
 	push @pagelist,'top';
 	push @pagelist,'l2-top';
         my $sql = "SELECT DISTINCT item FROM config WHERE attribute LIKE 'page:%'";
@@ -62,7 +62,7 @@ my @managepg_options;
 my @pagetypes;
 $pagetypes[0]='l3';
 $pagetypes[1]='l2';
-my $pagename='none';
+my $pagename='Pages';
 my $pagetype='l3';
 
 sub manage_pages {
@@ -260,11 +260,13 @@ sub display_selected_page {	# What to do if a page was selected from the menubar
 	$selected_page=$pagename;
 	$repeat_sub=\&repeat_selected_page;
 	if ($pagename eq 'none'){ logoframe() ; }
+	elsif ($pagename eq 'Pages'){ logoframe() ; }
 	elsif ($pagename eq 'top'){ display_top_page ; }
 	else {
 		$l3_showpage=$pagename;
 		display_other_page();
 	}
+	$selectedpage='Pages';
 }
 
 sub make_realpageselectframe {	# drop-down in the menu-bar
@@ -282,8 +284,12 @@ sub make_pageselectframe {	# drop-down in the menu-bar
 	fill_pagelist();
 	debug ($DEB_FRAME,"18 Create pageselectframe");
 	$pageselectframe=$parent->Frame()->pack(-side=>'right');
-	$pageselectframe->Label ( -anchor => 'w',-width=>10,-text=>'View page', -anchor=>'e')->pack(-side=>'left');
-	$pageselectframe->JBrowseEntry(-variable => \$selectedpage, -width=>25, -choices => \@pagelist, -height=>10, -browsecmd => sub { display_selected_page ($selectedpage);} )->pack();
+	$pageselectframe->Optionmenu(
+		-variable	=> \$selectedpage,
+		-width		=> 15,
+		-options	=> \@pagelist,
+		-command	=> sub { display_selected_page ($selectedpage);}
+	)->pack();
 	
 }
 
