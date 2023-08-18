@@ -16,6 +16,48 @@ our $main_frame;
 my $listing_frame;
 my $listing_button_frame;
 my $listing_listing_frame;
+
+my $selected_listing='Lists';
+sub menu_make_listing {
+	$main_frame->destroy if Tk::Exists($main_frame);
+        $main_frame=$main_window->Frame()->pack();
+	$listing_frame->destroy if Tk::Exists($listing_frame);
+	$listing_frame=$main_frame->Frame()->pack(-side=>'left');
+	$listing_button_frame=$listing_frame->Frame(
+	)->pack(-side=>'top');
+	$listing_listing_frame=$listing_frame->Frame(
+	)->pack(-side=>'top');
+	$Message='';
+	$listing_listing_frame->destroy if Tk::Exists($listing_listing_frame);
+	$listing_listing_frame=$listing_frame->Frame(
+	)->pack(-side =>'bottom');
+	if ($selected_listing eq 'Servers'){
+		listing_servers($listing_listing_frame);
+	}
+	elsif ($selected_listing eq 'Virtuals'){
+		listing_virtual($listing_listing_frame);
+	}
+	elsif ($selected_listing eq 'Subnets'){
+		listing_subnets($listing_listing_frame);
+	}
+	elsif ($selected_listing eq 'Interfaces'){
+		listing_interfaces($listing_listing_frame);
+	}
+	$selected_listing='Lists';
+}
+
+sub make_listingselectframe {
+	(my $parent)=@_;
+	my @listingtypes=qw/ Lists Servers Virtuals Subnets Interfaces/;
+	$parent->Optionmenu (
+		-variable	=> \$selected_listing,
+		-options	=> [@listingtypes],
+		-width		=> 15,
+		-command	=> sub { menu_make_listing(); }
+	)->pack();
+}
+	
+
 sub make_listing {
 	(my $parent)=@_;
 	$main_frame->destroy if Tk::Exists($main_frame);
