@@ -115,11 +115,7 @@ $main_frame=$main_window->Frame(
 	-height      => 0.95*$main_window_height,
 	-width       => $main_window_width
 )->pack(-side =>'top');
-$button_frame->Button(-text => "Listings",-width=>20, -command =>sub {
-	$Message='';
-	$repeat_sub=\&norepeat;
-	make_listing($main_frame);
-})->pack(-side=>'left');
+
 $button_frame->Button(-text => "Manage pages",-width=>20, -command =>sub {
 	$Message='';
 	$main_frame->destroy if Tk::Exists($main_frame);
@@ -161,8 +157,11 @@ $button_frame->Button(-text => "Options",-width=>20, -command =>sub {
 	$repeat_sub=\&norepeat;
 	options_window()
 })->pack(-side=>'left');
-my $button_frame_pgsel=$button_frame->Frame()->pack(-side=>'right');
-make_pageselectframe($button_frame_pgsel);
+my $button_frame_local=$button_frame->Frame()->pack(-side=>'right');
+make_pageselectframe($button_frame_local);
+$button_frame_local=$button_frame->Frame()->pack(-side=>'right');
+make_listingselectframe($button_frame_local);
+
 
 
 my $image = $main_frame->Photo(-file => "$config{'image_directory'}/djedefre.gif");
