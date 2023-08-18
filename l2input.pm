@@ -211,7 +211,7 @@ sub l2input {
 	}
 	for my $i (0 .. $#l2i_connect){
 		(my $type, my $id, my $port)=split (':',$l2i_connect[$i]);
-		if (!($id=~/^[0-9]+$/)){print "l2input:Non-numerical ID $id\n";}
+		if (!($id=~/^[0-9]+$/)){} # l2i_connect[$i] can be "Not connected"
 		elsif ($type eq 'interfaces'){
 			db_dosql ("SELECT host,ip FROM interfaces WHERE id=$id");
 			if ((my $host,my $ip)=db_getrow()){
