@@ -31,6 +31,7 @@ require managepages;
 require multilist;
 require nwdrawing;
 require options;
+require overview;
 require selector;
 require standard;
 
@@ -45,6 +46,7 @@ my $canvas_xsize=1500;					# default x-size of the network drawning; configurabl
 my $canvas_ysize=1200;					# default y-size of the network drawning; configurable
 our $Message='';
 our $locked=0;
+our $repeat_sub;
 my $last_message='Welcome';
 
 our $main_window;
@@ -75,6 +77,35 @@ sub norepeat {
 }
 
 our $repeat_sub=\&norepeat;
+
+my $inputselectframe;
+my $selected_input='Input';
+
+sub do_selected_input {
+	$main_frame->destroy if Tk::Exists($main_frame);
+	$main_frame=$main_window->Frame()->pack(-side =>'top');
+	$repeat_sub=\&norepeat;
+	if ($selected_input eq 'Pages'){ manage_pages(); }
+	elsif ($selected_input eq 'Layer2'){ l2input(); }
+	elsif ($selected_input eq 'Colors'){ options_window(); }
+	elsif ($selected_input eq 'Cloud'){ cloud_input(); }
+	$selected_input='Input';
+	
+}
+
+sub make_inputselectframe{
+	(my $parent)=@_;
+	$inputselectframe->destroy if Tk::Exists( $inputselectframe);
+	$inputselectframe=$parent->Frame()->pack(-side=>'right');
+	my @options=qw/Input Pages Layer2 Cloud Colors/;
+	$inputselectframe->Optionmenu(
+		-variable       => \$selected_input,
+		-width          => 15,
+		-options        => \@options,
+		-command        => sub { do_selected_input();}
+	)->pack();
+}
+	
 
 #  __  __       _       
 # |  \/  | __ _(_)_ __  
@@ -116,52 +147,15 @@ $main_frame=$main_window->Frame(
 	-width       => $main_window_width
 )->pack(-side =>'top');
 
-$button_frame->Button(-text => "Manage pages",-width=>20, -command =>sub {
-	$Message='';
-	$main_frame->destroy if Tk::Exists($main_frame);
-	debug ($DEB_FRAME,"21 Create main_frame");
-	$main_frame=$main_window->Frame(
-		-height      => 1005,
-		-width       => 1505
-	)->pack(-side =>'top');
-	$repeat_sub=\&norepeat;
-	manage_pages()
-})->pack(-side=>'left');
-$button_frame->Button(-text => "Layer 2 input",-width=>20, -command =>sub {
-	$Message='';
-	$main_frame->destroy if Tk::Exists($main_frame);
-	$main_frame=$main_window->Frame(
-		-height      => 1005,
-		-width       => 1505
-	)->pack(-side =>'top');
-	$repeat_sub=\&norepeat;
-	l2input()
-})->pack(-side=>'left');
-$button_frame->Button(-text => "Cloud input",-width=>20, -command =>sub {
-	$Message='';
-	$main_frame->destroy if Tk::Exists($main_frame);
-	$main_frame=$main_window->Frame(
-		-height      => 1005,
-		-width       => 1505
-	)->pack(-side =>'top');
-	$repeat_sub=\&norepeat;
-	cloud_input()
-})->pack(-side=>'left');
-$button_frame->Button(-text => "Options",-width=>20, -command =>sub {
-	$Message='';
-	$main_frame->destroy if Tk::Exists($main_frame);
-	$main_frame=$main_window->Frame(
-		-height      => 1005,
-		-width       => 1505
-	)->pack(-side =>'top');
-	$repeat_sub=\&norepeat;
-	options_window()
-})->pack(-side=>'left');
-my $button_frame_local=$button_frame->Frame()->pack(-side=>'right');
+my $button_frame_local=$button_frame->Frame()->pack(-side=>'left');
+make_overviewselectframe($button_frame_local);
+my $button_frame_local=$button_frame->Frame()->pack(-side=>'left');
 make_pageselectframe($button_frame_local);
-$button_frame_local=$button_frame->Frame()->pack(-side=>'right');
+$button_frame_local=$button_frame->Frame()->pack(-side=>'left');
 make_listingselectframe($button_frame_local);
-
+my $button_frame_local=$button_frame->Frame()->pack(-side=>'left');
+make_inputselectframe($button_frame_local);
+#$button_frame_local->Label (-text =>' ', -width=>2000)->pack(-side=>'right');
 
 
 my $image = $main_frame->Photo(-file => "$config{'image_directory'}/djedefre.gif");
@@ -170,12 +164,12 @@ logoframe();
 
 sub repeat {
 	if ($locked==0){
-		$main_window->after(60000,\&repeat);
+		$main_window->after(5000,\&repeat);
 		$main_window_height=$main_window->height;
 		$main_window_width=$main_window->width;
 		&$repeat_sub;
 	}
 }
-$main_window->after(60000,\&repeat);
+$main_window->after(5000,\&repeat);
 
 MainLoop;

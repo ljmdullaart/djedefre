@@ -43,12 +43,15 @@ sub menu_make_listing {
 	elsif ($selected_listing eq 'Interfaces'){
 		listing_interfaces($listing_listing_frame);
 	}
+	elsif ($selected_listing eq 'Switches'){
+		listing_switch($listing_listing_frame);
+	}
 	$selected_listing='Lists';
 }
 
 sub make_listingselectframe {
 	(my $parent)=@_;
-	my @listingtypes=qw/ Lists Servers Virtuals Subnets Interfaces/;
+	my @listingtypes=qw/ Lists Servers Virtuals Subnets Interfaces Switches/;
 	$parent->Optionmenu (
 		-variable	=> \$selected_listing,
 		-options	=> [@listingtypes],
@@ -240,8 +243,7 @@ sub listing_interfaces {
 sub listing_virtual {
 	(my $parent)=@_;
 	$listing_server_frame->destroy if Tk::Exists($listing_server_frame);
-	$listing_server_frame=$parent->Frame(
-	)->pack();
+	$listing_server_frame=$parent->Frame()->pack();
 	$listing_server_frame->Label(-text=>"Interfaces")->pack();
 	ml_new($listing_server_frame,$main_window_height*0.07,'top');
 	my @ar;
@@ -271,6 +273,36 @@ sub listing_virtual {
 			$ar[2]=$servers[$host];
 			ml_insert(@ar);
 		}
+	}
+	ml_create();
+}
+
+sub listing_switch {
+	(my $parent)=@_;
+	$listing_server_frame->destroy if Tk::Exists($listing_server_frame);
+	$listing_server_frame=$parent->Frame()->pack();
+	$listing_server_frame->Label(-text=>"Interfaces")->pack();
+	ml_new($listing_server_frame,$main_window_height*0.07,'top');
+	my @ar;
+	$ar[0]= 5;
+	$ar[1]=20;
+	$ar[2]=20;
+	$ar[3]= 5;
+	ml_colwidth(@ar);
+	$ar[0]='ID';
+	$ar[1]='Name';
+	$ar[2]='Type';
+	$ar[3]='Ports';
+	ml_colhead(@ar);
+	db_dosql("SELECT id,name,switch,ports FROM switch");
+	while ((my $id, my $name, my $switch, my $ports)=db_getrow()){
+		if ($switch eq 'accesspoint'){ $ports='-';}
+		$ar[0]=$id;
+		$ar[1]=$name;
+		$ar[2]=$switch;
+		$ar[3]=$ports;
+
+		ml_insert(@ar);
 	}
 	ml_create();
 }

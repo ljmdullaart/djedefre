@@ -33,10 +33,15 @@ sqlite3 -separator ' '  $database "SELECT tbl,item FROM pages WHERE page='l2-top
 
 sqlite3 -separator ' '  $database "SELECT id,xcoord,ycoord FROM server" > $tmp2
 cat $tmp2 | while read id x y ; do
-	if  grep -q "server $id$" $tmp1  ; then
-		:
-	else
-		sqlite3 $database "INSERT INTO pages (page,tbl,item,xcoord,ycoord) VALUES ('l2-top','server',$id,$x,$y)"
+	if [ "$id" != "" ] ; then
+		if [ "$x" = "" ] ; then x=100; fi
+		if [ "$y" = "" ] ; then y=100; fi
+		if  grep -q "server $id$" $tmp1  ; then
+			:
+		else
+			echo -n '.'
+			sqlite3 $database "INSERT INTO pages (page,tbl,item,xcoord,ycoord) VALUES ('l2-top','server',$id,$x,$y)"
+		fi
 	fi
 done
 
@@ -45,11 +50,12 @@ cat $tmp2 | while read id ; do
 	if  grep -q "switch $id$" $tmp1  ; then
 		:
 	else
+		echo -n ','
 		sqlite3 $database "INSERT INTO pages (page,tbl,item,xcoord,ycoord) VALUES ('l2-top','switch',$id,100,100)"
 	fi
 done
 
-
+echo
 
 
 rm -f $tmp1

@@ -132,6 +132,7 @@ sub ml_create {
 			}
 		)->pack(-side=>'left');
 	}
+	$mlheaderframe->Label(-text=>' ',-width=>2)->pack(-side=>'left');
 	$mlboxframe=$mlframe->Frame()->pack(-side=>'bottom');
 	$scroll = $mlboxframe->Scrollbar( );
 	splice @mlcolumns;

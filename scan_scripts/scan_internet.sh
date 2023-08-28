@@ -42,12 +42,19 @@ if [ "$lastid" = "" ] ; then
 	exit 
 fi
 
+path="$lastif"
+idpath=$(sqlite3 $database "SELECT host FROM interfaces WHERE ip='$lastif'" )
+
 for ip in $(cat $tmpfile2) ; do
 	next=$(sqlite3 $database "SELECT id FROM interfaces WHERE ip='$ip'" )
 	echo -n "SCAN INTERNET  $ip-> $next ; "
 	if [ "$next" != "" ] ; then
+		nexthost=$(sqlite3 $database "SELECT host FROM interfaces WHERE ip='$ip'" )
+		nextname=$(sqlite3 $database "SELECT name FROM server WHERE id=$nexthost")
 		lastif=$ip
 		lastid=$next
+		path="$path:$nextname"
+		idpath="$idpath:$nexthost"
 	fi
 	echo "lastif=$lastif"
 done
@@ -59,6 +66,13 @@ lasthost=$(sqlite3 $database "SELECT host FROM interfaces WHERE id='$lastid'")
 
 echo  -n 'The last host is '
 sqlite3 $database "SELECT * FROM server WHERE id=$lasthost"
+echo "Path=$path"
+echo "Idpath=$idpath"
+if sqlite3 $database  "SELECT item FROM config WHERE attribute='run:param' AND item='idpath'" |grep idpath ; then
+        sqlite3  $database "UPDATE config SET value='$idpath' WHERE attribute='run:param' AND item='idpath'"
+else
+        sqlite3 $database  "INSERT INTO config (attribute,item,value) VALUES ('run:param','idpath','$idpath')"
+fi
 
 inetnet=$(sqlite3 $database "SELECT id FROM subnet WHERE nwaddress='Internet'")
 inetif=$(sqlite3 $database "SELECT id FROM interfaces WHERE ip='Internet'")

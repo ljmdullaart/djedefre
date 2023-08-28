@@ -13,6 +13,7 @@ our $buttonframe;
 our @pagelist;
 our @realpagelist;
 our $l3_showpage;
+our $repeat_sub;
 my $currentpage='Pages';
 my $selectedpage='Pages';
 my $selectedrealpage='Pages';
@@ -163,7 +164,6 @@ sub mgpg_selector_callback {
 	$x=100 unless defined $x;
 	$y=100 unless defined $y;
 	if (defined($page)){$pagename=$page;}
-print "-- $func,$arg,$page\n";
 	if ($func eq 'del'){
 		db_dosql("DELETE FROM pages WHERE tbl='$table' AND item=$id AND page='$pagename'");
 	}
@@ -292,5 +292,6 @@ sub make_pageselectframe {	# drop-down in the menu-bar
 	)->pack();
 	
 }
+
 
 1;

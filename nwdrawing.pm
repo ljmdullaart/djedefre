@@ -142,9 +142,10 @@ sub nw_frame_canvas_create {
 		-width      => $canvas_xsize,
 		-height     => $canvas_ysize,
 	)->pack;
-	$nw_canvas->bind( 'draggable', '<1>'                   => sub{ nw_drag_start();});
+	$nw_canvas->bind( 'draggable', '<1>'                   => sub{ nw_drag_start();$locked=0;});
+	$nw_canvas->bind( 'draggable', '<3>'                   => sub{ nw_drag_start();});
 	$nw_canvas->bind( 'draggable', '<B1-Motion>'           => sub{ nw_drag_during ();});
-	$nw_canvas->bind( 'draggable', '<Any-ButtonRelease-1>' => sub{ nw_drag_end ();});
+	$nw_canvas->bind( 'draggable', '<Any-ButtonRelease-1>' => sub{ nw_drag_end ();$locked=0;});
 }
 
 
@@ -369,13 +370,17 @@ sub nw_drag_start {
 	#for ($dragindex=0; ($dragindex<1+$#objects)&&($objects[$dragindex]->{'newid'}!=$dragid);$dragindex++){};
 	$draginfo{startx} = $draginfo{lastx} =$cx;
 	$draginfo{starty} = $draginfo{lasty} =$cy;
+	$dragobject=-1;
 	for my $i (0 .. $#objects){
-		if (! defined $objects[$i]->{'draw'}){print "Object without draw\n"}
+ 		my $objname=$objects[$i]->{'name'};
+		$objname='UNDEFINED' unless defined $objname;
+		if (! defined $objects[$i]->{'draw'}){print "Object without draw $objname\n"}
 		elsif (! defined $dragid){print "No dragid\n"}
 		elsif ($objects[$i]->{'draw'}==$dragid){
 			$dragobject=$i;
 		}
 	}
+	if ($dragobject<0){ print "dragobject<0\n"; }
 	my $name=$objects[$dragobject]->{'name'};
 	$dragname=$objects[$dragobject]->{'namedraw'};
 	nw_show_info_redo($dragobject);
@@ -455,7 +460,7 @@ sub nw_show_info_create {
 	my $drawid=$objects[$objidx]->{'drawid'};
 	if ($table eq 'server'){
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
-		$local_frame->Label ( -anchor => 'w',-width=>40,-text=>'Server information')->pack(-side=>'left');
+		$local_frame->Label ( -anchor => 'w',-width=>50,-text=>'Server information')->pack(-side=>'left');
 		my $os=$objects[$objidx]->{'os'};
 		my $ostype=$objects[$objidx]->{'ostype'};
 		my $processor=$objects[$objidx]->{'processor'};
@@ -557,7 +562,7 @@ sub nw_show_info_create {
 	}
 	elsif ($table eq 'subnet'){
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
-		$local_frame->Label ( -anchor => 'w',-width=>40,-text=>'subnet information')->pack(-side=>'left');
+		$local_frame->Label ( -anchor => 'w',-width=>50,-text=>'subnet information')->pack(-side=>'left');
 		my $nwaddress=$objects[$objidx]->{'nwaddress'};
 		my $cidr=$objects[$objidx]->{'cidr'};
 		$netcolors[$id]=$objects[$objidx]->{'color'};
@@ -604,7 +609,7 @@ sub nw_show_info_create {
 		$local_frame->Optionmenu(
 			-variable       => \$netcolors[$id],
 			-options        => [@colors],
-			-width          => 30,
+			-width          => 15,
 			-command        => sub {
 				$this->configure(-bg=>$netcolors[$id]);
 				nw_color_net($name,$id,$table,$netcolors[$id]);
@@ -617,7 +622,7 @@ sub nw_show_info_create {
 	}
 	elsif ($table eq 'switch'){
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
-		$local_frame->Label ( -anchor => 'w',-width=>40,-text=>'Switch information')->pack(-side=>'left');
+		$local_frame->Label ( -anchor => 'w',-width=>50,-text=>'Switch information')->pack(-side=>'left');
 
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'ID')->pack(-side=>'left');
@@ -647,7 +652,7 @@ sub nw_show_info_create {
 		my $service=$objects[$objidx]->{'service'};
 		my @pgarray=@{$objects[$objidx]{pages}};
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
-		$local_frame->Label ( -anchor => 'w',-width=>40,-text=>'Cloud service')->pack(-side=>'left');
+		$local_frame->Label ( -anchor => 'w',-width=>50,-text=>'Cloud service')->pack(-side=>'left');
 
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'ID')->pack(-side=>'left');

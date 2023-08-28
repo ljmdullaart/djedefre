@@ -22,10 +22,6 @@ fi
 
 grid=50
 
-if [ "$1" != "" ] ; then
-	grid=$1
-fi
-
 typeset -i halfgrid
 halfgrid=$grid/2
 
