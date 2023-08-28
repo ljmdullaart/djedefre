@@ -161,7 +161,7 @@ sub nw_frame_canvas_export(){
 #  logo's for the objects
 #######################################################################
 
-my %nw_logos;
+our  %nw_logos;
 	
 our @logolist;
 sub nw_read_logos {

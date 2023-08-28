@@ -17,6 +17,7 @@ our $repeat_sub;
 our $main_window;
 our $Message;
 our %config;
+our %nw_logos;
 
 my $overview_frame;
 
@@ -62,7 +63,8 @@ sub overview_dashboard{
 }
 
 sub overview_network {
-	my $overview_network=$overview_frame->Scrolled("Frame",-scrollbars=>'e',-width=>300,-height=>800)->pack(-side=>'left');
+	my $overview_network=$overview_frame->Scrolled("Frame",-scrollbars=>'e',-width=>400,-height=>800)->pack(-side=>'left');
+	$overview_network->Label(-text=>'Network')->pack(-side=>'top');
 	db_dosql("SELECT value FROM config WHERE attribute='run:param' AND item='inetup'");
 	(my $inetup)=db_getrow();
 	if ($inetup eq 'up'){
@@ -85,7 +87,7 @@ sub overview_network {
 		(my $status)=db_getrow();
 		my $color='red';
 		if ($status eq 'up'){ $color='green';}
-		$image=$main_window->Photo(-file=> $config{'image_directory'}."/logo_".$type.".png");
+		$image=$nw_logos{$type};
 		$lineframe=$overview_network->Frame()->pack(-side=>'top');
 		$lineframe->Label(-image => $image)->pack(-side=>'top');
 		$lineframe=$overview_network->Frame()->pack(-side=>'top');
@@ -100,33 +102,67 @@ sub overview_network {
 	$lineframe->Label(-image => $image)->pack(-side=>'top');
 	$lineframe=$overview_network->Frame()->pack(-side=>'top');
 	$lineframe->Label(-text=>'Internet')->pack(-side=>'top');
-		
-}
-	
-
-sub overview_server {
-	my $overview_server_frame=$overview_frame->Scrolled("Frame",-scrollbars=>'e',-width=>300,-height=>800)->pack(-side=>'left');
-	db_dosql("SELECT id,name,last_up FROM server WHERE status='down' ORDER BY last_up");
-	while ((my $id, my $name, my $lastup)=db_getrow()){
-		my $lineframe=$overview_server_frame->Frame(-borderwidth=>2)->pack(-side=>'top');
+	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='down' AND devicetype = 'network'  ORDER BY last_up");
+	while ((my $id, my $name, my $lastup,my $type)=db_getrow()){
+		my $lineframe=$overview_network->Frame(-borderwidth=>2)->pack(-side=>'top');
+		$lineframe->Label(-width=>50,-image => $nw_logos{$type})->pack(-side=>'left');
 		$lineframe->Label (-text=>$name,-anchor=>'w',-width=>25)->pack(-side=>'left');
 		$lineframe->Button(-text=>'Exclude',-width=>8,-background=>'red',-command=>sub {
 			db_dosql("UPDATE server SET status='excluded' WHERE id=$id");
 			overview_dashboard();
 		})->pack(-side=>'left');
 	}	
-	db_dosql("SELECT id,name,last_up FROM server WHERE status='up' ORDER BY last_up");
-	while ((my $id, my $name, my $lastup)=db_getrow()){
-		my $lineframe=$overview_server_frame->Frame(-borderwidth=>2)->pack(-side=>'top');
+	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='up'  AND devicetype = 'network' ORDER BY last_up");
+	while ((my $id, my $name, my $lastup,my $type)=db_getrow()){
+		my $lineframe=$overview_network->Frame(-borderwidth=>2)->pack(-side=>'top');
+		$lineframe->Label(-width=>50,-image => $nw_logos{$type})->pack(-side=>'left');
 		$lineframe->Label (-text=>$name,-anchor=>'w',-width=>25)->pack(-side=>'left');
 		$lineframe->Button(-text=>'Exclude',-width=>8,-background=>'green',-command=>sub {
 			db_dosql("UPDATE server SET status='excluded' WHERE id=$id");
 			overview_dashboard();
 		})->pack(-side=>'left');
 	}	
-	db_dosql("SELECT id,name,last_up FROM server WHERE status='excluded' ORDER BY last_up");
-	while ((my $id, my $name, my $lastup)=db_getrow()){
+	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='excluded'  AND devicetype = 'network' ORDER BY last_up");
+	while ((my $id, my $name, my $lastup,my $type)=db_getrow()){
+		my $lineframe=$overview_network->Frame(-borderwidth=>2)->pack(-side=>'top');
+		$lineframe->Label (-text=>$name,-anchor=>'w',-width=>25)->pack(-side=>'left');
+		$lineframe->Label (-text=>$name,-anchor=>'w',-width=>25)->pack(-side=>'left');
+		$lineframe->Button(-text=>'Include',-width=>8,-command=>sub {
+			db_dosql("UPDATE server SET status='down' WHERE id=$id");
+			overview_dashboard();
+		})->pack(-side=>'left');
+	}	
+		
+}
+	
+
+sub overview_server {
+	my $overview_server_frame=$overview_frame->Scrolled("Frame",-scrollbars=>'e',-width=>400,-height=>800)->pack(-side=>'left');
+	$overview_server_frame->Label(-text=>'Severs')->pack(-side=>'top');
+	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='down' AND devicetype != 'network'  ORDER BY last_up");
+	while ((my $id, my $name, my $lastup,my $type)=db_getrow()){
 		my $lineframe=$overview_server_frame->Frame(-borderwidth=>2)->pack(-side=>'top');
+		$lineframe->Label(-width=>50,-image => $nw_logos{$type})->pack(-side=>'left');
+		$lineframe->Label (-text=>$name,-anchor=>'w',-width=>25)->pack(-side=>'left');
+		$lineframe->Button(-text=>'Exclude',-width=>8,-background=>'red',-command=>sub {
+			db_dosql("UPDATE server SET status='excluded' WHERE id=$id");
+			overview_dashboard();
+		})->pack(-side=>'left');
+	}	
+	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='up'  AND devicetype != 'network' ORDER BY last_up");
+	while ((my $id, my $name, my $lastup,my $type)=db_getrow()){
+		my $lineframe=$overview_server_frame->Frame(-borderwidth=>2)->pack(-side=>'top');
+		$lineframe->Label(-width=>50,-image => $nw_logos{$type})->pack(-side=>'left');
+		$lineframe->Label (-text=>$name,-anchor=>'w',-width=>25)->pack(-side=>'left');
+		$lineframe->Button(-text=>'Exclude',-width=>8,-background=>'green',-command=>sub {
+			db_dosql("UPDATE server SET status='excluded' WHERE id=$id");
+			overview_dashboard();
+		})->pack(-side=>'left');
+	}	
+	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='excluded'  AND devicetype != 'network' ORDER BY last_up");
+	while ((my $id, my $name, my $lastup,my $type)=db_getrow()){
+		my $lineframe=$overview_server_frame->Frame(-borderwidth=>2)->pack(-side=>'top');
+		$lineframe->Label(-width=>50,-image => $nw_logos{$type})->pack(-side=>'left');
 		$lineframe->Label (-text=>$name,-anchor=>'w',-width=>25)->pack(-side=>'left');
 		$lineframe->Button(-text=>'Include',-width=>8,-command=>sub {
 			db_dosql("UPDATE server SET status='down' WHERE id=$id");
