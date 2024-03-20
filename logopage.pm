@@ -1,6 +1,6 @@
 
-#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 #INSTALL@ /opt/djedefre/logopage.pm
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 #  _                                            
 # | | ___   __ _  ___    _ __   __ _  __ _  ___ 
 # | |/ _ \ / _` |/ _ \  | '_ \ / _` |/ _` |/ _ \
@@ -9,9 +9,15 @@
 #          |___/        |_|          |___/  
 our %config;
 
+our $DEB_FRAME;
+our $DEB_DB;
+our $DEB_SUB;
+our $DEBUG;
+
 my $image;
 
 sub logoframe {
+	debug($DEB_SUB,"logoframe");
 	$Message='';
 	$main_frame->destroy if Tk::Exists($main_frame);
 	$image = $main_window->Photo(-file => "$config{image_directory}/djedefre.gif");
