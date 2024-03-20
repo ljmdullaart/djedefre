@@ -1,6 +1,6 @@
 
-#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 #INSTALL@ /opt/djedefre/overview.pm
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 
 use Data::Dumper;
 use strict;
@@ -60,6 +60,7 @@ sub overview_dashboard{
 	$overview_frame=$main_frame->Frame()->pack(-side=>'left');
 	overview_server();
 	overview_network();
+	overview_scripts();
 }
 
 sub overview_network {
@@ -125,7 +126,7 @@ sub overview_network {
 	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='excluded'  AND devicetype = 'network' ORDER BY last_up");
 	while ((my $id, my $name, my $lastup,my $type)=db_getrow()){
 		my $lineframe=$overview_network->Frame(-borderwidth=>2)->pack(-side=>'top');
-		$lineframe->Label (-text=>$name,-anchor=>'w',-width=>25)->pack(-side=>'left');
+		$lineframe->Label (-image => $nw_logos{$type},-anchor=>'w',-width=>25)->pack(-side=>'left');
 		$lineframe->Label (-text=>$name,-anchor=>'w',-width=>25)->pack(-side=>'left');
 		$lineframe->Button(-text=>'Include',-width=>8,-command=>sub {
 			db_dosql("UPDATE server SET status='down' WHERE id=$id");
@@ -171,4 +172,40 @@ sub overview_server {
 	}	
 }
 
+sub overview_scripts {
+	my $overview_scripts_frame=$overview_frame->Scrolled("Frame",-scrollbars=>'e',-width=>400,-height=>800)->pack(-side=>'left');
+	$overview_scripts_frame->Label(-text=>'Scripts')->pack(-side=>'top');
+	db_dosql("SELECT DISTINCT server FROM dashboard");
+	my @serverlist;
+	splice @serverlist;
+	while ((my $srv)=db_getrow()){
+		push @serverlist,$srv;
+	}
+	for my $i (0 .. $#serverlist){
+		my $server=$serverlist[$i];
+		my $srv_frame=$overview_scripts_frame->Frame()->pack(-side=>'top');
+		$srv_frame->Label(-text=>$server)->pack(-side=>'top');
+		db_dosql("SELECT type,variable,value,color1,color2 FROM dashboard WHERE server='$server' ORDER BY type");
+		while ((my $type,my $variable,my $value,my $color1,my $color2)=db_getrow()){
+			my $srvline_frame=$srv_frame->Frame()->pack(-side=>'top');
+			if ($type eq 'pct'){
+				$srvline_frame->Label (-anchor => 'w',-text=>$variable,-width=>20)->pack(-side=>'left');
+				$srvline_frame->Label (-text=>' ', -background=>$color1,-width=>$value/5)->pack(-side=>'left');
+				if ($value<5){
+					$srvline_frame->Label (-text=>' ', -background=>$color2,-width=>(100-$value)/5)->pack(-side=>'left');
+				}
+				elsif ($value<100){
+					$srvline_frame->Label (-text=>' ', -background=>$color2,-width=>(100-$value)/5-1)->pack(-side=>'left');
+				}
+				$srvline_frame->Label (-anchor => 'w',-text=>$value,-width=>20)->pack(-side=>'left');
+			}
+			elsif ($type eq 'val'){
+				$srvline_frame->Label (-anchor => 'w',-text=>$variable,-width=>20)->pack(-side=>'left');
+				$srvline_frame->Label (-anchor => 'w',-text=>$value, -foreground=>$color2, -width=>20)->pack(-side=>'left');
+				$srvline_frame->Label (-anchor => 'w',-text=>'',-width=>20)->pack(-side=>'left');
+			}
+		}
+	}
+}
+			
 1;
