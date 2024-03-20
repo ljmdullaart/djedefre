@@ -1,6 +1,6 @@
 
-#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 #INSTALL@ /opt/djedefre/managepages.pm
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 #                              
 #  _ __   __ _  __ _  ___  ___ 
 # | '_ \ / _` |/ _` |/ _ \/ __|
@@ -11,31 +11,47 @@
 
 our $buttonframe;
 our @pagelist;
+our %pagetypes;
 our @realpagelist;
 our $l3_showpage;
 our $repeat_sub;
+
+our $DEB_FRAME;
+our $DEB_DB;
+our $DEB_SUB;
+our $DEBUG;
+
 my $currentpage='Pages';
 my $selectedpage='Pages';
 my $selectedrealpage='Pages';
 my $pageselectframe;
 my $realpageselectframe;
+my $nDEBUG=0;
 
 sub fill_pagelist {
+	debug($DEB_SUB,"fill_pagelist");
 	splice @pagelist;
 	splice @realpagelist;
 	push @pagelist,'Pages';
+	$pagetypes{'Pages'}='none';
 	push @pagelist,'top';
+	$pagetypes{'top'}='l3';
 	push @pagelist,'l2-top';
-        my $sql = "SELECT DISTINCT item FROM config WHERE attribute LIKE 'page:%'";
+	$pagetypes{'l2-top'}='l2';
+        my $sql = "SELECT DISTINCT item,value FROM config WHERE attribute LIKE 'page:%'";
         my $sth =  db_dosql($sql);
-        while((my $p) = db_getrow()){
+        while((my $p, my $t) = db_getrow()){
                 push @pagelist,$p;
+		$pagetypes{$p}=$t;
+		print "-set->pagetypes{$p}=$t\n";
                 push @realpagelist,$p;
 
         }
 }
 
 sub display_top_page {		# Top-page is L3 drawing of all servers and subnets
+	debug($DEB_SUB,"display_top_page");
+	$nDEBUG=0;
 	$Message='';
 	$l3_showpage='top';
 	$main_frame->destroy if Tk::Exists($main_frame);
@@ -45,6 +61,8 @@ sub display_top_page {		# Top-page is L3 drawing of all servers and subnets
 }
 
 sub display_other_page {
+	debug($DEB_SUB,"display_other_page");
+	$nDEBUG=0;
 	$Message='';
 	$main_frame->destroy if Tk::Exists($main_frame);
 	debug ($DEB_FRAME,"11 Create main_frame");
@@ -52,7 +70,15 @@ sub display_other_page {
 		-height      => 1005,
 		-width       => 1505
 	)->pack(-side =>'top');
-	make_l3_plot($main_frame);
+print "------->pagetype{$l3_showpage}=$pagetypes{$l3_showpage}\n";
+	if ($pagetypes{$l3_showpage} eq 'l3'){
+		print "display_other_page $l3_showpage L3\n";
+		make_l3_plot($main_frame);
+	}
+	elsif ($pagetypes{$l3_showpage} eq 'l2'){
+		print "display_other_page $l3_showpage L2\n";
+		make_l2_plot($main_frame);
+	}
 }
 
 my $manage_pages_change_frame;
@@ -67,6 +93,7 @@ my $pagename='Pages';
 my $pagetype='l3';
 
 sub manage_pages {
+	debug($DEB_SUB,"manage_pages");
 	$Message='';
 	$main_frame->destroy if Tk::Exists($main_frame);
 	$main_frame=$main_window->Frame(
@@ -156,6 +183,7 @@ sub manage_pages {
 
 sub mgpg_selector_callback {
 	(my $func, my $arg,my $page)=@_;
+	debug($DEB_SUB,"mgpg_selector_callback");
 	(my $table, my $id, my $name)=split(':',$arg);
 	if ($table ne 'switch'){
 		db_dosql ("SELECT xcoord,ycoord FROM $table WHERE id=$id");
@@ -175,6 +203,7 @@ sub mgpg_selector_callback {
 
 sub manage_pages_change_action {
 	(my $pgname)=@_;
+	debug($DEB_SUB,"manage_pages_change_action");
 	$managepg_pagename=$pgname;
 	my @servers;
 	my @subnets;
@@ -216,6 +245,7 @@ sub manage_pages_change_action {
 
 sub manage_pages_del_action {
 	(my $pgname)=@_;
+	debug($DEB_SUB,"manage_pages_del_action");
 	db_dosql("DELETE FROM config WHERE item='$pgname'");
 	db_dosql("DELETE FROM pages  WHERE page='$pgname'");
 	fill_pagelist();
@@ -226,6 +256,7 @@ sub manage_pages_del_action {
 
 sub manage_pages_add_action {
 	(my $pageadd)=@_;
+	debug($DEB_SUB,"manage_pages_add_action");
 	fill_pagelist();
 	my $flag=0;
 	for (@pagelist){ 
@@ -246,17 +277,24 @@ sub manage_pages_add_action {
 
 my $selected_page='top';
 
+my $OLDDEBUG;
 sub repeat_selected_page {
+	$OLDDEBUG=$DEBUG;
+	if ($nDEBUG > 2){ $DEBUG=0;}
+	else {$nDEBUG++;}
+	debug($DEB_SUB,"repeat_selected_page");
 	db_dosql("SELECT value FROM config WHERE attribute='run:param' AND item='changed'");
 	(my $changed)=db_getrow();
 	if ($changed eq 'yes'){
 		db_dosql("UPDATE config SET value='no' WHERE attribute='run:param' AND item='changed'");
 		display_selected_page($selected_page);
 	}
+	$DEBUG=$OLDDEBUG;
 }
 
 sub display_selected_page {	# What to do if a page was selected from the menubar
 	(my $pagename)=@_;
+	debug($DEB_SUB,"display_selected_page");
 	$selected_page=$pagename;
 	$repeat_sub=\&repeat_selected_page;
 	if ($pagename eq 'none'){ logoframe() ; }
@@ -271,6 +309,7 @@ sub display_selected_page {	# What to do if a page was selected from the menubar
 
 sub make_realpageselectframe {	# drop-down in the menu-bar
 	(my $parent)=@_;
+	debug($DEB_SUB,"make_realpageselectframe");
 	$realpageselectframe->destroy if Tk::Exists($realpageselectframe);
 	fill_pagelist();
 	debug ($DEB_FRAME,"18 Create pageselectframe");
@@ -280,6 +319,7 @@ sub make_realpageselectframe {	# drop-down in the menu-bar
 }
 sub make_pageselectframe {	# drop-down in the menu-bar
 	(my $parent)=@_;
+	debug($DEB_SUB,"make_pageselectframe");
 	$pageselectframe->destroy if Tk::Exists($pageselectframe);
 	fill_pagelist();
 	debug ($DEB_FRAME,"18 Create pageselectframe");
