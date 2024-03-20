@@ -1,6 +1,6 @@
 #!/usr/bin/perl
-#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 #INSTALL@ /opt/djedefre/selector.pm
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 
 use strict;
 use warnings;
