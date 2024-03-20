@@ -1,6 +1,6 @@
 #!/usr/bin/perl
-#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 #INSTALL@ /opt/djedefre/djedefre
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 use strict;
 
 use Tk;
@@ -23,8 +23,11 @@ use List::MoreUtils qw(first_index);
 require config;
 require cloud;
 require dje_db;
+require ifconnect;
 require l2input;
+require switchinput;
 require l3drawing;
+require l2drawing;
 require listings;
 require logopage;
 require managepages;
@@ -36,31 +39,42 @@ require selector;
 require standard;
 
 our %config;
-our @colors =    qw/Black  DarkGreen Blue   SlateBlue4 tan4 cyan4   firebrick4 Orange Green NavyBlue lightgrey red gray Yellow Cyan Magenta White Brown DarkSeaGreen DarkViolet/;
-our @devicetypes=qw/server nas      network    pc     phone printer tablet/;
+our @colors;
+our @devicetypes;
+@colors =    qw/Black  DarkGreen Blue   SlateBlue4 tan4 cyan4   firebrick4 Orange Green NavyBlue lightgrey red gray Yellow Cyan Magenta White Brown DarkSeaGreen DarkViolet/;
+@devicetypes=qw/server nas      network    pc     phone printer tablet appliance/;
 $config{'topdir'}='.';
 $config{'image_directory'}="$config{'topdir'}/images";	 		# image-files. like logo's
 $config{'scan_directory'} ="$config{'topdir'}/scan_scripts";		# Scan scripts for networ discovery and status
 $config{'dbfile'}="$config{'topdir'}/djedefre/djedefre.db";		# Database file where the network is stored
 my $canvas_xsize=1500;					# default x-size of the network drawning; configurable
 my $canvas_ysize=1200;					# default y-size of the network drawning; configurable
-our $Message='';
-our $locked=0;
+our $Message;
+$Message='';
+our $locked;
+$locked=0;
 our $repeat_sub;
 my $last_message='Welcome';
 
 our $main_window;
-our $main_window_height=500;
-our $main_window_width=500;
+our $main_window_height;
+$main_window_height=500;
+our $main_window_width;
+$main_window_width=500;
 our $main_frame;
 our $button_frame;
 
 
 
 
-my $DEB_FRAME=1;
-my $DEB_DB=2;
-my $DEBUG=0;
+our $DEB_FRAME;
+our $DEB_DB;
+our $DEB_SUB;
+our $DEBUG;
+$DEB_FRAME=1;
+$DEB_DB=2;
+$DEB_SUB=4;
+$DEBUG=4;
 
 sub debug {
 	(my $level, my $message)=@_;
@@ -76,19 +90,23 @@ sub norepeat {
 	# do noting
 }
 
-our $repeat_sub=\&norepeat;
+our $repeat_sub;
+$repeat_sub=\&norepeat;
 
 my $inputselectframe;
 my $selected_input='Input';
 
 sub do_selected_input {
+	debug($DEB_SUB,"do_selected_input");
 	$main_frame->destroy if Tk::Exists($main_frame);
 	$main_frame=$main_window->Frame()->pack(-side =>'top');
 	$repeat_sub=\&norepeat;
 	if ($selected_input eq 'Pages'){ manage_pages(); }
 	elsif ($selected_input eq 'Layer2'){ l2input(); }
+	elsif ($selected_input eq 'Interfaces'){ ifconnect(); }
 	elsif ($selected_input eq 'Colors'){ options_window(); }
 	elsif ($selected_input eq 'Cloud'){ cloud_input(); }
+	elsif ($selected_input eq 'Switch'){ switch_input(); }
 	$selected_input='Input';
 	
 }
@@ -97,7 +115,7 @@ sub make_inputselectframe{
 	(my $parent)=@_;
 	$inputselectframe->destroy if Tk::Exists( $inputselectframe);
 	$inputselectframe=$parent->Frame()->pack(-side=>'right');
-	my @options=qw/Input Pages Layer2 Cloud Colors/;
+	my @options=qw/Input Pages Interfaces Switch Layer2 Cloud Colors/;
 	$inputselectframe->Optionmenu(
 		-variable       => \$selected_input,
 		-width          => 15,
@@ -164,12 +182,12 @@ logoframe();
 
 sub repeat {
 	if ($locked==0){
-		$main_window->after(5000,\&repeat);
+		$main_window->after(300,\&repeat);
 		$main_window_height=$main_window->height;
 		$main_window_width=$main_window->width;
 		&$repeat_sub;
 	}
 }
-$main_window->after(5000,\&repeat);
+$main_window->after(300,\&repeat);
 
 MainLoop;
