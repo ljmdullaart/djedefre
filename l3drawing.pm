@@ -1,11 +1,5 @@
 #INSTALL@ /opt/djedefre/l3drawing.pm
 #INSTALLEDFROM verlaine:/home/ljm/src/djedefre
-#  _			     _____ 
-# | | __ _ _   _  ___ _ __  |___ / 
-# | |/ _` | | | |/ _ \ '__|   |_ \ 
-# | | (_| | |_| |  __/ |     ___) |
-# |_|\__,_|\__, |\___|_|    |____/ 
-#	    |___/		   
 #	     _		             _
 #  _ __   ___| |___      _____  _ __| | __
 # | '_ \ / _ \ __\ \ /\ / / _ \| '__| |/ /
@@ -20,7 +14,8 @@
 #                                    |__/
 
 my @l3_obj;
-our $l3_showpage='top';
+our $l3_showpage;
+$l3_showpage='top';
 our $repeat_sub;
 
 
@@ -42,23 +37,24 @@ my $objtserver=1;
 my $objtswitch=2;
 my $objtcloud=3;
 
+our $DEB_FRAME;
+our $DEB_DB;
+our $DEB_SUB;
+our $DEBUG;
 
 
 connect_db($config{'dbfile'});
 
 
 sub l3_objects {
+	debug($DEB_SUB,"l3_objects");
 	splice @l3_obj;
 	my @hostnames;
 	db_dosql("SELECT interfaces.id,server.name FROM interfaces INNER JOIN server WHERE interfaces.host=server.id");
 	while ((my $id,my $name)=db_getrow()){
 		$hostnames[$id]=$name;
 	}
-	my @switchnames;
-	db_dosql("SELECT id,name FROM switch");
-	while ((my $id,my $name)=db_getrow()){
-		$switchnames[$id]=$name;
-	}
+	db_get_interfaces;
 	my $sql;
 	if ($l3_showpage eq 'top'){
 		$sql = 'SELECT id,nwaddress,cidr,xcoord,ycoord,name,options FROM subnet';
@@ -94,27 +90,6 @@ sub l3_objects {
 		}
 	}
 	
-	$sql="  SELECT switch,switch.id,name,ports,pages.xcoord,pages.ycoord
-		FROM switch
-		INNER JOIN pages ON pages.item = switch.id
-		WHERE  pages.page='$l3_showpage' AND pages.tbl='switch'
-	";
-	
-	db_dosql($sql);
-	while ((my $switchtype,my $id,my $name,my $ports,my $x,my $y)=db_getrow()){
-		$switchtype='switch' unless defined $switchtype;
-		push @l3_obj, {
-			newid	=> $id*$qobjtypes+$objtswitch,
-			id	=> $id,
-			x	=> $x,
-			y	=> $y,
-			logo	=> $switchtype,
-			name	=> $name,
-			ports	=> $ports,
-			table	=> 'switch'
-		};
-		my $newid   =$id*$qobjtypes+$objtswitch;
-	}
 	if ($l3_showpage eq 'top'){
 		$sql = 'SELECT id,name,xcoord,ycoord,type,interfaces,status,options,ostype,os,processor,memory,devicetype FROM server';
 	}
@@ -148,7 +123,7 @@ sub l3_objects {
 			os	=> $os,
 			processor => $processor,
 			memory	=> $memory,
-			devicetype => $devicetype
+			devicetype => $devicetype,
 		};
 		my $max=$#l3_obj;
 		push @{$l3_obj[$max]{pages}},' ';
@@ -198,10 +173,13 @@ sub l3_objects {
 		my $id=$l3_obj[$i]->{'id'};
 		my $table=$l3_obj[$i]->{'table'};
 		if ($table eq 'server'){
-			my $sql = "SELECT ip FROM interfaces WHERE host=$id";
+			my $sql = "SELECT ip,ifname FROM interfaces WHERE host=$id";
 			my $sth = db_dosql($sql);
-			while((my $ip) = db_getrow()){
-				push @{$l3_obj[$i]{interfaces}}, $ip;
+			while((my $ip,my $ifname) = db_getrow()){
+				$ifname='-' unless defined $ifname;
+				my $pushstr="$ifname $ip";
+				$puststr=~s/^ *//;
+				push @{$l3_obj[$i]{interfaces}}, "$ifname $ip";
 			}
 			splice @{$l3_obj[$i]{pages}};
 			my $sql = "SELECT page FROM pages WHERE tbl='server' AND item=$id";
@@ -229,51 +207,13 @@ sub l3_objects {
 				push @{$l3_obj[$i]{pages}}, $item
 			}
 		}
-		elsif($table eq 'switch'){
-			push @{$l3_obj[$i]{pages}},' ';
-			splice @{$l3_obj[$i]{pages}};
-			my $sql = "SELECT page FROM pages WHERE tbl='switch' AND item=$id";
-			my $sth = db_dosql($sql);
-			while ((my $item) = db_getrow()){
-				push @{$l3_obj[$i]{pages}}, $item
-			}
-			push @{$l3_obj[$i]{connected}},' ';
-			splice @{$l3_obj[$i]{connected}};
-			my $sql = "SELECT to_tbl,to_id,from_port FROM l2connect WHERE from_tbl='switch' AND from_id=$id ORDER BY from_port";
-			my $sth = db_dosql($sql);
-			while ((my $to_tbl,my $to_id,my $from_port) = db_getrow()){
-				my $name;
-				if ($to_tbl eq 'interfaces'){
-					 $name=$hostnames[$to_id];
-				}
-				elsif ($to_tbl eq 'switch'){
-					$name=$switchnames[$to_id];
-				}
-				else { $name='';}
-				$name='' unless defined $name;
-				push @{$l3_obj[$i]{connected}}, "$from_port:$to_tbl:$name";
-			}
-			my $sql = "SELECT from_tbl,from_id,to_port FROM l2connect WHERE to_tbl='switch' AND to_id=$id ORDER BY to_port";
-			my $sth = db_dosql($sql);
-			while ((my $to_tbl,my $to_id,my $from_port) = db_getrow()){
-				my $name;
-				if ($to_tbl eq 'interfaces'){
-					 $name=$hostnames[$to_id];
-				}
-				elsif ($to_tbl eq 'switch'){
-					$name=$switchnames[$to_id];
-				}
-				else { $name='';}
-				$name='' unless defined $name;
-				push @{$l3_obj[$i]{connected}}, "$from_port:$to_tbl:$name";
-			}
-		}
 	}
 
 }
 
 my @l3_line;
 sub l3_lines {
+	debug($DEB_SUB,"l3_lines");
 	my @interfacelist;
 	splice @l3_line;
 
@@ -345,64 +285,6 @@ sub l3_lines {
 			}
 
 		}
-		if ($l3_obj[$i]->{'table'} eq 'switch'){
-			$obj_id=$l3_obj[$i]->{'newid'};
-			my $sw_id=$l3_obj[$i]->{'id'};
-			my $sw_newid=$l3_obj[$i]->{'newid'};
-			my $sw_name=$l3_obj[$i]->{'name'};
-			my $vlancolor;
-			db_dosql("SELECT vlan,to_tbl,to_id FROM l2connect WHERE from_tbl='switch' AND from_id=$sw_id");
-			while ((my $vlan,my $to_tbl,my $to_id)=db_getrow()){
-				if (defined $colorization{$vlan}){
-					$vlancolor=$colorization{$vlan};
-				}
-				elsif (defined $colorization{"vlan$vlan"}){
-					$vlancolor=$colorization{"vlan$vlan"};
-				}
-				else {
-					$vlancolor='black';
-				}
-				my $to_srv=$to_id;
-				$vlan=1 unless defined $vlan;
-				if ( $to_tbl eq 'interfaces'){
-					$to_srv=$ifserver[$to_id];
-					$to_tbl='server';
-				}
-				for my $j ( 0 .. $#l3_obj){
-					my $con_id=$l3_obj[$j]->{'id'};
-					my $con_tbl=$l3_obj[$j]->{'table'};
-					my $con_newid=$l3_obj[$j]->{'newid'};
-					my $con_srv=$con_id;
-					if($con_tbl eq 'interfaces'){
-						$con_srv=$ifserver[$con_id];
-						$con_tbl='server';
-					}
-					if (($to_tbl eq $con_tbl) && ($to_srv == $con_id)){
-						push @l3_line, {
-							from    => $sw_newid,
-							to	=> $con_newid,
-							type	=> $vlancolor
-						};
-					}
-				}
-			}
-			db_dosql("SELECT from_tbl,from_id FROM l2connect WHERE to_tbl='switch' AND to_id=$sw_id");
-			while ((my $from_tbl,my $from_id)=db_getrow()){
-				for my $j ( 0 .. $#l3_obj){
-					my $con_id=$l3_obj[$j]->{'id'};
-					my $con_tbl=$l3_obj[$j]->{'table'};
-					my $con_newid=$l3_obj[$j]->{'newid'};
-					my $con_srv=$con_id;
-					if (($from_tbl eq $con_tbl) && ($from_id == $con_id)){
-						push @l3_line, {
-							from    => $sw_newid,
-							to	=> $con_newid,
-							type	=> $vlancolor
-						};
-					}
-				}
-			}
-		}
 		if ($l3_obj[$i]->{'table'} eq 'cloud'){
 			my $obj_id=$l3_obj[$i]->{'newid'};
 			push @l3_line, {
@@ -419,6 +301,7 @@ sub l3_lines {
 my $l3_plot_frame;
 
 sub l3_renew_content {
+	debug($DEB_SUB,"l3_renew_content");
 	l3_objects('top');
 	l3_lines();
 	nw_del_objects(@l3_obj);
@@ -428,6 +311,7 @@ sub l3_renew_content {
 }
 sub make_l3_plot {
 	(my $parent)=@_;
+	debug($DEB_SUB,"make_l3_plot");
 	$l3_plot_frame->destroy if Tk::Exists($l3_plot_frame);
 	debug ($DEB_FRAME,"1 Create l3_plot_frame");
 	$l3_plot_frame=$parent->Frame()->pack(-side=>'left');
@@ -444,12 +328,14 @@ sub make_l3_plot {
 	#nw_drawall();
 }
 sub cbdump {
+	debug($DEB_SUB,"cbdump");
 	print "----Djedefre2-callback-dumper-----\n";
 	print Dumper @_;
 	print "----------------------------------\n";
 }
 sub l3_page {
 	(my $table,my $id,my $name,my $action,my $page)=@_;
+	debug($DEB_SUB,"l3_page");
 	my $arg="$table:$id:$name";
 	$managepg_pagename=$page;
 	mgpg_selector_callback ($action,$arg,$page);
@@ -458,6 +344,7 @@ sub l3_page {
 
 sub l3_color {
 	(my $table, my $id, my $color)=@_;
+	debug($DEB_SUB,"l3_color");
 	if ($table eq 'subnet'){
 		db_dosql("SELECT options FROM $table WHERE id=$id");
 		(my $opts)=db_getrow();
@@ -471,6 +358,7 @@ sub l3_color {
 }
 sub l3_devicetype {
 	(my $table, my $id, my $type)=@_;
+	debug($DEB_SUB,"l3_devicetype");
 	if ($table eq 'server'){
 		#my $sql = "UPDATE $table SET type='$type' WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
 		db_dosql("UPDATE $table SET devicetype='$type' WHERE id=$id");
@@ -479,6 +367,7 @@ sub l3_devicetype {
 }
 sub l3_type {
 	(my $table, my $id, my $type)=@_;
+	debug($DEB_SUB,"l3_type");
 	if ($table eq 'server'){
 		#my $sql = "UPDATE $table SET type='$type' WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
 		db_dosql("UPDATE $table SET type='$type' WHERE id=$id");
@@ -491,11 +380,13 @@ sub l3_type {
 }
 sub l3_name {
 	(my $table, my $id, my $name)=@_;
+	debug($DEB_SUB,"l3_name");
 	my $sql = "UPDATE $table SET name='$name' WHERE id=$id"; db_dosql($sql);
 	l3_renew_content();
 }
 sub l3_delete {
 	(my $table, my $id, my $name)=@_;
+	debug($DEB_SUB,"l3_delete");
 	if ($table eq 'server'){
 		db_dosql("SELECT id FROM interfaces WHERE host=$id");
 		my @ifids; splice @ifids;
@@ -510,6 +401,7 @@ sub l3_delete {
 }
 sub l3_move {
 	(my $table, my $id, my $x, my $y)=@_;
+	debug($DEB_SUB,"l3_move");
 	my $sql;
 	if ( $l3_showpage eq 'top'){
 		$sql = "UPDATE $table SET xcoord=$x WHERE id=$id"; db_dosql($sql);
@@ -523,6 +415,7 @@ sub l3_move {
 
 sub l3_merge {
 	(my $table, my $id, my $name, my $target)=@_;
+	debug($DEB_SUB,"l3_merge");
 	if ($table eq "server"){
 		my $targetid=$id;
 		if ($target =~/^(\d+\.\d+\.\d+\.\d+)/){
