@@ -1,6 +1,6 @@
 use strict;
-#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 #INSTALL@ /opt/djedefre/cloudnput.pm
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 #       _                 _ 
 #   ___| | ___  _   _  __| |
 #  / __| |/ _ \| | | |/ _` |
@@ -16,6 +16,10 @@ our $Message;
 our @logolist;
 our @devicetypes;
 
+our $DEB_FRAME;
+our $DEB_DB;
+our $DEB_SUB;
+
 my @cloud_cloudlist;
 my $cloud_addcloud;
 my $cloud_selectedcloud;
@@ -29,21 +33,27 @@ my $cloud_service;
 	
 
 sub cloud_del_a_cloud {
+	debug($DEB_SUB,"cloud_del_a_cloud");
 	db_dosql("DELETE FROM cloud WHERE name='$cloud_addcloud'");
+	cloud_input();
 }
 
 sub cloud_add_a_cloud {
+	debug($DEB_SUB,"cloud_add_a_cloud");
 	cloud_del_a_cloud();
 	db_dosql("INSERT INTO cloud (name,vendor,type,service) VALUES ('$cloud_addcloud','$cloud_vendor','$cloud_type','$cloud_service')");
 	cloud_input();
 }	
 
 sub cloud_change_a_cloud {
+	debug($DEB_SUB,"cloud_change_a_cloud");
 	cloud_del_a_cloud();
 	db_dosql("INSERT INTO cloud (name,vendor,type,service) VALUES ('$cloud_addcloud','$cloud_vendor','$cloud_type','$cloud_service')");
+	cloud_input();
 }
 
 sub cloud_select_a_cloud {
+	debug($DEB_SUB,"cloud_select_a_cloud");
 	$cloud_addcloud=$cloud_selectedcloud;
 	db_dosql("SELECT id,name,vendor,type,service FROM cloud WHERE name='$cloud_selectedcloud'");
 	($cloud_id,$cloud_name,$cloud_vendor,$cloud_type,$cloud_service)=db_getrow();
@@ -51,6 +61,7 @@ sub cloud_select_a_cloud {
 
 
 sub cloud_input {
+	debug($DEB_SUB,"cloud_input");
 	$Message='';
 	$main_frame->destroy if Tk::Exists($main_frame);
 	$main_frame=$main_window->Frame()->pack(-side =>'top');
