@@ -1,6 +1,6 @@
 
-#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 #INSTALL@ /opt/djedefre/listings.pm
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 
 use Data::Dumper;
 
@@ -13,12 +13,18 @@ use Data::Dumper;
 
 our $main_frame;
 
+our $DEB_FRAME;
+our $DEB_DB;
+our $DEB_SUB;
+our $DEBUG;
+
 my $listing_frame;
 my $listing_button_frame;
 my $listing_listing_frame;
 
 my $selected_listing='Lists';
 sub menu_make_listing {
+	debug($DEB_SUB,"menu_make_listing");
 	$main_frame->destroy if Tk::Exists($main_frame);
         $main_frame=$main_window->Frame()->pack();
 	$listing_frame->destroy if Tk::Exists($listing_frame);
@@ -51,6 +57,7 @@ sub menu_make_listing {
 
 sub make_listingselectframe {
 	(my $parent)=@_;
+	debug($DEB_SUB,"make_listingselectframe");
 	my @listingtypes=qw/ Lists Servers Virtuals Subnets Interfaces Switches/;
 	$parent->Optionmenu (
 		-variable	=> \$selected_listing,
@@ -63,6 +70,7 @@ sub make_listingselectframe {
 
 sub make_listing {
 	(my $parent)=@_;
+	debug($DEB_SUB,"make_listing");
 	$main_frame->destroy if Tk::Exists($main_frame);
         $main_frame=$main_window->Frame()->pack();
 	$listing_frame->destroy if Tk::Exists($listing_frame);
@@ -109,6 +117,7 @@ sub list_sel_srv {
 }
 sub listing_servers{
 	(my $parent)=@_;
+	debug($DEB_SUB,"listing_servers");
 	$listing_server_frame->destroy if Tk::Exists($listing_server_frame);
 	$listing_server_frame=$parent->Frame(
 	)->pack();
@@ -154,6 +163,7 @@ sub listing_servers{
 my $listing_subnet_frame;
 sub listing_subnets {
 	(my $parent)=@_;
+	debug($DEB_SUB,"listing_subnets");
 	$listing_server_frame->destroy if Tk::Exists($listing_server_frame);
 	$listing_server_frame=$parent->Frame(
 	)->pack();
@@ -187,6 +197,7 @@ sub listing_subnets {
 my $listing_interfaces_frame;
 sub listing_interfaces {
 	(my $parent)=@_;
+	debug($DEB_SUB,"listing_interfaces");
 	$listing_server_frame->destroy if Tk::Exists($listing_server_frame);
 	$listing_server_frame=$parent->Frame(
 	)->pack();
@@ -202,7 +213,7 @@ sub listing_interfaces {
 	$ar[0]='ID';
 	$ar[1]='MAC';
 	$ar[2]='IP';
-	$ar[3]='Name';
+	$ar[3]='Host';
 	$ar[4]='Net';
 	ml_colhead(@ar);
 	my @servers=[];
@@ -242,6 +253,7 @@ sub listing_interfaces {
 
 sub listing_virtual {
 	(my $parent)=@_;
+	debug($DEB_SUB,"listing_virtual");
 	$listing_server_frame->destroy if Tk::Exists($listing_server_frame);
 	$listing_server_frame=$parent->Frame()->pack();
 	$listing_server_frame->Label(-text=>"Interfaces")->pack();
@@ -279,6 +291,7 @@ sub listing_virtual {
 
 sub listing_switch {
 	(my $parent)=@_;
+	debug($DEB_SUB,"listing_switch");
 	$listing_server_frame->destroy if Tk::Exists($listing_server_frame);
 	$listing_server_frame=$parent->Frame()->pack();
 	$listing_server_frame->Label(-text=>"Interfaces")->pack();
