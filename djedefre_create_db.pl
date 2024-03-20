@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 #INSTALL@ /opt/djedefre/djedefre_create_db
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 use strict;
 use DBI;
 use File::Spec;
@@ -65,21 +66,21 @@ sub connect_db {
 connect_db();
 my $schema='';
 $schema="
-create table if not exists interfaces (
-	id        integer primary key autoincrement,
-	macid     string,
-	ip        string,
-	hostname  string,
-	host      integer,
-	subnet    integer,
-	access    string,
-	switch    integer,
-	port      integer
+CREATE TABLE IF NOT EXISTS interfaces (
+	id            integer primary key autoincrement,
+	macid         string,
+	ip            string,
+	hostname      string,
+	host          integer,
+	subnet        integer,
+	access        string,
+	connect_if    integer,
+	port          integer
 	);
 ";
 $db->do($schema) or die $db->errstr;
 $schema="
-create table if not exists subnet (
+CREATE TABLE IF NOT EXISTS subnet (
 	id         integer primary key autoincrement,
 	nwaddress  string,
 	cidr       integer,
@@ -92,7 +93,7 @@ create table if not exists subnet (
 ";
 $db->do($schema) or die $db->errstr;
 $schema="
-create table if not exists server (
+CREATE TABLE IF NOT EXISTS server (
 	id         integer primary key autoincrement,
 	name       string,
 	xcoord     integer,
@@ -110,7 +111,7 @@ create table if not exists server (
 ";
 $db->do($schema) or die $db->errstr;
 $schema="
-create table if not exists command (
+CREATE TABLE IF NOT EXISTS command (
 	id         integer primary key autoincrement,
 	host       string,
 	button     string,
@@ -119,7 +120,7 @@ create table if not exists command (
 ";
 $db->do($schema) or die $db->errstr;
 $schema="
-create table if not exists details (
+CREATE TABLE IF NOT EXISTS details (
 	id         integer,
 	type       string,
 	os         string
@@ -127,7 +128,7 @@ create table if not exists details (
 ";
 $db->do($schema) or die $db->errstr;
 $schema="
-create table if not exists pages (
+CREATE TABLE IF NOT EXISTS pages (
 	id         integer primary key autoincrement,
 	page       string,
 	tbl        string,
@@ -138,7 +139,7 @@ create table if not exists pages (
 ";
 $db->do($schema) or die $db->errstr;
 $schema="
-create table if not exists switch (
+CREATE TABLE IF NOT EXISTS switch (
 	id         integer primary key autoincrement,
 	switch     string,
 	server     integer,
@@ -148,7 +149,7 @@ create table if not exists switch (
 ";
 $db->do($schema) or die $db->errstr;
 $schema="
-create table if not exists l2connect (
+CREATE TABLE IF NOT EXISTS l2connect (
 	id         integer primary key autoincrement,
 	vlan       string,
 	from_tbl   string,
@@ -161,7 +162,7 @@ create table if not exists l2connect (
 ";
 $db->do($schema) or die $db->errstr;
 $schema="
-create table if not exists config (
+CREATE TABLE IF NOT EXISTS config (
 	id         integer primary key autoincrement,
 	attribute  string,
 	item       string,
@@ -170,7 +171,7 @@ create table if not exists config (
 ";
 $db->do($schema) or die $db->errstr;
 $schema="
-create table if not exists cloud (
+CREATE TABLE IF NOT EXISTS cloud (
 	id         integer primary key autoincrement,
 	name       string,
         vendor     string,
@@ -178,6 +179,28 @@ create table if not exists cloud (
 	xcoord     integer,
 	ycoord     integer,
 	service    string
+	);
+";
+$db->do($schema) or die $db->errstr;
+$schema="
+CREATE TABLE IF NOT EXISTS dashboard (
+	id         integer primary key autoincrement,
+	server     string,
+        type       string,
+	variable   string,
+	value      string,
+	color1     string,
+	color2     string
+	);
+";
+$db->do($schema) or die $db->errstr;
+$schema="
+CREATE TABLE IF NOT EXISTS nfs (
+	id         integer primary key autoincrement,
+	server     string,
+        export     string,
+	client     string,
+	mountpoint string
 	);
 ";
 $db->do($schema) or die $db->errstr;
