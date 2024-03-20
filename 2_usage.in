@@ -29,6 +29,11 @@ Make sure that the following Perl modules are installed:
 .fixed File::HomeDir
 - 
 .fixed DBD/SQLite.pm
+-
+.fixed List/MoerUtils.pm
+-
+.fixed Sort/Naturally.pm
+
 
 
 Make sure that the following programs are installed:
@@ -56,19 +61,17 @@ and create it if it is not there
 - start the GUI with
 .fixed ./dedefre.pl &
 
-You will be greeted with a cartouche depicting the hieroglyphs for Djedefre with a number of buttons above it.
+You will be greeted with a cartouche depicting the hieroglyphs for Djedefre with a number of menus above it.
 
 .img djedefre_opening.xcf
 
 The buttons give access to functionality:
 
-- "Listings" provides several lists (servers, subnets, interfaces)
-- "Manage pages" allows you to create pages with network drawing and determine what should be on those pages
-- "Layer 2 input" provides a way to add input for the layer-2 connections
-- Options provides settings for different items
-- "View page" has a selection list of pages that can be viewed. 
+- Pages contains a list of pages with network drawings
+- Lists provides listings of the network
+- Input provides various methods for data entry
 
-At this point, when you select the page "top", you will get an empty drawing.
+At this point, when you select the page "top" from the Pages menu, you will get an empty drawing.
 
 .h2 Start scanning
 

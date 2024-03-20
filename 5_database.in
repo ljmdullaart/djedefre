@@ -1,0 +1,143 @@
+.header
+
+.h1 Database
+
+Most fields are only filled-in if they are known
+
+
+.h2 interfaces 
+
+	id	integer primary key autoincrement	ID of the interface
+	macid	string	MAC-ID
+	ip	string	IP address
+	hostname	string	
+	host	integer
+	subnet	integer
+	access	string
+	connect_if	integer
+	port	integer
+
+
+.h2 subnet
+
+	id	integer primary key autoincrement
+	nwaddress	string
+	cidr	integer
+	xcoord	integer
+	ycoord	integer
+	name	string
+	options	string
+	access	string
+
+
+
+
+.h2 server
+
+	id	integer primary key autoincrement
+	name	string
+	xcoord	integer
+	ycoord	integer
+	type	string
+	status	string
+	last_up	integer
+	options	string
+	ostype	string
+	os	string
+	processor	string
+	devicetype	string
+	memory	string
+
+
+
+
+.h2 command
+
+	id	integer primary key autoincrement
+	host	string
+	button	string
+	command	string
+
+
+
+
+.h2 details
+
+	id	integer
+	type	string
+	os	string
+
+
+.h2 pages
+
+	id	integer primary key autoincrement
+	page	string
+	tbl	string
+	item	integer
+	xcoord	integer
+	ycoord	integer
+
+
+.h2 switch
+
+	id	integer primary key autoincrement
+	switch	string
+	server	integer
+	name	string
+	ports	integer
+
+
+.h2 l2connect
+
+	id	integer primary key autoincrement
+	vlan	string
+	from_tbl	string
+	from_id	integer
+	from_port	integer
+	to_tbl	string
+	to_id	integer
+	to_port	integer
+
+.h2 config
+
+	id	integer primary key autoincrement
+	attribute	string
+	item	string
+	value	string
+
+.h2 cloud
+
+	id	integer primary key autoincrement
+	name	string
+	vendor	string
+	type	string
+	xcoord	integer
+	ycoord	integer
+	service	string
+
+
+
+
+.h2 dashboard
+
+	id	integer primary key autoincrement
+	server	string
+	type	string
+	variable	string
+	value	string
+	color1	string
+	color2	string
+
+
+
+
+.h2 nfs
+
+	id	integer primary key autoincrement
+	server	string
+	export	string
+	client	string
+	mountpoint	string
+
+
+

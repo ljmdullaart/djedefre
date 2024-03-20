@@ -14,6 +14,9 @@ The scan scripts fill the database. The GUI displays the network in the database
 allows the user to change certain values. The database is created when the GUI is
 first started.
 
+Djederfre is not a stable release. GUI parts may change, database layout can change and 
+functionality will be added. Some of the changes will not yet have been documented.
+
 
 Some time ago, there was a tool called Cheops, that automated network discovery and gave 
 a nice drawing of the network. Cheops is now abandonware. Djedefre was pharaoh after Cheops.

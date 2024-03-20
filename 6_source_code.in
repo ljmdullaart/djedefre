@@ -1,0 +1,255 @@
+.header
+
+.h1 The source code
+
+If I want to change anything, I find myself first digging through the source code before I can even
+begin to add new functionality. This chapter should help 
+finding my way through the code easier.
+
+.h2 TK frame hiërarchy
+
+Most os the actual work in the frames is done in the frame
+.fixed subframe
+which is destroyed and recreated, depending on what is displayed.  The 
+.fixed subframe
+is set within the
+.fixed main_frame
+because sometimes, destroying and re-creating the
+.fixed main_frame
+causes resizing of the main window and/or flickering.
+
+- main_window
+	- button_frame
+		- unnamed button "List netork"
+		- unnamed button "Plot network"
+		- unnamed button "Options"
+		- unnamed button "exit"
+	- unnamed label with textvariable $Message
+	- main_frame
+		- subframe: is destroyed and recreated, depending on what to display
+			- On start-up:
+				- unnamed label "Dedefre"
+				- Photo image with djedefre.gif
+			- As network-plot:
+				- nw_info_frame
+				- nw_button_frame
+				- nw_frame
+			- As Options:
+				- Label "Options"
+				- opt_scan_frame
+			- As List network:
+				- list_main_frame
+
+.h3 On start-up
+
+The subframe contains:
+
+- unnamed label "Dedefre"
+- Photo image with djedefre.gif
+
+Not much interaction is possible.
+
+.h2 Modules
+
+.h3 Nwdrawing
+
+.h4 Synopsis
+
+Nwdrawing creates a network drawing. The drawing consistes of a drawing and an information field. 
+
+The drawing places objects on the map and lines are drawn. Objects may be moved and the lines will
+automatiically follow. If an object is selected, the information field will be updated 
+for the selected object.
+
+
+.h4 Typical use
+
+.set colwidth 50,50
+
+
+	.fixed nw_del_objects();	delete all the existing objects, if any	
+	.fixed nw_del_lines();	delete all the existing lines, if any	
+	.fixed nw_objects(@nw_obj);	create new objects for the drawing	
+	.fixed nw_lines(@nw);	create new lines for the drawing	
+	.fixed nw_frame($parent_frame);	create the drawing in the parent_frame	
+	.fixed nw_callback ('callback-type',%n%.br%n%.fixed \&callback_function);	Set call-backs for the different call-back types	
+
+.h4 Objects
+
+Objects are placed in an array of hashes. The objects are created with
+.fixed nw_objects(@nw_obj);
+where 
+.fixed @nw_obj
+is the array of hashes.
+The hashes contain the following fields:
+
+.set colwidth 35,20,42,48
+
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed  push @nw_obj, {                                                                                                                                                   |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed newid   =>                                   | always present              |  must be unique in the array                                                          |
+|.br                                                 |                             |                                                                                       |
+|.fixed  $id*$qobjtypes+$objtsubnet,                 |                             |                                                                                       |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    id      => $id,                           | always present              |  is the id that is used in the callback                                               |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    x       => $x,                            | always present              |  x-coordinate of the object                                                           |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    y       => $y,                            | always present              |  y-coordinate of the object,                                                          |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    logo    => 'subnet',                      | always present              |  logo used for the object                                                             |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    name    => $name,                         | always present              |  name used for the object                                                             |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    table   => 'subnet',                      | always present              |  table where the object is stored. (table, id) is unique in the array                 |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    pages   => @pageslist,                    | always present              |  list of pages where the object is displayed.                                         |
+|                                                    |                             |  .fixed push @{$l3_obj[$i]{pages}},'pagename'                                         |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    nwaddress=> $nwaddress,                   | present if table=subnet     |  network address of the subnet                                                        |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    cidr    => $cidr                          | present if table=subnet     |  CIDR-bits of the subnet                                                              |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    color   => $color                         | present if table=subnet     |  color for the subnet.                                                                |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    status  => $status,                       | present if type=server      |  status of the server ('up', 'down','excluded')                                       |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    options => $options,                      | present if type=server      |  Possible options, separated by ';'; only                                             |
+|                                                    |                             |  .fixed  vboxhost:$id                                                                 |
+|                                                    |                             |                is used.                                                               |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    ostype  => $ostype,                       | present if type=server      |  os-type                                                                              |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    os      => $os,                           | present if type=server      |  detailed OS data                                                                     |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    processor => $processor,                  | present if type=server      |  processor type if known                                                              |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    memory  => $memory,                       | present if type=server      |  quantity of memory                                                                   |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    devicetype => $devicetype,                | present if type=server      |  device-type (server, network, nas, ....)                                             |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    interfaces=> @if_list                     | present if type=server      |  list of strings "interface-name ipv4address                                          |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    vendor  => $vendor,                       | present if type=cloud       |  vendor/provider of the service                                                       |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed    service => $service                       | present if type=cloud       |  service provided via this cloud                                                      |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|.fixed }                                                                                                                                                                  |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+
+
+
+.h4 Lines
+
+Lines are an array of hashes. The lines are set with
+.fixed  nw_lines(@l3_line);
+
+The hashes contain the following:
+
+.pre
+push @l3_line, {
+   from    => $newid1,
+   to      => $newid2,
+   type    => $color
+}
+.pre
+
+.h4 Call-back
+
+Call-back functions are called if something important changes in the network
+drawing. Callbacks are set with a call to 
+.fixed nw_callback($type,$func).
+.fixed $func
+is a function, for example
+.fixed \&functionname.
+.fixed $type is from the following table:
+
+.set colwidth 10,20,55
+
+|----------------------------------------------------------------------------------------------------------|
+| .b type     | .b arguments              |.b what                                                         |
+|----------------------------------------------------------------------------------------------------------|
+| color       | table,id. color           |The color of id in table is changed to color                    |
+|----------------------------------------------------------------------------------------------------------|
+| delete      | table,id, name            |The object with the id=id must be deleted from the table        |
+|             |                           | .i table.                                                      |
+|----------------------------------------------------------------------------------------------------------|
+| devicetype  | table,id,tpchoice         |The devicetype id in table is set to tpchoice                   |
+|----------------------------------------------------------------------------------------------------------|
+| merge       | table,id,name,merge       |Mergs id=id with merge. Merge can be an ID, a name etc.         |
+|----------------------------------------------------------------------------------------------------------|
+| move        | table,id,cx,cy            |Move object with id to cx, cy.                                  |
+|----------------------------------------------------------------------------------------------------------|
+| name        | table,id, name            |Give the object id a new name                                   |
+|----------------------------------------------------------------------------------------------------------|
+| page        | table,id,name,action,page |action='add' or 'del'. Remove or add the object from a page.    |
+|----------------------------------------------------------------------------------------------------------|
+| type        | table,id,tpchoice         |Set the object's type to tpchoice.                              |
+|----------------------------------------------------------------------------------------------------------|
+
+.i table
+is the table in the database. This may be subnet,server, cloud etc.
+
+.h3 Multilist
+
+Multilist provides a ascollable table from which an item can be selected.
+
+.h4 Typical use
+
+.set colwidth 40,40
+
+
+	.fixed ml_new($parent,$height,$pack_side)	Create a multilist in %n%.fixed $parent%n%and pack on the %n%.fixed $pac_side
+	.fixed ml_colwidth(@width)	set the column-widths in the multilist
+	.fixed ml_colhead(@headers)	set the labels of the column-headers
+	.fixed ml_create()	create the multilist
+	.fixed ml_insert(@content)	Add content to the multilist
+	.fixed ml_callback(\&subroutine)	Add a call-back for selection
+	.fixed ml_destroy	
+
+.h4 Callback
+
+The subroutine in the callback is called with the value in the first column as argument. Typically, this
+should be some unique ID.
+
+.h3 dje_db
+
+The database interface module. All interfacing with the database should go through this module. This will make 
+it easier to change database when that is necessary.
+
+The module contains a number of basic routines for interfacing with the database:
+
+- 
+.fixed connect_db
+: connect to the database
+- 
+.fixed db_dosql
+: execute an SQL query on the database
+- 
+.fixed db_getrow
+: get 1 row of results; returns an empty array if there are no more rows
+
+And a number of subs that copy entire tables to arrays:
+
+- 
+.fixed db_get_interfaces
+- 
+.fixed db_get_subnet
+- 
+.fixed db_get_get_server
+- 
+.fixed db_get_db_get_l2
+
+.h4 Typical use
+
+	.fixed connect_db	connect to the databas
+	.fixed db_dosql (%n%.i query%n%.fixed )	do a query on the database
+	.fixed @row=db_getrow()	get a row of output
+
+Note that this sequence is not re-entrant; 
+.fixed db_getrow()
+will always give a row for the latest
+.fixed db_dosql
+that was executed.
+
