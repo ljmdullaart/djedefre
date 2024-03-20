@@ -1,6 +1,6 @@
 #!/usr/bin/perl
-#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 #INSTALL@ /opt/djedefre/nwdrawing.pm
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 
 use strict;
 use warnings;
@@ -18,7 +18,7 @@ use Data::Dumper;
 use List::Util qw(first);
 
 our %config;
-our @colors ;
+our @colors;
 our @devicetypes;
 our $locked;
 
@@ -35,13 +35,93 @@ sub nw_debug {
 
 
 #######################################################################
+#	Typical use
+#######################################################################
+#
+# nw_del_objects();
+#                         delete all the existing objects, if any
+# nw_del_lines();
+#                         delete all the existing lines, if any
+# nw_objects(@nw_obj);
+#                         create new objects for the drawing
+# nw_lines(@nw);
+#                         create new lines for the drawing
+# nw_frame($parent_frame);
+#                         create the drawing in the parent_frame
+# nw_callback ('callback-type',\&callback_function);
+#                         Set call-backs for the different call-back types
+# 
+#######################################################################
 #	call-back
 #######################################################################
+# 
+# Call-back functions are called if something important changes in the network
+# drawing. Callbacks are set with a call to nw_callback($type,$func).
+# $func is a function, for example \&function)name.
+# $type is from the following table:
+#
+# type          arguments                  what
+#
+# color         table,id. color            The color of id in table is changer to color
+# delete        table,id, name             The oblect with the id=id must be deleted from the table table.
+# devicetype    table,id,tpchoice          The devicetype id in table is set to tpchoice
+# merge         table,id,name,merge        Mergs id=id with merge. Merge can be an ID, a name etc.
+# move          table,id,cx,cy             Move object with id to cx, cy.
+# name          table,id, name             Give the object id a new name
+# page          table,id,name,action,page  action='add' or 'del'. Remove or add the object from a page.
+# type          table,id,tpchoice          Set the object's type to tpchoice.
+#
+# table is the table in the database. This may be subnet,server, clpud etc.
+#
+#######################################################################
+#	Objects
+#######################################################################
+# Objects are placed in an array of hashes. The objects are created with
+# nw_objects(@nw_obj);
+#
+# The hashes contain the following fields:
+#  push @nw_obj, {
+#          newid   => $id*$qobjtypes+$objtsubnet,    # always present; must be unique in the array
+#          id      => $id,                           # always present; is the id that is used in the callback
+#          x       => $x,                            # always present; x-coordinate of the object
+#          y       => $y,                            # always present; y-coordinate of the object,
+#          logo    => 'subnet',                      # always present; logo used for the object
+#          name    => $name,                         # always present; name used for the object
+#          table   => 'subnet',                      # always present; table where the object is stored. (table, id) is unique in the array
+#          pages   => @pageslist,                    # always present; list of pages where the object is displayed. (push @{$l3_obj[$i]{pages}},'pagename')
+#          nwaddress=> $nwaddress,                   # present if table='subnet'; network address of the subnet
+#          cidr    => $cidr                          # present if table='subnet'; CIDR-bits of the subnet
+#          color   => $color                         # present if table='subnet'; color for the subnet.
+#          status  => $status,                       # present if type=server; status of the server ('up', 'down','excluded')
+#          options => $options,                      # present if type=server; Possible options, separated by ';'; only vboxhost:$id is used.
+#          ostype  => $ostype,                       # present if type=server; os-type
+#          os      => $os,                           # present if type=server; detailed OS data
+#          processor => $processor,                  # present if type=server; processor type if known
+#          memory  => $memory,                       # present if type=server; quantity of memory
+#          devicetype => $devicetype,                # present if type=server; device-type (server, network, nas, ....)
+#          interfaces=> @if_list                     # present if type=server; list of strings "interface-name ipv4address
+#          vendor  => $vendor,                       # present if type=cloud; vendor/provider of the service
+#          service => $service                       # present if type=cloud; service provided via this cloud
+#  }
+#######################################################################
+#	Lines
+#######################################################################
+# Lines are an array of hashes. The lines are set with
+#   nw_lines(@l3_line);
+#
+# The hashes contain the following:
+# push @l3_line, {
+#    from    => $newid1,
+#    to      => $newid2,
+#    type    => $color
+# }
 
-#	all callbacks get as arguments:
-#	- table (server, subnet, switch,cloud)
-#	- id
-#	- rest are function specific arguments.
+#            _ _ _                _        
+#   ___ __ _| | | |__   __ _  ___| | _____ 
+#  / __/ _` | | | '_ \ / _` |/ __| |/ / __|
+# | (_| (_| | | | |_) | (_| | (__|   <\__ \
+#  \___\__,_|_|_|_.__/ \__,_|\___|_|\_\___/
+#   
 
 sub dump {
 	print Dumper(@_);
@@ -161,7 +241,7 @@ sub nw_frame_canvas_export(){
 #  logo's for the objects
 #######################################################################
 
-our  %nw_logos;
+our %nw_logos;
 	
 our @logolist;
 sub nw_read_logos {
@@ -459,12 +539,6 @@ sub nw_show_info_create {
 	my $id=$objects[$objidx]->{'id'};
 	my $drawid=$objects[$objidx]->{'drawid'};
 	if ($table eq 'server'){
-		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
-		$local_frame->Label ( -anchor => 'w',-width=>50,-text=>'Server information')->pack(-side=>'left');
-		my $os=$objects[$objidx]->{'os'};
-		my $ostype=$objects[$objidx]->{'ostype'};
-		my $processor=$objects[$objidx]->{'processor'};
-		my $memory=$objects[$objidx]->{'memory'};
 		my $options;
 		if (defined $objects[$objidx]->{'options'}) {
 			$options=$objects[$objidx]->{'options'};
@@ -472,11 +546,14 @@ sub nw_show_info_create {
 		else {
 			$options='';
 		}
-
+		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+		$local_frame->Label ( -anchor => 'w',-width=>50,-text=>'Server information')->pack(-side=>'left');
+		# ID : always present.
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'ID')->pack(-side=>'left');
 		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$id)->pack(-side=>'right');
-
+		# name: always present and can be changed.
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Button ( -width=>10,-text=>'Name', -command=>sub {
 			$Message='';
@@ -485,6 +562,7 @@ sub nw_show_info_create {
 		})->pack(-side=>'left');
 		$local_frame->Entry ( -width=>30,-textvariable=>\$name)->pack(-side=>'right');
 
+		# type: always present and can be changed.
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Type')->pack(-side=>'left');
 		$typechoice=$objects[$objidx]->{'logo'};
@@ -499,6 +577,7 @@ sub nw_show_info_create {
 			}
 		)->pack(-side=>'right');
 
+		# devicetype: always present and can be changed.
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Devicetype')->pack(-side=>'left');
 		$devicetypechoice=$objects[$objidx]->{'devicetype'};
@@ -515,31 +594,28 @@ sub nw_show_info_create {
 		)->pack(-side=>'right');
 
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
-		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'OS type')->pack(-side=>'left');
-		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$ostype)->pack(-side=>'right');
-
-		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
-		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'OS')->pack(-side=>'left');
-		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$os,-wraplength =>200)->pack(-side=>'right');
-
-		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Interfaces')->pack(-side=>'left');
 		my @ifarray=@{$objects[$objidx]{interfaces}};
 		my @pgarray=@{$objects[$objidx]{pages}};
-		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$ifarray[0])->pack(-side=>'right');
+		(my $ifname, my $ifip)=split (' ',$ifarray[0]);
+		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>$ifname)->pack(-side=>'right');
+		$local_frame->Label ( -anchor => 'w',-width=>20,-text=>$ifip)->pack(-side=>'right');
 		for (my $i=1; $i<=$#ifarray; $i++){
+			(my $ifname, my $ifip)=split (' ',$ifarray[$i]);
+			$ifname=' ' unless defined $ifname;
 			$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 			$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'  ')->pack(-side=>'left');
-			$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$ifarray[$i])->pack(-side=>'right');
+			$local_frame->Label ( -anchor => 'w',-width=>10,-text=>$ifname)->pack(-side=>'right');
+			$local_frame->Label ( -anchor => 'w',-width=>20,-text=>$ifip)->pack(-side=>'right');
 		}
-
-		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
-		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Processor')->pack(-side=>'left');
-		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$processor,-wraplength =>200)->pack(-side=>'right');
-
-		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
-		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Memory')->pack(-side=>'left');
-		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$memory)->pack(-side=>'right');
+		for my $fieldname (qw(ostype os processor memory vendor service)) {
+			my $value=$objects[$objidx]->{$fieldname};
+			if (defined ($value)){
+				$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+				$local_frame->Label ( -anchor => 'w',-width=>10,-text=>$fieldname)->pack(-side=>'left');
+				$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$value)->pack(-side=>'right');
+			}
+		}
 
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Button ( -width=>10,-text=>'Merge', -command=>sub {$Message='';nw_set_merge($name,$id,$table,$merge);nw_frame_canvas_redo() })->pack(-side=>'left');
@@ -648,8 +724,6 @@ sub nw_show_info_create {
 			
 	}
 	elsif ($table eq 'cloud'){
-		my $vendor=$objects[$objidx]->{'vendor'};
-		my $service=$objects[$objidx]->{'service'};
 		my @pgarray=@{$objects[$objidx]{pages}};
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>50,-text=>'Cloud service')->pack(-side=>'left');
@@ -680,13 +754,14 @@ sub nw_show_info_create {
 			}
 		)->pack(-side=>'right');
 
-		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
-		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Service')->pack(-side=>'left');
-		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$service)->pack(-side=>'left');
-		
-		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
-		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Vendor')->pack(-side=>'left');
-		$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$vendor)->pack(-side=>'left');
+		for my $fieldname (qw(ostype os processor memory vendor service)) {
+			my $value=$objects[$objidx]->{$fieldname};
+			if (defined ($value)){
+				$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+				$local_frame->Label ( -anchor => 'w',-width=>10,-text=>$fieldname)->pack(-side=>'left');
+				$local_frame->Label ( -anchor => 'w',-width=>30,-text=>$value)->pack(-side=>'right');
+			}
+		}
 
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		selector({
