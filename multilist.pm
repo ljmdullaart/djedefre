@@ -1,6 +1,6 @@
 #!/usr/bin/perl
-#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 #INSTALL@ /opt/djedefre/multilist.pm
+#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
   
 use strict;
 use warnings;
@@ -24,8 +24,8 @@ use Sort::Naturally qw/ncmp/;
 #	3	ml_colhead(@headers)			set the labels of the column-headers
 #	4	ml_create()				create the multilist
 #	5	ml_insert(@content)			Add content to the multilist
-#
-#	6	ml_destroy
+#	6	ml_callback(\&subroutine)		Add a call-back for selection
+#	7	ml_destroy
 #
 
 my $mlframe;
@@ -104,7 +104,9 @@ sub ml_insert {
 	(my @args)=@_;
 	for my $i (0 .. $#args){
 		if ($i<=$qcol){
-			$mlcolval[$i][$mlmaxcolval]=$args[$i]
+			my $val=$args[$i];
+			$val='' unless defined $val;
+			$mlcolval[$i][$mlmaxcolval]=$val;
 		}
 	}
 	$mlmaxcolval++;
