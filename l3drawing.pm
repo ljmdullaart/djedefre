@@ -252,10 +252,13 @@ sub l3_lines {
 					my $color=$l3_obj[$j]->{'color'};
 					$color='black' unless defined $color;
 					for (@interfacelist){
+						my $lastbyte=$_; $lastbyte=~s/.*\.//;
 						if (($_ eq 'Internet') && ($l3_obj[$j]->{'nwaddress'} eq 'Internet')){
 							push @l3_line, {
 								from	=> $netw_id,
 								to	=> $obj_id,
+								fromlabel=> '',
+								tolabel	=> '',
 								type	=> $color
 							};
 						}
@@ -263,6 +266,8 @@ sub l3_lines {
 							push @l3_line, {
 								from	=> $netw_id,
 								to	=> $obj_id,
+								fromlabel=> '',
+								tolabel	=> $lastbyte,
 								type	=> $color
 							};
 						}
@@ -403,13 +408,15 @@ sub l3_move {
 	(my $table, my $id, my $x, my $y)=@_;
 	debug($DEB_SUB,"l3_move");
 	my $sql;
-	if ( $l3_showpage eq 'top'){
-		$sql = "UPDATE $table SET xcoord=$x WHERE id=$id"; db_dosql($sql);
-		$sql = "UPDATE $table SET ycoord=$y WHERE id=$id"; db_dosql($sql);
-	}
-	else {
-		$sql = "UPDATE pages SET xcoord=$x WHERE item=$id AND tbl='$table' AND page='$l3_showpage'"; db_dosql($sql);
-		$sql = "UPDATE pages SET ycoord=$y WHERE item=$id AND tbl='$table' AND page='$l3_showpage'"; db_dosql($sql);
+	if ((defined($id)) && (defined($x)) && (defined ($y))){
+		if ( $l3_showpage eq 'top'){
+			$sql = "UPDATE $table SET xcoord=$x WHERE id=$id"; db_dosql($sql);
+			$sql = "UPDATE $table SET ycoord=$y WHERE id=$id"; db_dosql($sql);
+		}
+		else {
+			$sql = "UPDATE pages SET xcoord=$x WHERE item=$id AND tbl='$table' AND page='$l3_showpage'"; db_dosql($sql);
+			$sql = "UPDATE pages SET ycoord=$y WHERE item=$id AND tbl='$table' AND page='$l3_showpage'"; db_dosql($sql);
+		}
 	}
 }
 
