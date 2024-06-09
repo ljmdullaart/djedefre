@@ -21,6 +21,7 @@ use FindBin;
 use lib $FindBin::Bin;
 use List::MoreUtils qw(first_index);
 require config;
+require connections;
 require cloud;
 require dje_db;
 require ifconnect;
@@ -64,6 +65,7 @@ $main_window_width=500;
 our $main_frame;
 our $button_frame;
 
+our $showlabels=1;
 
 
 
@@ -102,11 +104,12 @@ sub do_selected_input {
 	$main_frame=$main_window->Frame()->pack(-side =>'top');
 	$repeat_sub=\&norepeat;
 	if ($selected_input eq 'Pages'){ manage_pages(); }
-	elsif ($selected_input eq 'Layer2'){ l2input(); }
-	elsif ($selected_input eq 'Interfaces'){ ifconnect(); }
+	#elsif ($selected_input eq 'Layer2'){ l2input(); }
+	#elsif ($selected_input eq 'Interfaces'){ ifconnect(); }
 	elsif ($selected_input eq 'Colors'){ options_window(); }
 	elsif ($selected_input eq 'Cloud'){ cloud_input(); }
 	elsif ($selected_input eq 'Switch'){ switch_input(); }
+	elsif ($selected_input eq 'Connections'){ connections_input(); }
 	$selected_input='Input';
 	
 }
@@ -115,7 +118,7 @@ sub make_inputselectframe{
 	(my $parent)=@_;
 	$inputselectframe->destroy if Tk::Exists( $inputselectframe);
 	$inputselectframe=$parent->Frame()->pack(-side=>'right');
-	my @options=qw/Input Pages Interfaces Switch Layer2 Cloud Colors/;
+	my @options=qw/Input Pages Switch Cloud Colors Connections/;
 	$inputselectframe->Optionmenu(
 		-variable       => \$selected_input,
 		-width          => 15,
@@ -153,7 +156,8 @@ $main_window = MainWindow->new(
 );
 $main_window->FullScreen;
 nw_read_logos($main_window,"$config{'image_directory'}");
-$main_window->Label(-textvariable=>\$Message, -width=>1500)->pack(-side=>'top');
+my $msgcolor='black';
+$main_window->Label(-textvariable=>\$Message, -width=>1500, -foreground=>'red',-font=>"arial 14")->pack(-side=>'top');
 debug ($DEB_FRAME,"19 Create button_frame");
 $button_frame=$main_window->Frame(
 	-height      => 0.05*$main_window_height,
