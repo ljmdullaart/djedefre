@@ -140,27 +140,27 @@ add_if(){
 		if grep -q $interface $ignores ; then
 			:
 		else
-			if_old=$(sqlite3 "$database" "SELECT id FROM interfaces WHERE ip='$interface'")
+			if_old=$(sqlite3  -cmd ".timeout 1000" "$database" "SELECT id FROM interfaces WHERE ip='$interface'")
 			if [ "$if_old" = "" ] ; then
 				if [ "$server" = "" ] ; then
-					sqlite3 "$database" "INSERT INTO interfaces (ip,switch) VALUES ('$interface',-1)"
+					sqlite3  -cmd ".timeout 1000" "$database" "INSERT INTO interfaces (ip) VALUES ('$interface')"
 				else
-					sqlite3 "$database" "INSERT INTO interfaces (ip,host,switch) VALUES ('$interface','$server',-1)"
+					sqlite3  -cmd ".timeout 1000" "$database" "INSERT INTO interfaces (ip,host) VALUES ('$interface','$server')"
 				fi
 			else
 				if [ "$server" != "" ] ; then
-					sqlite3 "$database" "UPDATE interfaces SET host='$server' WHERE ip='$interface'"
+					sqlite3  -cmd ".timeout 1000" "$database" "UPDATE interfaces SET host='$server' WHERE ip='$interface'"
 				fi
 			fi
-			if_old=$(sqlite3 "$database" "SELECT id FROM interfaces WHERE ip='$interface'")
+			if_old=$(sqlite3  -cmd ".timeout 1000" "$database" "SELECT id FROM interfaces WHERE ip='$interface'")
 			db_retval="$if_old"
-			ids=$(sqlite3 "$database" "SELECT id FROM subnet")
+			ids=$(sqlite3  -cmd ".timeout 1000" "$database" "SELECT id FROM subnet")
 			for snid in $ids; do
-				nwadr=$(sqlite3 "$database" "SELECT nwaddress FROM subnet WHERE id=$snid")
+				nwadr=$(sqlite3  -cmd ".timeout 1000" "$database" "SELECT nwaddress FROM subnet WHERE id=$snid")
 				if [[ $nwadr  =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
 					cidr=$(sqlite3 "$database" "SELECT cidr FROM subnet WHERE id=$snid")
 					if echo $interface | grepcidr $nwadr/$cidr ; then
-						sqlite3 "$database" "UPDATE interfaces SET subnet=$snid WHERE ip='$interface'"
+						sqlite3  -cmd ".timeout 1000" "$database" "UPDATE interfaces SET subnet=$snid WHERE ip='$interface'"
 					fi
 				fi
 			done
@@ -176,11 +176,11 @@ add_if(){
 add_server(){
 	### add_server <servername> : add a server if not exists; return server ID.
 	name="$1"
-	server_old=$(sqlite3 "$database" "SELECT id FROM server WHERE name='$name'")
+	server_old=$(sqlite3  -cmd ".timeout 1000" "$database" "SELECT id FROM server WHERE name='$name'")
 	if [ "$server_old" = "" ] ; then
-		sqlite3 "$database" "INSERT INTO server (name) VALUES ('$name')"
+		sqlite3  -cmd ".timeout 1000" "$database" "INSERT INTO server (name) VALUES ('$name')"
 	fi
-	server_old=$(sqlite3 "$database" "SELECT id FROM server WHERE name='$name'")
+	server_old=$(sqlite3  -cmd ".timeout 1000" "$database" "SELECT id FROM server WHERE name='$name'")
 	db_retval="$server_old"
 }
 
@@ -194,11 +194,11 @@ add_subnet(){
 	debug_common "nwaddress=$nwaddress   cidr=$cidr"
 	if [[ $nwaddress =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 		if [[ $cidr =~ ^[0-9]+$ ]] ; then
-			old_value=$(sqlite3 "$database" "SELECT id FROM subnet WHERE nwaddress='$nwaddress'")
+			old_value=$(sqlite3  -cmd ".timeout 1000" "$database" "SELECT id FROM subnet WHERE nwaddress='$nwaddress'")
 			if [ "$old_value" = "" ] ; then
-				sqlite3 "$database" "INSERT INTO subnet (nwaddress,cidr) VALUES ('$nwaddress','$cidr')"
+				sqlite3  -cmd ".timeout 1000" "$database" "INSERT INTO subnet (nwaddress,cidr) VALUES ('$nwaddress','$cidr')"
 			fi
-			old_value=$(sqlite3 "$database" "SELECT id FROM subnet WHERE nwaddress='$nwaddress'")
+			old_value=$(sqlite3  -cmd ".timeout 1000" "$database" "SELECT id FROM subnet WHERE nwaddress='$nwaddress'")
 			db_retval="$old_value"
 		else
 			debug_common wrong cidr $cidr
@@ -209,16 +209,16 @@ add_subnet(){
 }
 
 if_net(){
-	ips=$(sqlite3 "$database" "SELECT ip FROM interfaces")
+	ips=$(sqlite3  -cmd ".timeout 1000" "$database" "SELECT ip FROM interfaces")
 	for interface in $ips ; do
 
-		ids=$(sqlite3 "$database" "SELECT id FROM subnet")
+		ids=$(sqlite3  -cmd ".timeout 1000" "$database" "SELECT id FROM subnet")
 		for snid in $ids; do
-			nwadr=$(sqlite3 "$database" "SELECT nwaddress FROM subnet WHERE id=$snid")
+			nwadr=$(sqlite3  -cmd ".timeout 1000" "$database" "SELECT nwaddress FROM subnet WHERE id=$snid")
 			if [[ $nwaddress =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-				cidr=$(sqlite3 "$database" "SELECT cidr FROM subnet WHERE id=$snid")
+				cidr=$(sqlite3  -cmd ".timeout 1000" "$database" "SELECT cidr FROM subnet WHERE id=$snid")
 				if echo $interface | grepcidr $nwadr/$cidr ; then
-					sqlite3 "$database" "UPDATE interfaces SET subnet=$snid WHERE ip='$interface'"
+					sqlite3  -cmd ".timeout 1000" "$database" "UPDATE interfaces SET subnet=$snid WHERE ip='$interface'"
 				fi
 			fi
 		done
