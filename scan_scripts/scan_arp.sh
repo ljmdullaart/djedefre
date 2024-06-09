@@ -23,10 +23,10 @@ elif [ "$1" != '' ] ; then
 fi
 
 cat /proc/net/arp |
-cut -d' ' -f1 |
+awk '{print $1 " " $4}' |
 egrep -v '00:00:00:00:00:00|IP' >> $tmp1
 
-sqlite3  -separator ' ' "$database" "SELECT id,ip,access FROM interfaces" > $tmp
+sqlite3  -separator ' '  -cmd ".timeout 1000" "$database" "SELECT id,ip,access FROM interfaces" > $tmp
 
 grep ssh $tmp |
 	while read id ip access ; do
@@ -47,7 +47,7 @@ grep ssh $tmp |
 			' | sed -n 's/\/[0-9]*//p' |sort -u | grep -v 127.0.0.1 |
 			while read myip mymac ; do
 				if [[ $myip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-					sqlite3  "$database" "UPDATE interfaces SET macid='$mymac' WHERE ip='$myip'"
+					sqlite3   -cmd ".timeout 1000" "$database" "UPDATE interfaces SET macid='$mymac' WHERE ip='$myip'"
 				fi
 			done
 		fi
@@ -57,10 +57,13 @@ grep ssh $tmp |
 			awk '{print $1 " " $4 }'>> $tmp1
 	done
 
-sort -u $tmp1 | while read ip mac; do
+sort -u $tmp1 | while read ip macid; do
 	if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-		host=$(sqlite3  -separator ' ' "$database" "SELECT host FROM interfaces WHERE ip='$ip'")
-		sqlite3  "$database" "UPDATE interfaces SET macid='$mac' WHERE ip='$ip'"
+		if [ "$macid" != "" ] ; then
+			host=$(sqlite3  -separator ' '  -cmd ".timeout 1000" "$database" "SELECT host FROM interfaces WHERE ip='$ip'")
+			sqlite3   -cmd ".timeout 1000" "$database" "UPDATE interfaces SET macid='$macid' WHERE ip='$ip'"
+			echo "SET macid='$macid' WHERE ip='$ip'"
+		fi
 	fi
 
 done
