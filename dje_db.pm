@@ -20,23 +20,29 @@ our $main_window_height;
 our $main_window_width;
 our $mainframe;
 our $repeat_sub;
+our @pagelist;
+our @realpagelist;
+
 our %config;
 our %nw_logos;
 our %pagetypes;
-our %srv_id;
 our @colors;
 our @devicetypes;
+our @logolist;
+
 our @if_access;
 our @if_host;
 our @if_hostname;
 our @if_name;
-our @if_name;
+our @if_ifname;
 our @if_id;
 our @if_ip;
 our @if_macid;
 our @if_port;
 our @if_subnet;
 our @if_switch;
+
+our @l2_id;
 our @l2_from_id;
 our @l2_from_port;
 our @l2_from_tbl;
@@ -44,7 +50,8 @@ our @l2_to_id;
 our @l2_to_port;
 our @l2_to_tbl;
 our @l2_vlan;
-our @logolist;
+our @l2_source;
+
 our @net_access;
 our @net_cidr;
 our @net_name;
@@ -52,8 +59,8 @@ our @net_nwaddress;
 our @net_options;
 our @net_xcoord;
 our @net_ycoord;
-our @pagelist;
-our @realpagelist;
+
+our %srv_id;
 our @srv_devicetype;
 our @srv_interfaces;
 our @srv_last_up;
@@ -68,6 +75,11 @@ our @srv_type;
 our @srv_xcoord;
 our @srv_ycoord;
 
+our @sw_switch;
+our @sw_server;
+our @sw_name;
+our @sw_ports;
+our %sw_id;
 
 
 #      _       _	_
@@ -120,6 +132,26 @@ sub db_getrow {
 	}
 }
 
+sub db_value {
+	(my $sql)=@_;
+	my @row;
+	debug($DEB_SUB,"db_value \"$sql\"");
+	if ($db_sth = $db->prepare($sql)){
+		$db_sth->execute();
+		if (@row = $db_sth->fetchrow()){
+			return $row[0];
+		}
+		else {
+			print "Empty row for $sql\n";
+			return undef;
+		}
+	}
+	else { 
+		print "Prepare failed for $sql\n";
+		return undef;
+	}
+}
+
 
 sub db_get_interfaces {
 	debug($DEB_SUB,"db_get_interfaces");
@@ -128,6 +160,7 @@ sub db_get_interfaces {
 	splice @if_ip;
 	splice @if_hostname;
 	splice @if_name;
+	splice @if_ifname;
 	splice @if_host;
 	splice @if_subnet;
 	splice @if_access;
@@ -139,12 +172,13 @@ sub db_get_interfaces {
 		$if_macid[$id]=$macid;
 		$if_ip[$id]=$ip;
 		$if_hostname[$id]=$hostname;
-		$if_name[$id]=$ifname;
 		$if_host[$id]=$host;
 		$if_subnet[$id]=$subnet;
 		$if_access[$id]=$access;
-		$if_switch[$id]=$switch;
+		$if_connect_if[$id]=$switch;
 		$if_port[$id]=$port;
+		$if_ifname[$id]=$ifname;
+		$if_name[$id]=$ifname;
 	}
 }
 
@@ -208,6 +242,7 @@ sub db_get_server {
 
 sub db_get_l2 {
 	debug($DEB_SUB,"db_get_l2");
+	splice @l2_id;
 	splice @l2_vlan;
 	splice @l2_from_tbl;
 	splice @l2_from_id;
@@ -215,8 +250,9 @@ sub db_get_l2 {
 	splice @l2_to_tbl;
 	splice @l2_to_id;
 	splice @l2_to_port;
-	db_dosql("SELECT id,vlan,from_tbl,from_id,from_port,to_tbl,to_id,to_port FROM l2connect");
-	while ((my $id,my $vlan,my $from_tbl,my $from_id,my $from_port,my $to_tbl,my $to_id,my $to_port)=db_getrow()){
+	db_dosql("SELECT id,vlan,from_tbl,from_id,from_port,to_tbl,to_id,to_port,source FROM l2connect");
+	while ((my $id,my $vlan,my $from_tbl,my $from_id,my $from_port,my $to_tbl,my $to_id,my $to_port,my $source)=db_getrow()){
+		$l2_id[$id]=$id;
 		$l2_vlan[$id]=$vlan;
 		$l2_from_tbl[$id]=$from_tbl;
 		$l2_from_id[$id]=$from_id;
@@ -224,7 +260,27 @@ sub db_get_l2 {
 		$l2_to_tbl[$id]=$to_tbl;
 		$l2_to_id[$id]=$to_id;
 		$l2_to_port[$id]=$to_port;
+		$l2_source[$id]=$source;
 	}
 }
+
+
+sub db_get_sw {
+	debug($DEB_SUB,"db_get_sw");
+	splice @sw_switch;
+	splice @sw_server;
+	splice @sw_name;
+	splice @sw_ports;
+#our %sw_id;
+	db_dosql("SELECT id,switch,server,name,ports FROM switch");
+	while ((my $id,my $switch,my $server,my $name,my $ports)=db_getrow()){
+		$sw_switch[$id]=$switch;
+		$sw_server[$id]=$server;
+		$sw_name[$id]=$name;
+		$sw_ports[$id]=$ports;
+		$sw_id{$name}=$id;
+	}
+}
+		
 
 1;
