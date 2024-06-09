@@ -8,6 +8,7 @@ use warnings;
 use Tk;
 use Tk::PNG;
 use Tk::Photo;
+use Tk::Checkbox;
 use Image::Magick;
 use Tk::JBrowseEntry;
 use File::Spec;
@@ -33,6 +34,9 @@ sub nw_debug {
 	}
 }
 
+my @usedlocations;
+
+our $showlabels;
 
 #######################################################################
 #	Typical use
@@ -218,10 +222,14 @@ sub nw_frame_canvas_create {
 	$lnw_canvas_frame=$parent->Frame(
 		-borderwidth => 3,
 	)->pack();
+	my $local_frame=$lnw_canvas_frame->Frame()->pack(-side=>'top');
+	$local_frame->Label(-text=>'Labels')->pack(-side=>'left');
+	$local_frame->Radiobutton (-text=>'On ',-value=>1,-variable=>\$showlabels,-command => sub { nw_frame_canvas_redo();})->pack(-side=>'right');
+	$local_frame->Radiobutton (-text=>'Off',-value=>0,-variable=>\$showlabels,-command => sub { nw_frame_canvas_redo();})->pack(-side=>'right');
 	$nw_canvas = $lnw_canvas_frame->Canvas(
 		-width      => $canvas_xsize,
 		-height     => $canvas_ysize,
-	)->pack;
+	)->pack(-side=>'bottom');
 	$nw_canvas->bind( 'draggable', '<1>'                   => sub{ nw_drag_start();$locked=0;});
 	$nw_canvas->bind( 'draggable', '<3>'                   => sub{ nw_drag_start();});
 	$nw_canvas->bind( 'draggable', '<B1-Motion>'           => sub{ nw_drag_during ();});
@@ -332,14 +340,20 @@ sub nw_del_lines{
 # do the drawing
 #######################################################################
 my @text_draw;
+my @labelloc;
 
 sub nw_drawlines {
+	splice @labelloc;
 	for my $i (0 .. $#lines){
 		my $obj1=$lines[$i]->{'from'};
 		my $obj2=$lines[$i]->{'to'};
 		my $linetype=$lines[$i]->{'type'};
 		my $obj1_idx=$refobj[$obj1];
 		my $obj2_idx=$refobj[$obj2];
+		my $tolabel='';
+		my $fromlabel='';
+		if(defined $lines[$i]->{'fromlabel'}){$fromlabel=$lines[$i]->{'fromlabel'};}
+		if(defined $lines[$i]->{'tolabel'}){$tolabel=$lines[$i]->{'tolabel'};}
 		(my $x1,my $x2,my $y1,my $y2)=(0,0,0,0);
 		for my $j (0 .. $#objects){
 			if (defined $objects[$j]->{'newid'} ){
@@ -355,26 +369,49 @@ sub nw_drawlines {
 		}
 		my $line;
 		my $linecolor;
-		if ($linetype =~/^([0-9][0-9]*)$/){
-			my $num=$1;
-			$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => $config{"line:color:vlan$num"},-tags=>['scalable']);
-			$lines[$i]->{'draw'}=$line;
+		my $xlfrom=int(4*$x1/5+$x2/5);
+		my $ylfrom=int(4*$y1/5+$y2/5);
+		my $xlto=int(4*$x2/5+$x1/5);
+		my $ylto=int(4*$y2/5+$y1/5);
+		while (grep(/^$xlfrom:$ylfrom$/,@labelloc)){
+			$ylfrom=$ylfrom+15;
 		}
-		elsif ($linetype=~/^vlan/){
-			$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => $config{"line:color:$linetype"},-tags=>['scalable']);
-			$lines[$i]->{'draw'}=$line;
+		while (grep(/^$xlto:$ylto$/,@labelloc)){
+			$ylto=$ylto+15;
 		}
-		elsif ($linetype=~/^vbox/){
-			$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => $config{"line:color:$linetype"},-width => 15,-tags=>['scalable']);
-			$lines[$i]->{'draw'}=$line;
-		}
-		elsif (defined ($config{"line:color:$linetype"})){
-			$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => $config{"line:color:$linetype"},-tags=>['scalable']);
-			$lines[$i]->{'draw'}=$line;
-		}
-		else {
-			$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => $linetype,-tags=>['scalable']);
-			$lines[$i]->{'draw'}=$line;
+		push @labelloc,"$xlfrom:$ylfrom";
+		push @labelloc,"$xlto:$ylto";
+		
+		$x1=0 unless defined $x1;
+		$y1=0 unless defined $y1;
+		$x2=0 unless defined $x2;
+		$y2=0 unless defined $y2;
+		if (($x1*$y1>0) &&($x2*$y2>0)){
+			if ($linetype =~/^([0-9][0-9]*)$/){
+				my $num=$1;
+				$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => $config{"line:color:vlan$num"},-tags=>['scalable']);
+				$lines[$i]->{'draw'}=$line;
+			}
+			elsif ($linetype=~/^vlan/){
+				$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => $config{"line:color:$linetype"},-tags=>['scalable']);
+				$lines[$i]->{'draw'}=$line;
+			}
+			elsif ($linetype=~/^vbox/){
+				$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => $config{"line:color:$linetype"},-width => 15,-tags=>['scalable']);
+				$lines[$i]->{'draw'}=$line;
+			}
+			elsif (defined ($config{"line:color:$linetype"})){
+				$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => $config{"line:color:$linetype"},-tags=>['scalable']);
+				$lines[$i]->{'draw'}=$line;
+			}
+			else {
+				$line=$nw_canvas->createLine($x1,$y1,$x2,$y2,-fill => $linetype,-tags=>['scalable']);
+				$lines[$i]->{'draw'}=$line;
+			}
+			if ($showlabels==1){
+				$lines[$i]->{'drawfrom'}=$nw_canvas->createText($xlfrom,$ylfrom, -text=>$fromlabel);
+				$lines[$i]->{'drawto'}=$nw_canvas->createText($xlto,$ylto, -text=>$tolabel);
+			}
 		}
 	}
 }
@@ -387,6 +424,18 @@ sub nw_undrawlines {
 			}
 		}
 		$lines[$i]->{'draw'}=-1;
+		if (defined $lines[$i]->{'drawfrom'}){
+			if ($lines[$i]->{'drawfrom'}>-1){
+				$nw_canvas->delete($lines[$i]->{'drawfrom'});
+			}
+		}
+		$lines[$i]->{'drawfrom'}=-1;
+		if (defined $lines[$i]->{'drawto'}){
+			if ($lines[$i]->{'drawto'}>-1){
+				$nw_canvas->delete($lines[$i]->{'drawto'});
+			}
+		}
+		$lines[$i]->{'drawto'}=-1;
 	}
 }
 	
@@ -394,6 +443,10 @@ sub nw_drawobjects {
 	for my $i (0 .. $#objects){
 		my $x=$objects[$i]->{'x'};
 		my $y=$objects[$i]->{'y'};
+		$x=100 unless defined $x;
+		$y=100 unless defined $y;
+		$x=100 unless $x>0;
+		$y=100 unless $y>0;
 		my $logo=$objects[$i]->{'logo'};
 		$logo='server' unless defined $logo;
 		my $name=$objects[$i]->{'name'};
@@ -595,19 +648,23 @@ sub nw_show_info_create {
 
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
 		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'Interfaces')->pack(-side=>'left');
-		my @ifarray=@{$objects[$objidx]{interfaces}};
+		my @ifarray=@{$objects[$objidx]{interfaces}} if defined $objects[$objidx]{interfaces};
 		my @pgarray=@{$objects[$objidx]{pages}};
-		(my $ifname, my $ifip)=split (' ',$ifarray[0]);
-		$local_frame->Label ( -anchor => 'w',-width=>10,-text=>$ifname)->pack(-side=>'right');
-		$local_frame->Label ( -anchor => 'w',-width=>20,-text=>$ifip)->pack(-side=>'right');
-		for (my $i=1; $i<=$#ifarray; $i++){
-			(my $ifname, my $ifip)=split (' ',$ifarray[$i]);
-			$ifname=' ' unless defined $ifname;
-			$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
-			$local_frame->Label ( -anchor => 'w',-width=>10,-text=>'  ')->pack(-side=>'left');
-			$local_frame->Label ( -anchor => 'w',-width=>10,-text=>$ifname)->pack(-side=>'right');
-			$local_frame->Label ( -anchor => 'w',-width=>20,-text=>$ifip)->pack(-side=>'right');
+		if (defined $ifarray[0]){
+			$local_frame->Label ( -anchor => 'w',-width=>26,-text=>' ')->pack(-side=>'right');
+			#(my $ifname, my $ifip)=split (' ',$ifarray[0]);
+			#$local_frame->Label ( -anchor => 'w',-width=>10,-text=>$ifname)->pack(-side=>'right');
+			#$local_frame->Label ( -anchor => 'w',-width=>20,-text=>$ifip)->pack(-side=>'right');
+			for (my $i=0; $i<=$#ifarray; $i++){
+				(my $ifname, my $ifip)=split (' ',$ifarray[$i]);
+				$ifname=' ' unless defined $ifname;
+				$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
+				$local_frame->Label ( -anchor => 'w',-width=>5,-text=>'  ')->pack(-side=>'left');
+				$local_frame->Label ( -anchor => 'w',-width=>20,-text=>$ifname)->pack(-side=>'right');
+				$local_frame->Label ( -anchor => 'w',-width=>20,-text=>$ifip)->pack(-side=>'right');
+			}
 		}
+	
 		for my $fieldname (qw(ostype os processor memory vendor service)) {
 			my $value=$objects[$objidx]->{$fieldname};
 			if (defined ($value)){
