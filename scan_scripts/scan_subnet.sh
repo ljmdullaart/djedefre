@@ -22,9 +22,9 @@ elif [ "$1" != '' ] ; then
 fi
 
 if [ "$2" = "" ] ; then
-	sqlite3  -separator ' ' "$database" "SELECT id,nwaddress,cidr FROM subnet" > $tmp1
+	sqlite3  -separator ' ' -cmd ".timeout 1000"  "$database" "SELECT id,nwaddress,cidr FROM subnet" > $tmp1
 else
-	sqlite3  -separator ' ' "$database" "SELECT id,nwaddress,cidr FROM subnet WHERE id=$2" > $tmp1
+	sqlite3  -separator ' ' -cmd ".timeout 1000"  "$database" "SELECT id,nwaddress,cidr FROM subnet WHERE id=$2" > $tmp1
 fi
 echo Scan subnets
 sed 's/^/    /' $tmp1
@@ -42,15 +42,15 @@ grep -v Internet $tmp1 | while read id ip cidr ; do
 
 
 sort -u $tmp | while read if id; do
-	ifid=$(sqlite3  -separator ' ' "$database" "SELECT id FROM interfaces WHERE ip='$if'")
+	ifid=$(sqlite3  -separator ' ' -cmd ".timeout 1000"  "$database" "SELECT id FROM interfaces WHERE ip='$if'")
 	if [ "$ifid" = "" ] ; then
-		sqlite3  -separator ' '  $database "INSERT INTO interfaces (ip,switch) VALUES ('$if',-1)"
+		sqlite3  -separator ' '  $database "INSERT INTO interfaces (ip) VALUES ('$if')"
 	fi
-	sqlite3 "$database" "UPDATE interfaces SET subnet='$id' WHERE ip='$if'"
-	host=$(sqlite3  -separator ' ' "$database" "SELECT host FROM interfaces WHERE ip='$if'")
+	sqlite3 -cmd ".timeout 1000"  "$database" "UPDATE interfaces SET subnet='$id' WHERE ip='$if'"
+	host=$(sqlite3  -separator ' ' -cmd ".timeout 1000"  "$database" "SELECT host FROM interfaces WHERE ip='$if'")
 	if [ "$host" = "" ] ; then
 		add_server $if
-		sqlite3 "$database" "UPDATE interfaces SET host=$db_retval  WHERE ip='$if'"
+		sqlite3 -cmd ".timeout 1000"  "$database" "UPDATE interfaces SET host=$db_retval  WHERE ip='$if'"
 		sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 	fi
 	
