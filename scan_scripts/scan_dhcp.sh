@@ -51,21 +51,21 @@ echo "Got log from $DHCPIP"
 
 sort -u $tmp3 | while read if to mac rest ; do
 	echo "ip=$if mac=$mac"
-	ifid=$(sqlite3  -separator ' ' "$database" "SELECT id FROM interfaces WHERE ip='$if'")
+	ifid=$(sqlite3  -separator ' ' -cmd ".timeout 1000" "$database" "SELECT id FROM interfaces WHERE ip='$if'")
 	if [ "$ifid" = "" ] ; then
-		sqlite3  -separator ' '  $database "INSERT INTO interfaces (ip,switch) VALUES ('$if',-1)"
+		sqlite3  -separator ' '  $database "INSERT INTO interfaces (ip) VALUES ('$if')"
 		sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 		echo "    added $if"
 	else
 		echo "    $if = $ifid"
 	fi
-	ifid=$(sqlite3  -separator ' ' "$database" "SELECT id FROM interfaces WHERE ip='$if'")
-	host=$(sqlite3  -separator ' ' "$database" "SELECT host FROM interfaces WHERE ip='$if'")
+	ifid=$(sqlite3  -separator ' ' -cmd ".timeout 1000" "$database" "SELECT id FROM interfaces WHERE ip='$if'")
+	host=$(sqlite3  -separator ' ' -cmd ".timeout 1000" "$database" "SELECT host FROM interfaces WHERE ip='$if'")
 	if [ "$host" = "" ] ; then
 		echo "    Added new host"
 		add_server $if
-		sqlite3 "$database" "UPDATE interfaces SET host=$db_retval  WHERE ip='$if'"
-		sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
+		sqlite3 -cmd ".timeout 1000" "$database" "UPDATE interfaces SET host=$db_retval  WHERE ip='$if'"
+		sqlite3  -cmd ".timeout 1000" $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 	fi
 	
 done
