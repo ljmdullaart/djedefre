@@ -29,15 +29,20 @@ for interface in "${interfaces[@]}" ; do
 	if host $ip > /dev/null 2>/dev/null ; then
 		hostname=$(host $ip | sed 's/.* //')
 		sqlite3  $database "UPDATE interfaces SET hostname='$hostname' WHERE id=$ifid"
-		sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
+		#sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 	fi
 done
 
 for server in "${servers[@]}" ; do
-	read srvid name < <(echo $interface)
+
+	echo "Doing $server"
+	srvid=${server% *}
+	name=${server#* }
 	if [[ $name =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+		echo "	Resolving server $name"
 		if host $name > /dev/null 2>/dev/null ; then
-			hostname=$(host $name | sed 's/.* //')
+			hostname=$(host $name | sed 's/.* //;s/\..*//')
+			echo "		hostname=$hostname"
 			sqlite3  $database "UPDATE server SET name='$hostname' WHERE id=$srvid"
 			sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 		fi
