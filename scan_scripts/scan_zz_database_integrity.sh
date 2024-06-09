@@ -47,37 +47,6 @@ if [ "$verbose" = "yes" ] ; then
 	echo "$db_retval"
 fi
 
-#CREATE TABLE subnet (
-#          id         integer primary key autoincrement,
-#          nwaddress  string,
-#          cidr       integer,
-#          xcoord     integer,
-#          ycoord     integer,
-#          name       string,
-#          options    string,
-#          access     string
-#        );
-#CREATE TABLE server (
-#          id         integer primary key autoincrement,
-#          name       string,
-#          xcoord     integer,
-#          ycoord     integer,
-#          type       string,
-#          interfaces string,
-#          access     string,
-#          status     string,
-#          last_up    integer,
-#          options    string
-#        );
-#
-##CREATE TABLE interfaces (
-#          id        integer primary key autoincrement,
-#          macid     string,
-#          ip        string,
-#          hostname  string
-#	   host      integer
-#          subnet    integer
-#        , access);
 #
 readarray -t interfaces < <(sqlite3 -separator ' ' $database 'SELECT id,ip,host FROM interfaces'    | grep -v '^$')
 readarray -t subnets    < <(sqlite3 -separator ' ' $database 'SELECT id,nwaddress,cidr FROM subnet' | grep -v '^$')
@@ -148,26 +117,6 @@ elif [ -f database/ignore_subnet ] ; then
 	ignore_subnet=database/ignore_subnet
 fi
 
-#if [ -f $ignore_subnet ] ; then
-#	sed -n 's/\// /p' $ignore_subnet  | while read net cidr ; do
-#		nmap -sLn  $net/$cidr | sed 's/.* //' | grep '[0-9]' > $tmp
-#		sqlite3 -separator ' ' $database "SELECT id,host,ip FROM interfaces" > $tmp2
-#		grep -v '^$' $tmp2 | while read ifid host ip ; do
-#			echo "    Remove $net $cidr"
-#			if grep -q $ifid $tmp ; then
-#				if [ "$host" != "" ] ; then
-#					qif=$(sqlite3 -separator ' ' $database "SELECT COUNT(id) FROM interfaces WHERE host=$host");
-#					if [ "$qif" = 1 ] ; then
-#						echo "        Removing host $host :qif=$qif"
-#						sqlite3 -separator ' ' $database "DELETE FROM server WHERE id=$host"
-#					fi
-#				fi
-#				echo "        Removing interface $id"
-#				sqlite3 -separator ' ' $database "DELETE FROM interfaces WHERE id=$ifid"
-#			fi
-#		done
-#	done
-#fi
 
 #
 echo Remove duplicate interfaces
