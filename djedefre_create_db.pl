@@ -75,7 +75,9 @@ CREATE TABLE IF NOT EXISTS interfaces (
 	subnet        integer,
 	access        string,
 	connect_if    integer,
-	port          integer
+	port          integer,
+	ifname        string,
+	switch        integer
 	);
 ";
 $db->do($schema) or die $db->errstr;
@@ -105,8 +107,9 @@ CREATE TABLE IF NOT EXISTS server (
 	ostype     string,
 	os         string,
 	processor  string,
-	devicetype	string,
-	memory     string
+	devicetype string,
+	memory     string,
+	interfaces dtring
 	);
 ";
 $db->do($schema) or die $db->errstr;
@@ -157,7 +160,8 @@ CREATE TABLE IF NOT EXISTS l2connect (
 	from_port  integer,
 	to_tbl     string,
 	to_id      integer,
-	to_port    integer
+	to_port    integer,
+	source     string
 	);
 ";
 $db->do($schema) or die $db->errstr;
