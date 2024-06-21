@@ -38,6 +38,7 @@ require options;
 require overview;
 require selector;
 require standard;
+require put_inobj;
 
 our %config;
 our @colors;

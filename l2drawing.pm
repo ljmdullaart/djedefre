@@ -54,36 +54,7 @@ sub l2_objects {
 	while ((my $id,my $name)=db_getrow()){
 		$hostnames[$id]=$name;
 	}
-	my $sql;
-	$sql="	SELECT subnet.id,nwaddress,cidr,pages.xcoord,pages.ycoord,name,subnet.options
-		FROM   subnet
-		INNER JOIN pages ON pages.item = subnet.id
-		WHERE  pages.page='$l2_showpage' AND pages.tbl='subnet'
-	";
-	my $sth = db_dosql($sql);
-	while((my $id,my $nwaddress, my $cidr,my $x,my $y,my $name,my $options) = db_getrow()){
-		if ((!defined $x) || !(defined $y)){
-			nxttmploc();
-			$x=$nw_tmpx unless defined $x;
-			$y=$nw_tmpy unless defined $y
-		}
-		$name="$nwaddress/$cidr" unless defined $name;
-		my $color='black';
-		if ($options=~/color=([^;]*);/){$color=$1;}
-		push @l2_obj, {
-			newid	=> $id*$qobjtypes+$objtsubnet,
-			id	=> $id,
-			x	=> $x,
-			y	=> $y,
-			logo	=> 'subnet',
-			name	=> $name,
-			nwaddress=> $nwaddress,
-			cidr	=> $cidr,
-			table	=> 'subnet',
-			color	=> $color
-		} 
-	}
-	
+	put_netinobj($l2_showpage,\@l2_obj);
 	#if ($l2_showpage eq 'top'){
 	#	$sql = 'SELECT id,name,xcoord,ycoord,type,interfaces,status,options,ostype,os,processor,memory,devicetype FROM server';
 	#}
