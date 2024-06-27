@@ -49,10 +49,12 @@ while read interface vboxhostid access ; do
 		if echo hop|$sshcmd$interface which vboxmanage ; then
 			echo "Host  $vboxhostid is a vbox host"
 			echo hop|$sshcmd$interface vboxmanage list vms > "$serverlist" 2>/dev/null
+			sed 's/^/serverlist: /'  "$serverlist"
 			sed 's/^"//;s/".*//' "$serverlist"| while read vbox ; do
 				if [ "$vbox" != "" ] ; then
-					echo "  $vbox:"
+					echo "  vbox: $vbox:"
 					echo hop|$sshcmd$interface "vboxmanage showvminfo '$vbox'"> $vboxlist
+					sed 's/^/  vboxlist:/' $vboxlist
 					vboxmac=$(grep 'MAC: ' "$vboxlist" | sed  's/,.*//;s/.*MAC: //;s/.\{2\}/&:/g;s/:$//;' |tr [:upper:] [:lower:]|head -1)
 					#vboxip=$(echo hop|$access $interface "VBoxManage guestproperty get '$vbox'  /VirtualBox/GuestInfo/Net/0/V4/IP"| sed 's/.*: *//')
 					vboxid=''
@@ -88,4 +90,4 @@ done
 sqlite3 -separator '	' $database  "SELECT * FROM server"  | grep vbox
 
 
-rm -f $vboxlist $serverlist 
+rm -f $vboxlist $serverlist  $tmp $tmp1
