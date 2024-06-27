@@ -55,126 +55,8 @@ sub l3_objects {
 	}
 	db_get_interfaces;
 	put_netinobj($l3_showpage,\@l3_obj);
-	
-	if ($l3_showpage eq 'top'){
-		$sql = 'SELECT id,name,xcoord,ycoord,type,interfaces,status,options,ostype,os,processor,memory,devicetype FROM server';
-	}
-	else {
-		$sql="	SELECT  server.id,name,pages.xcoord,pages.ycoord,type,interfaces,status,options,ostype,os,processor,memory,devicetype
-			FROM   server
-			INNER JOIN pages ON pages.item = server.id
-			WHERE  pages.page='$l3_showpage' AND pages.tbl='server'
-		";
-	}
-	my $sth = db_dosql($sql);
-	while((my $id,my $name, my $x,my $y,my $type,my $interfaces,my $status,my $options,my $ostype,my $os,my $processor,my $memory,my $devicetype) = db_getrow()){
-		$type='server' unless defined $type;
-		if ((!defined $x) || !(defined $y)){
-			nxttmploc();
-			$x=$nw_tmpx unless defined $x;
-			$y=$nw_tmpy unless defined $y;
-		}
-		$name='' unless defined $name;
-		push @l3_obj, {
-			newid	=> $id*$qobjtypes+$objtserver,
-			id	=> $id,
-			x	=> $x,
-			y	=> $y,
-			logo	=> $type,
-			name	=> $name,
-			table	=> 'server',
-			status	=> $status,
-			options	=> $options,
-			ostype	=> $ostype,
-			os	=> $os,
-			processor => $processor,
-			memory	=> $memory,
-			devicetype => $devicetype,
-		};
-		my $max=$#l3_obj;
-		push @{$l3_obj[$max]{pages}},' ';
-		
-	}
-	
-	if ($l3_showpage eq 'top'){
-		$sql = 'SELECT id,name,xcoord,ycoord,type,vendor,service FROM cloud';
-	}
-	else {
-		$sql="	SELECT  cloud.id,name,pages.xcoord,pages.ycoord,type,vendor,service
-			FROM    cloud
-			INNER JOIN pages ON pages.item =  cloud.id
-			WHERE  pages.page='$l3_showpage' AND pages.tbl='cloud'
-		";
-	}
-	my $sth = db_dosql($sql);
-	while((my $id,my $name, my $x,my $y,my $type,my $vendor,my $service) = db_getrow()){
-		$type='server' unless defined $type;
-		$vendor='none' unless defined $vendor;
-		$service='server' unless defined $service;
-		if ((!defined $x) || !(defined $y)){
-			nxttmploc();
-			$x=$nw_tmpx unless defined $x;
-			$y=$nw_tmpy unless defined $y;
-		}
-		$name='' unless defined $name;
-		push @l3_obj, {
-			newid	=> $id*$qobjtypes+$objtcloud,
-			id	=> $id,
-			x	=> $x,
-			y	=> $y,
-			logo	=> $type,
-			name	=> $name,
-			table	=> 'cloud',
-			vendor  => $vendor,
-			service => $service
-		};
-		my $max=$#l3_obj;
-		push @{$l3_obj[$max]{pages}},' ';
-		
-	}
-
-
-	for my $i (0 .. $#l3_obj){
-		# Separate to prevent database locks
-		my $id=$l3_obj[$i]->{'id'};
-		my $table=$l3_obj[$i]->{'table'};
-		if ($table eq 'server'){
-			my $sql = "SELECT ip,ifname FROM interfaces WHERE host=$id";
-			my $sth = db_dosql($sql);
-			while((my $ip,my $ifname) = db_getrow()){
-				$ifname='-' unless defined $ifname;
-				my $pushstr="$ifname $ip";
-				$puststr=~s/^ *//;
-				push @{$l3_obj[$i]{interfaces}}, "$ifname $ip";
-			}
-			splice @{$l3_obj[$i]{pages}};
-			my $sql = "SELECT page FROM pages WHERE tbl='server' AND item=$id";
-			my $sth = db_dosql($sql);
-			while ((my $item) = db_getrow()){
-				push @{$l3_obj[$i]{pages}}, $item
-			}
-			
-		}
-		elsif($table eq 'subnet'){
-			push @{$l3_obj[$i]{pages}},' ';
-			splice @{$l3_obj[$i]{pages}};
-			my $sql = "SELECT page FROM pages WHERE tbl='subnet' AND item=$id";
-			my $sth = db_dosql($sql);
-			while ((my $item) = db_getrow()){
-				push @{$l3_obj[$i]{pages}}, $item
-			}
-		}
-		elsif($table eq 'cloud'){
-			push @{$l3_obj[$i]{pages}},' ';
-			splice @{$l3_obj[$i]{pages}};
-			my $sql = "SELECT page FROM pages WHERE tbl='cloud' AND item=$id";
-			my $sth = db_dosql($sql);
-			while ((my $item) = db_getrow()){
-				push @{$l3_obj[$i]{pages}}, $item
-			}
-		}
-	}
-
+	put_serverinobj($l3_showpage,\@l3_obj,3);
+	put_cloudinobj($l3_showpage,\@l3_obj);
 }
 
 my @l3_line;
@@ -200,11 +82,6 @@ sub l3_lines {
 		$Internetcolor=$1;
 	}
 	my $newInternet=$Internet*$qobjtypes+$objtsubnet;
-for my $i ( 0 .. $#l3_obj){
-	print "l3_obj[$i] table=$l3_obj[$j]->{'table'}\n";
-	print "           name=$l3_obj[$j]->{'name'}\n";
-}
-
 	for my $i ( 0 .. $#l3_obj){
 		if ($l3_obj[$i]->{'table'} eq 'server'){
 			my $orig_id=$l3_obj[$i]->{'id'};

@@ -55,87 +55,8 @@ sub l2_objects {
 		$hostnames[$id]=$name;
 	}
 	put_netinobj($l2_showpage,\@l2_obj);
-	#if ($l2_showpage eq 'top'){
-	#	$sql = 'SELECT id,name,xcoord,ycoord,type,interfaces,status,options,ostype,os,processor,memory,devicetype FROM server';
-	#}
-	#else {
-		$sql="	SELECT  server.id,name,pages.xcoord,pages.ycoord,type,interfaces,status,options,ostype,os,processor,memory,devicetype
-			FROM   server
-			INNER JOIN pages ON pages.item = server.id
-			WHERE  pages.page='$l2_showpage' AND pages.tbl='server'
-		";
-	#}
-	my $sth = db_dosql($sql);
-	while((my $id,my $name, my $x,my $y,my $type,my $interfaces,my $status,my $options,my $ostype,my $os,my $processor,my $memory,my $devicetype) = db_getrow()){
-		$type='server' unless defined $type;
-		if ((!defined $x) || !(defined $y)){
-			nxttmploc();
-			$x=$nw_tmpx unless defined $x;
-			$y=$nw_tmpy unless defined $y;
-		}
-		$name='' unless defined $name;
-		push @l2_obj, {
-			newid	=> $id*$qobjtypes+$objtserver,
-			id	=> $id,
-			x	=> $x,
-			y	=> $y,
-			logo	=> $type,
-			name	=> $name,
-			table	=> 'server',
-			status	=> $status,
-			options	=> $options,
-			ostype	=> $ostype,
-			os	=> $os,
-			processor => $processor,
-			memory	=> $memory,
-			devicetype => $devicetype
-		};
-		my $max=$#l2_obj;
-		push @{$l2_obj[$max]{pages}},' ';
-		
-	}
-	for my $i (0 .. $#l2_obj){
-		# Separate to prevent database locks
-		my $id=$l2_obj[$i]->{'id'};
-		my $table=$l2_obj[$i]->{'table'};
-		my $name=$l2_obj[$i]->{'name'};
-		if ($table eq 'server'){
-			my $sql = "SELECT ip,macid FROM interfaces WHERE host=$id";
-			my $sth = db_dosql($sql);
-			while((my $ip,my $mac) = db_getrow()){
-				push @{$l2_obj[$i]{interfaces}}, "$mac $ip";
-			}
-			splice @{$l2_obj[$i]{pages}};
-			my $sql = "SELECT page FROM pages WHERE tbl='server' AND item=$id";
-			my $sth = db_dosql($sql);
-			while ((my $item) = db_getrow()){
-				push @{$l2_obj[$i]{pages}}, $item;
-			}
-			db_dosql("SELECT switch FROM switch WHERE server='$name'");
-			while ((my $nwtype) = db_getrow()){
-				$l2_obj[$i]->{'logo'}=$nwtype;
-			}
-			
-		}
-		elsif($table eq 'subnet'){
-			push @{$l2_obj[$i]{pages}},' ';
-			splice @{$l2_obj[$i]{pages}};
-			my $sql = "SELECT page FROM pages WHERE tbl='subnet' AND item=$id";
-			my $sth = db_dosql($sql);
-			while ((my $item) = db_getrow()){
-				push @{$l2_obj[$i]{pages}}, $item
-			}
-		}
-		elsif($table eq 'cloud'){
-			push @{$l2_obj[$i]{pages}},' ';
-			splice @{$l2_obj[$i]{pages}};
-			my $sql = "SELECT page FROM pages WHERE tbl='cloud' AND item=$id";
-			my $sth = db_dosql($sql);
-			while ((my $item) = db_getrow()){
-				push @{$l2_obj[$i]{pages}}, $item
-			}
-		}
-	}
+	put_serverinobj($l2_showpage,\@l2_obj,2);
+	put_cloudinobj($l2_showpage,\@l2_obj);
 
 }
 
@@ -187,7 +108,6 @@ sub l2_lines {
 		elsif ($to_tbl eq 'server'){
 			$lineto=$to_id*$qobjtypes+$objtserver
 		}
-print "l2drawing: line from $linefrom to $lineto\n";
 		if ($linefrom*$lineto>0){
 			if ($vlan>1){
 				push @l2_line,{

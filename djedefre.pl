@@ -77,7 +77,7 @@ our $DEBUG;
 $DEB_FRAME=1;
 $DEB_DB=2;
 $DEB_SUB=4;
-$DEBUG=4;
+$DEBUG=0;
 
 sub debug {
 	(my $level, my $message)=@_;

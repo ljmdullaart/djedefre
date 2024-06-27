@@ -5,10 +5,13 @@ my $objtswitch=2;
 my $objtcloud=3;
 
 
+our $nw_tmpx;
+our $nw_tmpy;
+
 sub put_netinobj {
 	(my $page,my $ar_ref)=@_;
 	my $sql;
-print "put_netinobj: $page\n";
+	my @pagear=[];
 	if ($page eq 'top'){
 		$sql = 'SELECT id,nwaddress,cidr,xcoord,ycoord,name,options FROM subnet';
 	}
@@ -19,10 +22,8 @@ print "put_netinobj: $page\n";
 			WHERE  pages.page='$page' AND pages.tbl='subnet'
 		";
 	}
-print "    $sql\n";
 	my $sth = db_dosql($sql);
 	while((my $id,my $nwaddress, my $cidr,my $x,my $y,my $name,my $options) = db_getrow()){
-print "    my $id,my $nwaddress, my $cidr,my $x,my $y,my $name,my $options\n";
 		if ((!defined $x) || !(defined $y)){
 			nxttmploc();
 			if (! defined $x){ $x=$nw_tmpx; $nw_tmpx=$nw_tmpx+5;}
@@ -42,24 +43,154 @@ print "    my $id,my $nwaddress, my $cidr,my $x,my $y,my $name,my $options\n";
 			nwaddress=> $nwaddress,
 			cidr	=> $cidr,
 			table	=> 'subnet',
-			color	=> $color
+			color	=> $color,
+			pages	=> \@pagear
 		} 
 	}
 	foreach my $element (@$ar_ref) {
 		my $id=$element->{'id'};
 		my $table=$element->{'table'};
 		my $name=$element->{'name'};
+		splice @pagear;
 		if($table eq 'subnet'){
-			push @{$l2_obj[$i]{pages}},' ';
-			splice @{$l2_obj[$i]{pages}};
+			splice @pagear;
 			my $sql = "SELECT page FROM pages WHERE tbl='subnet' AND item=$id";
 			my $sth = db_dosql($sql);
 			while ((my $item) = db_getrow()){
-				push @{$element{pages}}, $item
+				push @pagear, $item;
 			}
+			$element->{'pages'}=[@pagear];
 		}
 	}
 }
 
+sub put_serverinobj {
+	(my $page,my $ar_ref,my $layer)=@_;
+	my @pagear=[];
+	my @ifar=[];
+	
+	if ($page eq 'top'){
+		$sql = 'SELECT id,name,xcoord,ycoord,type,interfaces,status,options,ostype,os,processor,memory,devicetype FROM server';
+	}
+	else {
+		$sql="	SELECT  server.id,name,pages.xcoord,pages.ycoord,type,interfaces,status,options,ostype,os,processor,memory,devicetype
+			FROM   server
+			INNER JOIN pages ON pages.item = server.id
+			WHERE  pages.page='$page' AND pages.tbl='server'
+		";
+	}
+	my $sth = db_dosql($sql);
+	while((my $id,my $name, my $x,my $y,my $type,my $interfaces,my $status,my $options,my $ostype,my $os,my $processor,my $memory,my $devicetype) = db_getrow()){
+		$type='server' unless defined $type;
+		if ((!defined $x) || !(defined $y)){
+			nxttmploc();
+			$x=$nw_tmpx unless defined $x;
+			$y=$nw_tmpy unless defined $y;
+		}
+		$name='' unless defined $name;
+		push @$ar_ref, {
+			newid	=> $id*$qobjtypes+$objtserver,
+			id	=> $id,
+			x	=> $x,
+			y	=> $y,
+			logo	=> $type,
+			name	=> $name,
+			table	=> 'server',
+			status	=> $status,
+			options	=> $options,
+			ostype	=> $ostype,
+			os	=> $os,
+			processor => $processor,
+			memory	=> $memory,
+			devicetype => $devicetype,
+			pages	=> \@pagear
+		};
+		my $max=$#l2_obj;
+		#push @{$l2_obj[$max]{pages}},' ';
+		
+	}
+	foreach my $element (@$ar_ref) {
+		my $id=$element->{'id'};
+		my $table=$element->{'table'};
+		my $name=$element->{'name'};
+		splice @pagear;
+		splice @ifar;
+		if($table eq 'server'){
+			my $sth = db_dosql("SELECT ip,macid FROM interfaces WHERE host=$id");
+			while((my $ip,my $mac) = db_getrow()){
+				push @ifar, "$mac $ip";
+			}
+			$element->{interfaces}=[@ifar];
+			my $sth = db_dosql("SELECT page FROM pages WHERE tbl='server' AND item=$id");
+			while ((my $item) = db_getrow()){
+				push @pagear, $item;
+			}
+			$element->{'pages'}=[@pagear];
+
+			if ($layer == 2){
+				db_dosql("SELECT switch FROM switch WHERE server='$name'");
+				while ((my $nwtype) = db_getrow()){
+					$element->{'logo'}=$nwtype;
+				}
+			}
+		
+		}
+	}
+}
+
+sub put_cloudinobj {
+	(my $page,my $ar_ref)=@_;
+	my @pagear=[];
+	my $sql;
+	if ($page eq 'top'){
+		$sql = 'SELECT id,name,xcoord,ycoord,type,vendor,service FROM cloud';
+	}
+	else {
+		$sql="	SELECT  cloud.id,name,pages.xcoord,pages.ycoord,type,vendor,service
+			FROM    cloud
+			INNER JOIN pages ON pages.item =  cloud.id
+			WHERE  pages.page='$l3_showpage' AND pages.tbl='cloud'
+		";
+	}
+	my $sth = db_dosql($sql);
+	while((my $id,my $name, my $x,my $y,my $type,my $vendor,my $service) = db_getrow()){
+		$type='server' unless defined $type;
+		$vendor='none' unless defined $vendor;
+		$service='server' unless defined $service;
+		if ((!defined $x) || !(defined $y)){
+			nxttmploc();
+			$x=$nw_tmpx unless defined $x;
+			$y=$nw_tmpy unless defined $y;
+		}
+		$name='' unless defined $name;
+		push @$ar_ref, {
+			newid	=> $id*$qobjtypes+$objtcloud,
+			id	=> $id,
+			x	=> $x,
+			y	=> $y,
+			logo	=> $type,
+			name	=> $name,
+			table	=> 'cloud',
+			vendor  => $vendor,
+			service => $service,
+			pages	=> ()
+		};
+	}
+	foreach my $element (@$ar_ref) {
+		my $id=$element->{'id'};
+		my $table=$element->{'table'};
+		my $name=$element->{'name'};
+		splice @pagear;
+		if($table eq 'cloud'){
+			my $sth = db_dosql("SELECT page FROM pages WHERE tbl='cloud' AND item=$id");
+			while ((my $item) = db_getrow()){
+				push @pagear, $item;
+			}
+			$element->{'pages'}=[@pagear];
+
+		
+		}
+	}
+}
 
 1;
