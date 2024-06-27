@@ -44,7 +44,6 @@ sub fill_pagelist {
         while((my $p, my $t) = db_getrow()){
                 push @pagelist,$p;
 		$pagetypes{$p}=$t;
-		print "-set->pagetypes{$p}=$t\n";
                 push @realpagelist,$p;
 
         }
@@ -71,7 +70,6 @@ sub display_other_page {
 		-height      => 1005,
 		-width       => 1505
 	)->pack(-side =>'top');
-print "------->pagetype{$l3_showpage}=$pagetypes{$l3_showpage}\n";
 	if ($pagetypes{$l3_showpage} eq 'l3'){
 		print "display_other_page $l3_showpage L3\n";
 		make_l3_plot($main_frame);
