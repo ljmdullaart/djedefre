@@ -187,10 +187,53 @@ sub put_cloudinobj {
 				push @pagear, $item;
 			}
 			$element->{'pages'}=[@pagear];
-
-		
 		}
 	}
 }
 
+
+sub put_switchinobj {
+	(my $page,my $ar_ref)=@_;
+	my @pagear=[];
+	my $sql;
+	$sql="	SELECT s.id, s.name,p.xcoord,p.ycoord,s.switch
+		FROM switch s
+		LEFT JOIN server srv ON s.name = srv.name
+		LEFT JOIN pages p ON s.id = p.item AND p.tbl = 'switch'
+		WHERE srv.name IS NULL AND p.page='$page'
+	";
+	my $sth = db_dosql($sql);
+	while((my $id,my $name, my $x,my $y,my $type) = db_getrow()){
+		$type='switch' unless defined $type;
+		if ((!defined $x) || !(defined $y)){
+			nxttmploc();
+			$x=$nw_tmpx unless defined $x;
+			$y=$nw_tmpy unless defined $y;
+		}
+		$name='' unless defined $name;
+		push @$ar_ref, {
+			newid	=> $id*$qobjtypes+$objtswitch,
+			id	=> $id,
+			x	=> $x,
+			y	=> $y,
+			logo	=> $type,
+			name	=> $name,
+			table	=> 'switch',
+			pages	=> ()
+		};
+	}
+	foreach my $element (@$ar_ref) {
+		my $id=$element->{'id'};
+		my $table=$element->{'table'};
+		my $name=$element->{'name'};
+		splice @pagear;
+		if($table eq 'switch'){
+			my $sth = db_dosql("SELECT page FROM pages WHERE tbl='switch' AND item=$id");
+			while ((my $item) = db_getrow()){
+				push @pagear, $item;
+			}
+			$element->{'pages'}=[@pagear];
+		}
+	}
+}
 1;

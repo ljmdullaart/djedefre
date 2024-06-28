@@ -486,6 +486,7 @@ my $dragobject;
 my $dragindex;
 my $dragid;
 my $dragname;
+my $objname;
 sub nw_drag_start {
 	$locked=1;
 	my $e = $nw_canvas->XEvent;
@@ -505,7 +506,7 @@ sub nw_drag_start {
 	$draginfo{starty} = $draginfo{lasty} =$cy;
 	$dragobject=-1;
 	for my $i (0 .. $#objects){
- 		my $objname=$objects[$i]->{'name'};
+ 		$objname=$objects[$i]->{'name'};
 		$objname='UNDEFINED' unless defined $objname;
 		if (! defined $objects[$i]->{'draw'}){print "Object without draw $objname\n"}
 		elsif (! defined $dragid){print "No dragid\n"}
@@ -529,30 +530,34 @@ sub nw_drag_during {
 	my $dx; my $dy;
 	( $dx, $dy ) = ( $cx - $draginfo{lastx}, $cy - $draginfo{lasty} );
 	# move it...
-	$nw_canvas->move( $draginfo{id}, $dx, $dy );
-	$nw_canvas->move($dragname, $dx, $dy );
-	#$nw_canvas->move($nw_statusid[$dragindex], $dx, $dy );
-	# update last position
-	$draginfo{lastx} = $cx;
-	$draginfo{lasty} = $cy;
-	$objects[$dragobject]->{'x'}=$cx;
-	$objects[$dragobject]->{'y'}=$cy;
-	my ( $x1, $y1, $x2, $y2 ) = $nw_canvas->bbox( $draginfo{id} );
-	nw_undrawlines();
-	nw_drawlines();
+	if ($objname ne 'UNDEFINED'){
+		$nw_canvas->move( $draginfo{id}, $dx, $dy );
+		$nw_canvas->move($dragname, $dx, $dy );
+		#$nw_canvas->move($nw_statusid[$dragindex], $dx, $dy );
+		# update last position
+		$draginfo{lastx} = $cx;
+		$draginfo{lasty} = $cy;
+		$objects[$dragobject]->{'x'}=$cx;
+		$objects[$dragobject]->{'y'}=$cy;
+		my ( $x1, $y1, $x2, $y2 ) = $nw_canvas->bbox( $draginfo{id} );
+		nw_undrawlines();
+		nw_drawlines();
+	}
 }
 #
 sub nw_drag_end {
 	# upon drag end, check for valid position and act accordingly...
-	my @tags = $nw_canvas->gettags( $draginfo{id} );
-	my $nme=$objects[$dragobject]->{'name'};
-	my $cx=$objects[$dragobject]->{'x'};
-	my $cy=$objects[$dragobject]->{'y'};
-	my $table=$objects[$dragobject]->{'table'};
-	my $id=$objects[$dragobject]->{'id'};
-	$nw_cbmove->($table,$id,$cx,$cy);
-	nw_frame_canvas_redo;
-	$locked=0;
+	if ($objname ne 'UNDEFINED'){
+		my @tags = $nw_canvas->gettags( $draginfo{id} );
+		my $nme=$objects[$dragobject]->{'name'};
+		my $cx=$objects[$dragobject]->{'x'};
+		my $cy=$objects[$dragobject]->{'y'};
+		my $table=$objects[$dragobject]->{'table'};
+		my $id=$objects[$dragobject]->{'id'};
+		$nw_cbmove->($table,$id,$cx,$cy);
+		nw_frame_canvas_redo;
+		$locked=0;
+	}
 }
 
 #        my $nw_info_frame;
@@ -769,15 +774,17 @@ sub nw_show_info_create {
 		})->pack(-side=>'left');
 		$local_frame->Entry ( -width=>30,-textvariable=>\$name)->pack(-side=>'right');
 
-		my @arr=@{$objects[$objidx]->{'connected'}};
 		$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
-		$local_frame->Label ( -anchor => 'w',-width=>40,-text=>'Connections')->pack(-side=>'left');
-		for (@arr){
-			(my $port,my $to_tbl,my $toname)=split ':';
-			$local_frame=$nw_info_inside->Frame()->pack(-side=>'top');
-			$local_frame->Label ( -anchor => 'w',-width=>20,-text=>"port $port")->pack(-side=>'left');
-			$local_frame->Label ( -anchor => 'w',-width=>20,-text=>$toname)->pack(-side=>'right');
-		}
+		my @pgarray=@{$objects[$objidx]{pages}};
+		selector({
+			options  	=> \@realpagelist,
+			selected	=> \@pgarray,
+			parent  	=> $local_frame,
+			callback 	=> sub {(my $act, my $pg)=@_; nw_page_change($name,$id,$table,$act,$pg);},
+			height  	=> 5,
+			width   	=> 40,
+			title    	=> 'On pages'
+		});
 			
 	}
 	elsif ($table eq 'cloud'){

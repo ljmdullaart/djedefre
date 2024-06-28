@@ -57,6 +57,7 @@ sub l2_objects {
 	put_netinobj($l2_showpage,\@l2_obj);
 	put_serverinobj($l2_showpage,\@l2_obj,2);
 	put_cloudinobj($l2_showpage,\@l2_obj);
+	put_switchinobj($l2_showpage,\@l2_obj);
 
 }
 
@@ -101,9 +102,15 @@ sub l2_lines {
 		elsif ($from_tbl eq 'server'){
 			$linefrom=$from_id*$qobjtypes+$objtserver
 		}
+		elsif ($from_tbl eq 'switch'){
+			$linefrom=$from_id*$qobjtypes+$objtswitch
+		}
 		if ($to_tbl eq 'interfaces'){
 			my $host=$ifserver[$to_id];
 			$lineto=$host*$qobjtypes+$objtserver
+		}
+		elsif ($to_tbl eq 'switch'){
+			$lineto=$to_id*$qobjtypes+$objtswitch
 		}
 		elsif ($to_tbl eq 'server'){
 			$lineto=$to_id*$qobjtypes+$objtserver

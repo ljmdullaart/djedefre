@@ -122,12 +122,16 @@ sub connect_select_callback {
 }
 
 
+my @switchname;
+
 
 sub mkconnectframe {
 	(my $parent)=@_;
 	db_get_l2();
 	db_get_interfaces();
 	db_get_server();
+	db_dosql("SELECT id,name FROM switch");
+	while ((my $id, my $name)=db_getrow()){ $switchname[$id]=$name;}
 	$connect_listing_frame>destroy if Tk::Exists($connect_listing_frame);
 	$connect_listing_frame=$parent->Frame()->pack(-side =>'top');
 	$connect_listing_frame->Label(-text=>"Connections")->pack()-side =>'top';
@@ -151,14 +155,30 @@ sub mkconnectframe {
 	ml_colhead(@ar);
 	foreach my $id (@l2_id){
 		next unless defined $id;
-		my $from_if=$l2_from_id[$id];
-		my $from_if_name=$if_ifname[$from_if];
-		my $from_if_host=$if_host[$from_if];
-		my $from_if_host_name=$srv_name[$from_if_host];
-		my $to_if=$l2_to_id[$id];
-		my $to_if_name=$if_ifname[$to_if];
-		my $to_if_host=$if_host[$to_if];
-		my $to_if_host_name=$srv_name[$to_if_host];
+		my $from_if;
+		my $from_if_name;
+		my $from_if_host;
+		my $from_if_host_name;
+		my $to_if;
+		my $to_if_name;
+		my $to_if_host;
+		my $to_if_host_name;
+
+
+		$from_if=$l2_from_id[$id];
+		$from_if_name=$if_ifname[$from_if];
+		$from_if_host=$if_host[$from_if];
+		if ($l2_from_tbl[$id] eq 'switch'){
+			$from_if_host_name=$switchname[$from_if];
+		}
+		else {
+			$from_if_host_name=$srv_name[$from_if_host];
+		}
+		$to_if=$l2_to_id[$id];
+		$to_if_name=$if_ifname[$to_if];
+		$to_if_name="$if_ifname[$to_if]";
+		$to_if_host=$if_host[$to_if];
+		if ($l2_to_tbl[$id] eq 'switch'){ $to_if_host_name=$switchname[$to_if]; } else { $to_if_host_name="$if_ifname[$to_if]";}
 
 		$ar[0]=$id;
 		$ar[1]=$l2_from_tbl[$id];
@@ -184,7 +204,12 @@ sub mkconnectselectedframe {
 	$lastparent=$parent;
 	my $localframe;
 	my $jbrowse;
-	my @usrvlist=uniq(@srv_name);
+	my @objlist=@srv_name;
+	db_dosql("SELECT name FROM switch");
+	while ((my $nme)=db_getrow()){
+		push @objlist,$nme;
+	}
+	my @usrvlist=uniq(@objlist);
 	my @srtsrvlist=sort @usrvlist;
 	unshift (@srtsrvlist,'');
 	my @uvlanlist=uniq(@l2_vlan);
@@ -198,17 +223,7 @@ sub mkconnectselectedframe {
 	}
 	else {
 		db_dosql("SELECT id FROM server WHERE name='$sel_from_if_host_name'");
-		if((my $retval)=db_getrow()){
-			push @fromiflist,'';
-			db_dosql("SELECT ifname FROM interfaces WHERE host=$retval");
-			while ((my $retval)=db_getrow()){
-				push @fromiflist,$retval;
-			}
-		}
-		else {
-			$Message='Unknown hostname in FROM';
-			@fromiflist=uniq(@if_ifname);
-		}
+		@fromiflist=uniq(@if_ifname);
 	}
 
 	@fromiflist=sort @fromiflist;
@@ -375,6 +390,11 @@ sub do_button {
 			}
 			$sel_from_port=0 unless defined $sel_from_port;
 		}
+		if ($sel_from_tbl eq 'switch'){
+			$fromtype='switch';
+			my $from_swid=db_value("SELECT id FROM switch WHERE name='$sel_from_if_host_name'");
+			$sel_from_id=$from_swid;
+		}
 		if ($sel_to_tbl eq 'interfaces'){
 			$totype='interfaces';
 			my $to_hostid=db_value("SELECT id FROM server WHERE name='$sel_to_if_host_name'");
@@ -391,6 +411,11 @@ sub do_button {
 			}
 			$sel_to_port=0 unless defined $sel_to_port;
 		}
+		if ($sel_to_tbl eq 'switch'){
+			$totype='switch';
+			my $to_swid=db_value("SELECT id FROM switch WHERE name='$sel_to_if_host_name'");
+			$sel_to_id=$to_swid;
+		}
 		$sel_vlan=0 unless defined $sel_vlan;
 		db_dosql ("INSERT INTO l2connect (from_tbl,from_id,from_port,to_tbl,to_id,to_port,vlan,source) VALUES ('$fromtype',$sel_from_id,$sel_from_port,'$totype',$sel_to_id,$sel_to_port,'$sel_vlan','$sel_source')\n");
 	
@@ -400,18 +425,7 @@ sub do_button {
 sub refill_fromif{
 	db_dosql("SELECT id FROM server WHERE name='$sel_from_if_host_name'");
 	splice @fromiflist;
-	if((my $retval)=db_getrow()){
-		print "Only interfaces from $sel_from_if_host_name ($retval)\n";
-		push @fromiflist,'';
-		db_dosql("SELECT ifname FROM interfaces WHERE host=$retval");
-		while ((my $retval)=db_getrow()){
-			push @fromiflist,$retval;
-		}
-	}
-	else {
-		$Message='Unknown hostname in FROM';
-		@fromiflist=uniq(@if_ifname);
-	}
+	@fromiflist=uniq(@if_ifname);
 	@fromiflist=sort @fromiflist;
 	$fromiffield->configure(-choices => \@fromiflist);
 }
