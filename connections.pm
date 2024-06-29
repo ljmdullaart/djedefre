@@ -178,8 +178,14 @@ sub mkconnectframe {
 		$to_if_name=$if_ifname[$to_if];
 		$to_if_name="$if_ifname[$to_if]";
 		$to_if_host=$if_host[$to_if];
-		if ($l2_to_tbl[$id] eq 'switch'){ $to_if_host_name=$switchname[$to_if]; } else { $to_if_host_name="$if_ifname[$to_if]";}
+		#if ($l2_to_tbl[$id] eq 'switch'){ $to_if_host_name=$switchname[$to_if]; } else { $to_if_host_name="$if_ifname[$to_if]";}
 
+		if ($l2_to_tbl[$id] eq 'switch'){
+			$to_if_host_name=$switchname[$to_if];
+		}
+		else {
+			$to_if_host_name=$srv_name[$to_if_host];
+		}
 		$ar[0]=$id;
 		$ar[1]=$l2_from_tbl[$id];
 		$ar[2]=$l2_from_id[$id];
