@@ -32,24 +32,21 @@ for host in $(cat $tmp) ; do
 	for ip in $(cat $tmp1) ; do
 		echo "    interface $ip"
 		ssh -x -o PasswordAuthentication=no -o ConnectTimeout=4  $ip sh proto | dos2unix | sed -n -e 's/ is up.*//p' -e 's/.*address is//p' | paste - - | grep "$ip" >$tmp3
-		if [ "$(cat $tmp3)" != '' ] ; then
-			sed 's/^/        /' $tmp3
-			ifname=$(sed 's/[	 ].*//' $tmp3)
-			sed 's/^ *//'  $tmp3 | xargs -n 1  ipcalc -b  > $tmp2
-			srvid=$host
-			for ifip in $(sed -n 's/^Address:[ 	]*//p' $tmp2) ; do
-				existing=$(sqlite3  -separator ' ' "$database" "SELECT ip FROM interfaces WHERE ip='$ifip'")
-				if [ "$existing" = "" ] ; then
-					echo "        -> new interface: $ifip on $host"
-					sqlite3  $database "INSERT INTO interfaces (ip,host) VALUES ('$ifip',$host)"
-					sqlite3  -separator ' '  $database "UPDATE interfaces SET ifname='$ifname' WHERE  ip='$ifip'"
-					sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
-				else
-					echo "        -> Claiming interface: $ifip on $host"
-					sqlite3  -separator ' '  $database "UPDATE interfaces SET host=$host WHERE  ip='$ifip'"
-					sqlite3  -separator ' '  $database "UPDATE interfaces SET ifname='$ifname' WHERE  ip='$ifip'"
-				fi
-			done
+		cat $tmp3 | while read ifname ipnet ; do
+			ipcalc -b  "$ipnet" > $tmp2
+			ifip=$(sed -n 's/^Address:[ 	]*//p' $tmp2)
+			existing=$(sqlite3  -separator ' ' "$database" "SELECT ip FROM interfaces WHERE ip='$ifip'")
+			echo "--> host=$host ip=$ip ifname=$ifname ipnet=$ipnet"
+			if [ "$existing" = "" ] ; then
+				echo "        -> new interface: $ifip on $host"
+				sqlite3  $database "INSERT INTO interfaces (ip,host) VALUES ('$ifip',$host)"
+				sqlite3  -separator ' '  $database "UPDATE interfaces SET ifname='$ifname' WHERE  ip='$ifip'"
+				sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
+			else
+				echo "        -> Claiming interface: $ifip on $host"
+				sqlite3  -separator ' '  $database "UPDATE interfaces SET host=$host WHERE  ip='$ifip'"
+				sqlite3  -separator ' '  $database "UPDATE interfaces SET ifname='$ifname' WHERE  ip='$ifip'"
+			fi
 			for net in $(sed -n 's/\/.*//;s/^Network:[ 	]*//p' $tmp2) ; do
 				existing=$(sqlite3  -separator ' ' "$database" "SELECT id FROM subnet WHERE nwaddress='$net'")
 				if [ "$existing" = "" ] ; then
@@ -63,7 +60,7 @@ for host in $(cat $tmp) ; do
 				fi
 			done
 			ifname=''
-		fi
+		done
 		ssh -x -o PasswordAuthentication=no -o ConnectTimeout=4 $ip sh arp | dos2unix > $tmp3
 		for newif in $(sed -n 's/Internet r* \([^ ]*\).*/\1/p' $tmp3) ; do
 			echo "Found interface $newif"
