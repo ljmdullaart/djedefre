@@ -69,18 +69,21 @@ my $lastparent;
 my $fromiffield;
 my $toiffield;
 my @fromiflist;
+my @sort_if_ip;
 
 # The variables that were selected from the multi-column list.
 # They are set in the sub connect_select_callback
 my $sel_id;			
 my $sel_from_tbl;
 my $sel_from_id;
+my $sel_from_ip;
 my $sel_from_if_name;
 my $sel_from_port;
 my $sel_from_if_host_id;
 my $sel_from_if_host_name;
 my $sel_to_tbl;
 my $sel_to_id;
+my $sel_to_ip;
 my $sel_to_if_name;
 my $sel_to_port;
 my $sel_to_if_host_id;
@@ -95,6 +98,7 @@ sub connections_input {
 	$main_frame=$main_window->Frame()->pack(-side =>'top');
 	$connectionlist_frame->destroy if Tk::Exists($connectionlist_frame);
 	$connectionlist_frame=$main_frame->Frame()->pack(-side =>'top');
+	@sort_if_ip=sort @if_ip;
 	mkconnectframe($connectionlist_frame);
 	mkconnectselectedframe($connectionlist_frame);
 }
@@ -106,6 +110,7 @@ sub connect_select_callback {
 	$sel_from_tbl=$l2_from_tbl[$sel_id];
 	$sel_from_id=$l2_from_id[$sel_id];
 	$sel_from_if_name=$if_ifname[$sel_from_id];
+	$sel_from_ip=$if_ip[$sel_from_id];
 	$sel_from_port=$l2_from_port[$sel_id];
 	$sel_from_if_host_id=$if_host[$sel_from_id];
 	$sel_from_if_host_name=$srv_name[$sel_from_if_host_id];
@@ -113,6 +118,7 @@ sub connect_select_callback {
 	$sel_to_tbl=$l2_to_tbl[$sel_id];
 	$sel_to_id=$l2_to_id[$sel_id];
 	$sel_to_if_name=$if_ifname[$sel_to_id];
+	$sel_to_ip=$if_ip[$sel_to_id];
 	$sel_to_port=$l2_to_port[$sel_id];
 	$sel_to_if_host_id=$if_host[$sel_to_id];
 	$sel_to_if_host_name=$srv_name[$sel_to_if_host_id];
@@ -137,36 +143,44 @@ sub mkconnectframe {
 	$connect_listing_frame->Label(-text=>"Connections")->pack()-side =>'top';
 	ml_new($connect_listing_frame,25,'top');
 	my @ar;
-	$ar[0]=10;
+	$ar[0]=5;
 	$ar[1]=10;
-	$ar[2]=10;
-	$ar[3]=10;
-	$ar[4]=10;
-	$ar[5]=10;
-	$ar[6]=10;
+	$ar[2]=5;
+	$ar[3]=15;
+	$ar[4]=15;
+	$ar[5]=5;
+	$ar[6]=15;
 	$ar[7]=10;
-	$ar[8]=10;
-	$ar[9]=10;
-	$ar[10]=10;
-	$ar[11]=10;
-	$ar[12]=10;
+	$ar[8]=5;
+	$ar[9]=15;
+	$ar[10]=15;
+	$ar[11]=5;
+	$ar[12]=15;
+	$ar[13]=10;
+	$ar[14]=10;
 	ml_colwidth(@ar);
-	@ar=('ID','FROM','From-ID','IF name','Port','Host name','TO','To-ID','IF name','Port','Host name','VLAN','Source');
+	@ar=('ID','FROM','Fr-ID','IF name','IP','Port','Host name','TO','To-ID','IF name','IP','Port','Host name','VLAN','Source');
 	ml_colhead(@ar);
 	foreach my $id (@l2_id){
 		next unless defined $id;
 		my $from_if;
+		my $from_ip;
 		my $from_if_name;
 		my $from_if_host;
 		my $from_if_host_name;
 		my $to_if;
+		my $to_ip;
 		my $to_if_name;
 		my $to_if_host;
 		my $to_if_host_name;
-
+		my $fromport='';
+		my $toport='';
+		if ($l2_from_port[$id] < 10000){$fromport=$l2_from_port[$id];}
+		if ($l2_to_port[$id]   < 10000){$toport=  $l2_to_port[$id];}
 
 		$from_if=$l2_from_id[$id];
 		$from_if_name=$if_ifname[$from_if];
+		$from_ip=$if_ip[$from_if];
 		$from_if_host=$if_host[$from_if];
 		if ($l2_from_tbl[$id] eq 'switch'){
 			$from_if_host_name=$switchname[$from_if];
@@ -176,6 +190,7 @@ sub mkconnectframe {
 		}
 		$to_if=$l2_to_id[$id];
 		$to_if_name=$if_ifname[$to_if];
+		$to_ip=$if_ip[$to_if];
 		$to_if_name="$if_ifname[$to_if]";
 		$to_if_host=$if_host[$to_if];
 		#if ($l2_to_tbl[$id] eq 'switch'){ $to_if_host_name=$switchname[$to_if]; } else { $to_if_host_name="$if_ifname[$to_if]";}
@@ -190,15 +205,17 @@ sub mkconnectframe {
 		$ar[1]=$l2_from_tbl[$id];
 		$ar[2]=$l2_from_id[$id];
 		$ar[3]=$from_if_name;
-		$ar[4]=$l2_from_port[$id];
-		$ar[5]=$from_if_host_name;
+		$ar[4]=$from_ip;
+		$ar[5]=$fromport;
+		$ar[6]=$from_if_host_name;
 		$ar[7]=$l2_to_tbl[$id];
-		$ar[6]=$l2_to_id[$id];
-		$ar[8]=$to_if_name;
-		$ar[9]=$l2_to_port[$id];
-		$ar[10]=$to_if_host_name;
-		$ar[11]=$l2_vlan[$id];
-		$ar[12]=$l2_source[$id];
+		$ar[8]=$l2_to_id[$id];
+		$ar[9]=$to_if_name;
+		$ar[10]=$to_ip;
+		$ar[11]=$toport;
+		$ar[12]=$to_if_host_name;
+		$ar[13]=$l2_vlan[$id];
+		$ar[14]=$l2_source[$id];
 		ml_insert(@ar);
 	}
 	ml_create();
@@ -215,6 +232,8 @@ sub mkconnectselectedframe {
 	while ((my $nme)=db_getrow()){
 		push @objlist,$nme;
 	}
+	@sort_if_ip=uniq( @if_ip);
+	@sort_if_ip=sort @sort_if_ip;
 	my @usrvlist=uniq(@objlist);
 	my @srtsrvlist=sort @usrvlist;
 	unshift (@srtsrvlist,'');
@@ -277,6 +296,15 @@ sub mkconnectselectedframe {
         )->pack(-side=>'left');
 
 	$localframe=$connect_selected_entry_frame_from->Frame()->pack(-side =>'top');
+	$localframe->Label(-anchor => 'w',-text=>'IP', -width =>10)->pack(-side =>'left');
+        $localframe->JBrowseEntry(
+                -variable => \$sel_from_ip,
+                -width=>17,
+                -choices => \@sort_if_ip,
+                -height=>10
+        )->pack(-side=>'left');
+
+	$localframe=$connect_selected_entry_frame_from->Frame()->pack(-side =>'top');
 	$localframe->Label(-anchor => 'w',-text=>'ID', -width =>10)->pack(-side =>'left');
 	$localframe->Label(-anchor => 'w',-textvariable=>\$sel_from_id, -width =>20)->pack(-side =>'left');
 
@@ -316,6 +344,15 @@ sub mkconnectselectedframe {
         )->pack(-side=>'left');
 
 	$localframe=$connect_selected_entry_frame_to->Frame()->pack(-side =>'top');
+	$localframe->Label(-anchor => 'w',-text=>'IP', -width =>10)->pack(-side =>'left');
+        $localframe->JBrowseEntry(
+                -variable => \$sel_to_ip,
+                -width=>17,
+                -choices => \@sort_if_ip,
+                -height=>10
+        )->pack(-side=>'left');
+
+	$localframe=$connect_selected_entry_frame_to->Frame()->pack(-side =>'top');
 	$localframe->Label(-anchor => 'w',-text=>'ID', -width =>10)->pack(-side =>'left');
 	$localframe->Label(-anchor => 'w',-textvariable=>\$sel_to_id, -width =>20)->pack(-side =>'left');
 
@@ -351,6 +388,8 @@ sub mkconnectselectedframe {
 
 	$localframe=$connect_selected_entry_frame_rest->Frame()->pack(-side =>'top');
 	$localframe->Label(-anchor => 'w',-text=>'', -width =>10)->pack(-side =>'left');
+	$localframe=$connect_selected_entry_frame_rest->Frame()->pack(-side =>'top');
+	$localframe->Label(-anchor => 'w',-text=>'', -width =>10)->pack(-side =>'left');
 
 	$localframe=$connect_selected_entry_frame_rest->Frame()->pack(-side =>'top');
 	$localframe->Label(-anchor => 'w',-text=>'', -width =>10)->pack(-side =>'left');
@@ -361,6 +400,7 @@ sub mkconnectselectedframe {
 	$localframe->Button(-text=>'Add',-width =>30,-command=>sub{do_button('add')})->pack(-side =>'top');
 	$localframe->Button(-text=>'Change',-width =>30,-command=>sub{do_button('change')})->pack(-side =>'top');
 	$localframe->Button(-text=>'Delete',-width =>30,-command=>sub{do_button('delete')})->pack(-side =>'top');
+	$localframe->Label(-text=>'', -width =>10)->pack(-side =>'top');
 	$localframe->Label(-text=>'', -width =>10)->pack(-side =>'top');
 }
 
@@ -373,6 +413,7 @@ sub do_button {
 	my $totype='';
 	$sel_vlan='' unless defined $sel_vlan;
 	$sel_source='manual' unless defined $sel_source;
+print "to=$sel_to_ip from=$sel_from_ip\n";
 	if ($action eq 'delete'){
 		db_dosql( "DELETE FROM l2connect WHERE id=$sel_id");
 	}
@@ -392,9 +433,14 @@ sub do_button {
 				$sel_from_id=$retval if defined $retval;
 			}
 			if ($sel_from_id==-1){
+				$retval=db_value("SELECT id FROM interfaces WHERE ip='$sel_from_ip'");
+				$sel_from_id=$retval if defined $retval;
+			}
+			if ($sel_from_id==-1){
 				$sel_from_id=db_value("SELECT id FROM interfaces WHERE host=$from_hostid");
 			}
-			$sel_from_port=0 unless defined $sel_from_port;
+			if ("$sel_from_port" eq ""){$sel_from_port="NULL";}
+			$sel_from_port=10000 unless defined $sel_from_port;
 		}
 		if ($sel_from_tbl eq 'switch'){
 			$fromtype='switch';
@@ -413,9 +459,15 @@ sub do_button {
 				$sel_to_id=$retval if defined $retval;
 			}
 			if ($sel_to_id==-1){
-				$sel_to_id=db_value("SELECT id FROM interfaces WHERE host=$to_hostid");
+				$retval=db_value("SELECT id FROM interfaces WHERE ip='$sel_to_ip'");
+				$sel_to_id=$retval if defined $retval;
 			}
-			$sel_to_port=0 unless defined $sel_to_port;
+			if ($sel_to_id==-1){
+				my $ip_id=db_value("SELECT id FROM interfaces WHERE host=$to_hostid");
+				
+			}
+			#$sel_to_port=10000 unless defined $sel_to_port;
+			if ("$sel_to_port" eq ""){$sel_to_port="NULL";}
 		}
 		if ($sel_to_tbl eq 'switch'){
 			$totype='switch';
@@ -423,7 +475,8 @@ sub do_button {
 			$sel_to_id=$to_swid;
 		}
 		$sel_vlan=0 unless defined $sel_vlan;
-		db_dosql ("INSERT INTO l2connect (from_tbl,from_id,from_port,to_tbl,to_id,to_port,vlan,source) VALUES ('$fromtype',$sel_from_id,$sel_from_port,'$totype',$sel_to_id,$sel_to_port,'$sel_vlan','$sel_source')\n");
+		db_dosql ("INSERT INTO l2connect (from_tbl,  from_id,     from_port,      to_tbl,  to_id,     to_port,      vlan,        source)
+		           VALUES (              '$fromtype',$sel_from_id,$sel_from_port,'$totype',$sel_to_id,$sel_to_port,'$sel_vlan','$sel_source')");
 	
 	}
 	mkconnectselectedframe($lastparent);
