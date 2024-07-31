@@ -68,6 +68,7 @@ our $button_frame;
 
 our $showlabels=1;
 
+our $drawingname='none';
 
 
 our $DEB_FRAME;
