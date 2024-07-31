@@ -1,8 +1,8 @@
 #!/bin/bash
 
-tmp=/tmp/scan_server.$$
-tmp1=/tmp/scan_server.$$.1
-tmp2=/tmp/scan_server.$$.2
+tmp=/tmp/clean_server.$$
+tmp1=/tmp/clean_server.$$.1
+tmp2=/tmp/clean_server.$$.2
 
 
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
@@ -22,39 +22,20 @@ elif [ "$1" != '' ] ; then
 	fi
 fi
 
+# clean-up interfaces for good measure
 sqlite3  -separator ' ' "$database" "DELETE FROM interfaces WHERE ip like '255.255%'"
 sqlite3  -separator ' ' "$database" "DELETE FROM interfaces WHERE ip like '127.%'"
 
-sqlite3  -separator ' ' "$database" "SELECT id,ip,host,access FROM interfaces" > $tmp
+# remove hosts that are more than 3 months down
+sqlite3  -separator ' ' "$database" "SELECT id FROM SERVER WHERE last_up IS NULL OR last_up = '' OR last_up < DATE('now', '-3 months');" > $tmp
+sqlite3  -separator ' ' "$database" "SELECT server.id FROM server LEFT JOIN interfaces ON server.id = interfaces.host WHERE interfaces.host IS NULL;" >> $tmp
+while read id ; do
+	sqlite3  -separator ' ' "$database" "DELETE FROM interfaces WHERE host=$id"
+	sqlite3  -separator ' ' "$database" "DELETE FROM server WHERE id=$id"
 
-grep ssh $tmp |
-	while read id ip host access ; do
-		echo "Scan server for $ip"
-		if [[ "$access" == *"root"* ]] ; then
-			sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 root@'
-		elif [[ "$access" == *"admin"* ]] ; then
-			sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 admin@'
-		else
-			sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 '
-		fi
-		echo hop| $sshcmd$ip ip addr 2>&1 | sed -n 's/\/.*//;s/.*inet //p' > $tmp2
-		echo hop| $sshcmd$ip ifconfig 2>&1 |sed -n 's/.*inet \(.*\) netmask \(.*\) br.*/\1 \2/p' >>$tmp2
-		echo hop| $sshcmd$ip ifconfig 2>&1 |sed -n 's/.*inet addr://;s/ .*Mask:.*//p' >>$tmp2
-		cat $tmp2
-		if grep "[0-9]" $tmp2 ; then
-			hostname=$(sqlite3 "$database" "SELECT name FROM server WHERE id=$host")
-			rm -f $tmp1
-			for ifl in $(sqlite3 "$database" "SELECT ip FROM interfaces WHERE host=$host") ; do
-				if grep  "$ifl" $tmp2 ; then
-					true
-				else
-					sqlite3 "$database" "DELETE FROM interfaces WHERE ip='$ifl'"
-					sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
-				fi
-			done
-		fi		
+done <$tmp
 
-	done
+
 
 rm -f $tmp
 rm -f $tmp1
