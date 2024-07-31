@@ -149,8 +149,10 @@ sub l2_renew_content {
 	nw_objects(@l2_obj);
 	nw_lines(@l2_line);
 }
+our $drawingname;
 sub make_l2_plot {
 	(my $parent)=@_;
+	$drawingname='connections';
 	debug($DEB_SUB,"make_l2_plot");
 	$l2_plot_frame->destroy if Tk::Exists($l2_plot_frame);
 	debug ($DEB_FRAME,"1 Create l2_plot_frame");

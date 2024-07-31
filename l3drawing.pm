@@ -162,8 +162,10 @@ sub l3_renew_content {
 	nw_objects(@l3_obj);
 	nw_lines(@l3_line);
 }
+our $drawingname;
 sub make_l3_plot {
 	(my $parent)=@_;
+	$drawingname='ipv4plot';
 	debug($DEB_SUB,"make_l3_plot");
 	$l3_plot_frame->destroy if Tk::Exists($l3_plot_frame);
 	debug ($DEB_FRAME,"1 Create l3_plot_frame");
