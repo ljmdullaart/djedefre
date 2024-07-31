@@ -223,6 +223,7 @@ sub nw_frame_canvas_create {
 		-borderwidth => 3,
 	)->pack();
 	my $local_frame=$lnw_canvas_frame->Frame()->pack(-side=>'top');
+	$local_frame->Button ( -width=>20,-text=>'Export to file', -command=>sub { nw_frame_canvas_export()  })->pack(-side=>'right');
 	$local_frame->Label(-text=>'Labels')->pack(-side=>'left');
 	$local_frame->Radiobutton (-text=>'On ',-value=>1,-variable=>\$showlabels,-command => sub { nw_frame_canvas_redo();})->pack(-side=>'right');
 	$local_frame->Radiobutton (-text=>'Off',-value=>0,-variable=>\$showlabels,-command => sub { nw_frame_canvas_redo();})->pack(-side=>'right');
@@ -236,10 +237,11 @@ sub nw_frame_canvas_create {
 	$nw_canvas->bind( 'draggable', '<Any-ButtonRelease-1>' => sub{ nw_drag_end ();$locked=0;});
 }
 
+our $drawingname;
 
 sub nw_frame_canvas_export(){
 	if (defined $nw_canvas){
-		$nw_canvas->postscript(-file => "djedefre_network.ps");
+		$nw_canvas->postscript(-file => "$drawingname.ps");
 	}
 }
 
@@ -358,12 +360,12 @@ sub nw_drawlines {
 		for my $j (0 .. $#objects){
 			if (defined $objects[$j]->{'newid'} ){
 				if ($objects[$j]->{'newid'}==$obj1){
-					$x1=$objects[$j]->{'x'};
-					$y1=$objects[$j]->{'y'};
+					$x1=$objects[$j]->{'x'} if defined $objects[$j]->{'x'};
+					$y1=$objects[$j]->{'y'} if defined $objects[$j]->{'y'};
 				}
 				if ($objects[$j]->{'newid'}==$obj2){
-					$x2=$objects[$j]->{'x'};
-					$y2=$objects[$j]->{'y'};
+					$x2=$objects[$j]->{'x'} if defined $objects[$j]->{'x'};
+					$y2=$objects[$j]->{'y'} if defined $objects[$j]->{'y'};
 				}
 			}
 		}
