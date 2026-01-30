@@ -35,6 +35,7 @@ my $cloud_service;
 sub cloud_del_a_cloud {
 	debug($DEB_SUB,"cloud_del_a_cloud");
 	db_dosql("DELETE FROM cloud WHERE name='$cloud_addcloud'");
+	db_close();
 	cloud_input();
 }
 
@@ -42,6 +43,7 @@ sub cloud_add_a_cloud {
 	debug($DEB_SUB,"cloud_add_a_cloud");
 	cloud_del_a_cloud();
 	db_dosql("INSERT INTO cloud (name,vendor,type,service) VALUES ('$cloud_addcloud','$cloud_vendor','$cloud_type','$cloud_service')");
+	db_close();
 	cloud_input();
 }	
 
@@ -49,6 +51,7 @@ sub cloud_change_a_cloud {
 	debug($DEB_SUB,"cloud_change_a_cloud");
 	cloud_del_a_cloud();
 	db_dosql("INSERT INTO cloud (name,vendor,type,service) VALUES ('$cloud_addcloud','$cloud_vendor','$cloud_type','$cloud_service')");
+	db_close();
 	cloud_input();
 }
 
@@ -57,6 +60,8 @@ sub cloud_select_a_cloud {
 	$cloud_addcloud=$cloud_selectedcloud;
 	db_dosql("SELECT id,name,vendor,type,service FROM cloud WHERE name='$cloud_selectedcloud'");
 	($cloud_id,$cloud_name,$cloud_vendor,$cloud_type,$cloud_service)=db_getrow();
+	while (db_getrow()){}
+	db_close();
 }
 
 
@@ -76,6 +81,7 @@ sub cloud_input {
 		$cloud_cloudlist[$i]=$name;
 		$i++;
 	}
+	db_close();
 	my $cloudlistbox=$cloudframe->Scrolled("Listbox", -scrollbars=>'e',-width=>28,-height=>20)->pack(-side=>'top');
 	$cloudlistbox->insert('end',@cloud_cloudlist);
 	$cloudlistbox->bind('<<ListboxSelect>>' => sub {

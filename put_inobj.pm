@@ -1,3 +1,6 @@
+use strict;
+use warnings;
+
 my $qobjtypes=4;
 my $objtsubnet=0;
 my $objtserver=1;
@@ -7,6 +10,9 @@ my $objtcloud=3;
 
 our $nw_tmpx;
 our $nw_tmpy;
+our $l3_showpage;
+our @l2_obj;
+our $l3_showpage;
 
 sub put_netinobj {
 	(my $page,my $ar_ref)=@_;
@@ -27,7 +33,7 @@ sub put_netinobj {
 		if ((!defined $x) || !(defined $y)){
 			nxttmploc();
 			if (! defined $x){ $x=$nw_tmpx; $nw_tmpx=$nw_tmpx+5;}
-			if ($nw_tmpx > 800){$nw_tmpx=25; $nw_tmpy=$nw_tmp+5;}
+			if ($nw_tmpx > 800){$nw_tmpx=25; $nw_tmpy=$nw_tmpy+5;}
 			if (! defined $y){ $y=$nw_tmpy;}
 		}
 		$name="$nwaddress/$cidr" unless defined $name;
@@ -47,6 +53,7 @@ sub put_netinobj {
 			pages	=> \@pagear
 		} 
 	}
+	db_close();
 	foreach my $element (@$ar_ref) {
 		my $id=$element->{'id'};
 		my $table=$element->{'table'};
@@ -59,6 +66,7 @@ sub put_netinobj {
 			while ((my $item) = db_getrow()){
 				push @pagear, $item;
 			}
+			db_close();
 			$element->{'pages'}=[@pagear];
 		}
 	}
@@ -68,6 +76,7 @@ sub put_serverinobj {
 	(my $page,my $ar_ref,my $layer)=@_;
 	my @pagear=[];
 	my @ifar=[];
+	my $sql;
 	
 	if ($page eq 'top'){
 		$sql = 'SELECT id,name,xcoord,ycoord,type,interfaces,status,options,ostype,os,processor,memory,devicetype FROM server';
@@ -109,6 +118,7 @@ sub put_serverinobj {
 		#push @{$l2_obj[$max]{pages}},' ';
 		
 	}
+	db_close();
 	foreach my $element (@$ar_ref) {
 		my $id=$element->{'id'};
 		my $table=$element->{'table'};
@@ -120,11 +130,13 @@ sub put_serverinobj {
 			while((my $ip,my $mac) = db_getrow()){
 				push @ifar, "$mac $ip";
 			}
+			db_close();
 			$element->{interfaces}=[@ifar];
-			my $sth = db_dosql("SELECT page FROM pages WHERE tbl='server' AND item=$id");
+			$sth = db_dosql("SELECT page FROM pages WHERE tbl='server' AND item=$id");
 			while ((my $item) = db_getrow()){
 				push @pagear, $item;
 			}
+			db_close();
 			$element->{'pages'}=[@pagear];
 
 			if ($layer == 2){
@@ -132,6 +144,7 @@ sub put_serverinobj {
 				while ((my $nwtype) = db_getrow()){
 					$element->{'logo'}=$nwtype;
 				}
+				db_close();
 			}
 		
 		}
@@ -176,6 +189,7 @@ sub put_cloudinobj {
 			pages	=> ()
 		};
 	}
+	db_close();
 	foreach my $element (@$ar_ref) {
 		my $id=$element->{'id'};
 		my $table=$element->{'table'};
@@ -186,6 +200,7 @@ sub put_cloudinobj {
 			while ((my $item) = db_getrow()){
 				push @pagear, $item;
 			}
+			db_close();
 			$element->{'pages'}=[@pagear];
 		}
 	}
@@ -222,6 +237,7 @@ sub put_switchinobj {
 			pages	=> ()
 		};
 	}
+	db_close();
 	foreach my $element (@$ar_ref) {
 		my $id=$element->{'id'};
 		my $table=$element->{'table'};
@@ -232,6 +248,7 @@ sub put_switchinobj {
 			while ((my $item) = db_getrow()){
 				push @pagear, $item;
 			}
+			db_close();
 			$element->{'pages'}=[@pagear];
 		}
 	}

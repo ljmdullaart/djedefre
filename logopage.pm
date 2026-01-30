@@ -1,6 +1,9 @@
 
 #INSTALL@ /opt/djedefre/logopage.pm
 #INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+
+use strict;
+use warnings;
 #  _                                            
 # | | ___   __ _  ___    _ __   __ _  __ _  ___ 
 # | |/ _ \ / _` |/ _ \  | '_ \ / _` |/ _` |/ _ \
@@ -13,6 +16,10 @@ our $DEB_FRAME;
 our $DEB_DB;
 our $DEB_SUB;
 our $DEBUG;
+our $Message;
+our $main_frame;
+our $main_window;
+
 
 my $image;
 

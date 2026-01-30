@@ -2,6 +2,9 @@
 #INSTALL@ /opt/djedefre/listings.pm
 #INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 
+use strict;
+use warnings;
+
 use Data::Dumper;
 
 #  _ _     _   _                 
@@ -21,6 +24,9 @@ our $DEBUG;
 my $listing_frame;
 my $listing_button_frame;
 my $listing_listing_frame;
+our $main_window;
+our $main_window_height;
+our $Message;
 
 my $selected_listing='Lists';
 sub menu_make_listing {
@@ -52,13 +58,19 @@ sub menu_make_listing {
 	elsif ($selected_listing eq 'Switches'){
 		listing_switch($listing_listing_frame);
 	}
+	elsif ($selected_listing eq 'Cloud'){
+		listing_cloud($listing_listing_frame);
+	}
+	elsif ($selected_listing eq 'NFS'){
+		listing_nfs($listing_listing_frame);
+	}
 	$selected_listing='Lists';
 }
 
 sub make_listingselectframe {
 	(my $parent)=@_;
 	debug($DEB_SUB,"make_listingselectframe");
-	my @listingtypes=qw/ Lists Servers Virtuals Subnets Interfaces Switches/;
+	my @listingtypes=qw/ Lists Servers Virtuals Subnets Interfaces Switches Cloud NFS/;
 	$parent->Optionmenu (
 		-variable	=> \$selected_listing,
 		-options	=> [@listingtypes],
@@ -108,6 +120,20 @@ sub make_listing {
 		)->pack(-side =>'bottom');
 		listing_interfaces($listing_listing_frame);
 	})->pack(-side=>'left');
+	$listing_button_frame->Button(-text => "Cloud",-width=>20, -command =>sub {
+		$Message='';
+		$listing_listing_frame->destroy if Tk::Exists($listing_listing_frame);
+		$listing_listing_frame=$listing_frame->Frame(
+		)->pack(-side =>'bottom');
+		listing_cloud($listing_listing_frame);
+	})->pack(-side=>'left');
+	$listing_button_frame->Button(-text => "Cloud",-width=>20, -command =>sub {
+		$Message='';
+		$listing_listing_frame->destroy if Tk::Exists($listing_listing_frame);
+		$listing_listing_frame=$listing_frame->Frame(
+		)->pack(-side =>'bottom');
+		listing_nfs($listing_listing_frame);
+	})->pack(-side=>'left');
 }
 
 my $listing_server_frame;
@@ -156,6 +182,7 @@ sub listing_servers{
 		$ar[7]= $memory;
 		ml_insert(@ar);
 	}
+	db_close();
 	ml_create();
 		
 }
@@ -191,6 +218,7 @@ sub listing_subnets {
 		$ar[3]=$cidr;
 		ml_insert(@ar);
 	}
+	db_close();
 	ml_create();
 }
 		
@@ -209,12 +237,14 @@ sub listing_interfaces {
 	$ar[2]=20;
 	$ar[3]=20;
 	$ar[4]=20;
+	$ar[5]=10;
 	ml_colwidth(@ar);
 	$ar[0]='ID';
 	$ar[1]='MAC';
 	$ar[2]='IP';
 	$ar[3]='Host';
 	$ar[4]='Net';
+	$ar[5]='Options';
 	ml_colhead(@ar);
 	my @servers=[];
 	my $sql = 'SELECT id,name FROM server';
@@ -222,16 +252,18 @@ sub listing_interfaces {
 	while((my $id,my $name) = db_getrow()){
 		$servers[$id]=$name;
 	}
+	db_close();
 	my @subnets=[];
-	my $sql = 'SELECT id,nwaddress,cidr FROM subnet';
-	my $sth =  db_dosql($sql);
+	$sql = 'SELECT id,nwaddress,cidr FROM subnet';
+	$sth =  db_dosql($sql);
 	$subnets[0]=' ';
 	while((my $id,my $nwaddress,my $cidr) = db_getrow()){
 		$subnets[$id]="$nwaddress/$cidr";
 	}
-	my $sql = 'SELECT id,macid,ip,hostname,host,subnet,access FROM interfaces ORDER BY id';
-	my $sth =  db_dosql($sql);
-	while((my $id,my $macid,my $ip,my $hostname,my $host,my $subnet,my $access) = db_getrow()){
+	db_close();
+	$sql = 'SELECT id,macid,ip,hostname,host,subnet,access,options FROM interfaces ORDER BY id';
+	$sth =  db_dosql($sql);
+	while((my $id,my $macid,my $ip,my $hostname,my $host,my $subnet,my $access,my $options) = db_getrow()){
 		my $name=$servers[$host];
 		$name=' ' unless defined $name;
 		my $snet;
@@ -246,8 +278,10 @@ sub listing_interfaces {
 		$ar[2]=$ip;
 		$ar[3]=$name;
 		$ar[4]=$snet;
+		$ar[5]=$options;
 		ml_insert(@ar);
 	}
+	db_close();
 	ml_create();
 }
 
@@ -273,6 +307,7 @@ sub listing_virtual {
 	while((my $id,my $name) = db_getrow()){
 		$servers[$id]=$name;
 	}
+	db_close();
 	db_dosql("SELECT id,name,options FROM server WHERE options LIKE '%vboxhost%'");
 	while ((my $id, my $name, my $options)=db_getrow()){
 		my $host=-1;
@@ -286,6 +321,7 @@ sub listing_virtual {
 			ml_insert(@ar);
 		}
 	}
+	db_close();
 	ml_create();
 }
 
@@ -317,7 +353,67 @@ sub listing_switch {
 
 		ml_insert(@ar);
 	}
+	db_close();
 	ml_create();
 }
+
+sub listing_cloud {
+	(my $parent)=@_;
+	debug($DEB_SUB,"listing_cloud");
+	$listing_server_frame->destroy if Tk::Exists($listing_server_frame);
+	$listing_server_frame=$parent->Frame()->pack();
+	$listing_server_frame->Label(-text=>"Interfaces")->pack();
+	ml_new($listing_server_frame,$main_window_height*0.07,'top');
+	my @ar;
+	$ar[0]= 5;
+	$ar[1]=20;
+	$ar[2]=20;
+	$ar[3]=20;
+	$ar[4]=20;
+	ml_colwidth(@ar);
+	$ar[0]='ID';
+	$ar[1]='Name';
+	$ar[2]='Vendor';
+	$ar[3]='Type';
+	$ar[4]='Service';
+	ml_colhead(@ar);
+	db_dosql("SELECT id,name,vendor,type,service FROM cloud");
+	@ar=();
+	while ( @ar=db_getrow()){
+		ml_insert(@ar);
+	}
+	db_close();
+	ml_create();
+}
+
+sub listing_nfs {
+	(my $parent)=@_;
+	debug($DEB_SUB,"listing_nfs");
+	$listing_server_frame->destroy if Tk::Exists($listing_server_frame);
+	$listing_server_frame=$parent->Frame()->pack();
+	$listing_server_frame->Label(-text=>"Interfaces")->pack();
+	ml_new($listing_server_frame,$main_window_height*0.07,'top');
+	my @ar;
+	$ar[0]= 5;
+	$ar[1]=20;
+	$ar[2]=30;
+	$ar[3]=20;
+	$ar[4]=30;
+	ml_colwidth(@ar);
+	$ar[0]='ID';
+	$ar[1]='Server';
+	$ar[2]='Export';
+	$ar[3]='Client';
+	$ar[4]='Mount';
+	ml_colhead(@ar);
+	db_dosql("SELECT id,server,export,client,mountpoint FROM nfs");
+	@ar=();
+	while ( @ar=db_getrow()){
+		ml_insert(@ar);
+	}
+	db_close();
+	ml_create();
+}
+	
 
 1;

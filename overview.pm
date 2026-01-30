@@ -2,8 +2,12 @@
 #INSTALL@ /opt/djedefre/overview.pm
 #INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 
+use strict;
+use warnings;
+
 use Data::Dumper;
 use strict;
+use File::Glob 'bsd_glob';
 
 #                            _               
 #   _____   _____ _ ____   _(_) _____      __
@@ -46,11 +50,12 @@ sub make_overviewselectframe {
 	
 sub repeat_overview_dashboard {
 	db_dosql("SELECT value FROM config WHERE attribute='run:param' AND item='changed'");
-	(my $val)=db_getrow();
+	(my $val)=db_getrow();while(db_getrow()){};
 	if ($val ne 'no'){
         	db_dosql("UPDATE config SET value='no' WHERE attribute='run:param' AND item='changed'");
 		overview_dashboard();
 	}
+	db_close();
 }
 
 sub overview_dashboard{
@@ -61,13 +66,15 @@ sub overview_dashboard{
 	overview_server();
 	overview_network();
 	overview_scripts();
+	overview_listings();
 }
 
 sub overview_network {
 	my $overview_network=$overview_frame->Scrolled("Frame",-scrollbars=>'e',-width=>400,-height=>800)->pack(-side=>'left');
 	$overview_network->Label(-text=>'Network')->pack(-side=>'top');
 	db_dosql("SELECT value FROM config WHERE attribute='run:param' AND item='inetup'");
-	(my $inetup)=db_getrow();
+	(my $inetup)=db_getrow();while(db_getrow()){};
+	db_close();
 	if ($inetup eq 'up'){
 		$overview_network->Label (-text=>'Internet is up',-background=>'green',-anchor=>'w',-width=>25)->pack(-side=>'top');
 	}
@@ -75,17 +82,18 @@ sub overview_network {
 		$overview_network->Label (-text=>'Internet is DOWN',-background=>'red',-anchor=>'w',-width=>25)->pack(-side=>'top');
 	}
 	db_dosql("SELECT value FROM config WHERE attribute='run:param' AND item='idpath'");
-	(my $idpath)=db_getrow();
+	(my $idpath)=db_getrow();while(db_getrow()){};
+	db_close();
 	my @pathids=split (':',$idpath);
 	my $image;
 	my $lineframe;
 	for my $id (@pathids){
 		db_dosql("SELECT name FROM server WHERE id=$id");
-		(my $name)=db_getrow();
+		(my $name)=db_getrow();while(db_getrow()){};db_close();
 		db_dosql("SELECT type FROM server WHERE id=$id");
-		(my $type)=db_getrow();
+		(my $type)=db_getrow();while(db_getrow()){};db_close();
 		db_dosql("SELECT status FROM server WHERE id=$id");
-		(my $status)=db_getrow();
+		(my $status)=db_getrow();while(db_getrow()){};db_close();
 		my $color='red';
 		if ($status eq 'up'){ $color='green';}
 		$image=$nw_logos{$type};
@@ -103,7 +111,7 @@ sub overview_network {
 	$lineframe->Label(-image => $image)->pack(-side=>'top');
 	$lineframe=$overview_network->Frame()->pack(-side=>'top');
 	$lineframe->Label(-text=>'Internet')->pack(-side=>'top');
-	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='down' AND devicetype = 'network'  ORDER BY last_up");
+	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='down' AND devicetype = 'network'  ORDER BY name");
 	while ((my $id, my $name, my $lastup,my $type)=db_getrow()){
 		my $lineframe=$overview_network->Frame(-borderwidth=>2)->pack(-side=>'top');
 		$lineframe->Label(-width=>50,-image => $nw_logos{$type})->pack(-side=>'left');
@@ -113,7 +121,8 @@ sub overview_network {
 			overview_dashboard();
 		})->pack(-side=>'left');
 	}	
-	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='up'  AND devicetype = 'network' ORDER BY last_up");
+	db_close();
+	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='up'  AND devicetype = 'network' ORDER BY name");
 	while ((my $id, my $name, my $lastup,my $type)=db_getrow()){
 		my $lineframe=$overview_network->Frame(-borderwidth=>2)->pack(-side=>'top');
 		$lineframe->Label(-width=>50,-image => $nw_logos{$type})->pack(-side=>'left');
@@ -123,7 +132,8 @@ sub overview_network {
 			overview_dashboard();
 		})->pack(-side=>'left');
 	}	
-	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='excluded'  AND devicetype = 'network' ORDER BY last_up");
+	db_close();
+	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='excluded'  AND devicetype = 'network' ORDER BY name");
 	while ((my $id, my $name, my $lastup,my $type)=db_getrow()){
 		my $lineframe=$overview_network->Frame(-borderwidth=>2)->pack(-side=>'top');
 		$lineframe->Label (-image => $nw_logos{$type},-anchor=>'w',-width=>25)->pack(-side=>'left');
@@ -133,6 +143,7 @@ sub overview_network {
 			overview_dashboard();
 		})->pack(-side=>'left');
 	}	
+	db_close();
 		
 }
 	
@@ -140,7 +151,7 @@ sub overview_network {
 sub overview_server {
 	my $overview_server_frame=$overview_frame->Scrolled("Frame",-scrollbars=>'e',-width=>400,-height=>800)->pack(-side=>'left');
 	$overview_server_frame->Label(-text=>'Severs')->pack(-side=>'top');
-	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='down' AND devicetype != 'network'  ORDER BY last_up");
+	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='down' AND devicetype != 'network'  ORDER BY name");
 	while ((my $id, my $name, my $lastup,my $type)=db_getrow()){
 		my $lineframe=$overview_server_frame->Frame(-borderwidth=>2)->pack(-side=>'top');
 		$lineframe->Label(-width=>50,-image => $nw_logos{$type})->pack(-side=>'left');
@@ -150,7 +161,8 @@ sub overview_server {
 			overview_dashboard();
 		})->pack(-side=>'left');
 	}	
-	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='up'  AND devicetype != 'network' ORDER BY last_up");
+	db_close();
+	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='up'  AND devicetype != 'network' ORDER BY name");
 	while ((my $id, my $name, my $lastup,my $type)=db_getrow()){
 		my $lineframe=$overview_server_frame->Frame(-borderwidth=>2)->pack(-side=>'top');
 		$lineframe->Label(-width=>50,-image => $nw_logos{$type})->pack(-side=>'left');
@@ -160,7 +172,8 @@ sub overview_server {
 			overview_dashboard();
 		})->pack(-side=>'left');
 	}	
-	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='excluded'  AND devicetype != 'network' ORDER BY last_up");
+	db_close();
+	db_dosql("SELECT id,name,last_up,type FROM server WHERE status='excluded'  AND devicetype != 'network' ORDER BY name");
 	while ((my $id, my $name, my $lastup,my $type)=db_getrow()){
 		my $lineframe=$overview_server_frame->Frame(-borderwidth=>2)->pack(-side=>'top');
 		$lineframe->Label(-width=>50,-image => $nw_logos{$type})->pack(-side=>'left');
@@ -170,6 +183,24 @@ sub overview_server {
 			overview_dashboard();
 		})->pack(-side=>'left');
 	}	
+	db_close();
+}
+
+sub overview_listings {
+	my $overview_listings_frame=$overview_frame->Scrolled("Frame",-scrollbars=>'e',-width=>400,-height=>800)->pack(-side=>'left');
+	$overview_listings_frame->Label(-text=>'Listings')->pack(-side=>'top');
+	my $output_text = $overview_listings_frame->Scrolled('Text',
+    		-wrap => 'none', # No word wrap
+    		-width => 80,
+    		-height => 50
+		)->pack(-expand => 1, -fill => 'both');
+	if ( open( my $LIST, '<','/tmp/djedefre.listing')){
+		my @lst=<$LIST>;
+		close $LIST;
+		foreach my $line (@lst) {
+			$output_text->insert('end',$line);
+		}
+	}
 }
 
 sub overview_scripts {
@@ -181,6 +212,7 @@ sub overview_scripts {
 	while ((my $srv)=db_getrow()){
 		push @serverlist,$srv;
 	}
+	db_close();
 	for my $i (0 .. $#serverlist){
 		my $server=$serverlist[$i];
 		my $srv_frame=$overview_scripts_frame->Frame()->pack(-side=>'top');
@@ -205,6 +237,7 @@ sub overview_scripts {
 				$srvline_frame->Label (-anchor => 'w',-text=>'',-width=>20)->pack(-side=>'left');
 			}
 		}
+		db_close();
 	}
 }
 			

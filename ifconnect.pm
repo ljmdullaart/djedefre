@@ -2,6 +2,9 @@
 #INSTALL@ /opt/djedefre/ifconnect.pm
 #INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 
+use strict;
+use warnings;
+
 #  _  __                         _   
 # (_)/ _| ___ ___  _ __  _ __   ___  ___| |_ 
 # | | |_ / __/ _ \| '_ \| '_ \ / _ \/ __| __|

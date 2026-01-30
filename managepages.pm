@@ -1,6 +1,9 @@
 
 #INSTALL@ /opt/djedefre/managepages.pm
 #INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+
+use strict;
+use warnings;
 #                              
 #  _ __   __ _  __ _  ___  ___ 
 # | '_ \ / _` |/ _` |/ _ \/ __|
@@ -21,6 +24,11 @@ our $DEB_FRAME;
 our $DEB_DB;
 our $DEB_SUB;
 our $DEBUG;
+our $Message;
+
+our $main_frame;
+our $main_window;
+our $button_frame;
 
 my $currentpage='Pages';
 my $selectedpage='Pages';
@@ -47,6 +55,7 @@ sub fill_pagelist {
                 push @realpagelist,$p;
 
         }
+	db_close();
 }
 
 sub display_top_page {		# Top-page is L3 drawing of all servers and subnets
@@ -70,6 +79,7 @@ sub display_other_page {
 		-height      => 1005,
 		-width       => 1505
 	)->pack(-side =>'top');
+print STDERR "pagetypes $pagetypes{$l3_showpage}\n";
 	if ($pagetypes{$l3_showpage} eq 'l3'){
 		print "display_other_page $l3_showpage L3\n";
 		make_l3_plot($main_frame);
@@ -113,6 +123,7 @@ sub manage_pages {
 		-text=>'Set type',
 		-command=>sub {
 			db_dosql("UPDATE config SET value='$pagetype' WHERE attribute='page:type' AND item='$pagename'");
+			db_close();
 		}
 	)->pack(-side=>'left');
 	$buttonpageframe->Button (
@@ -136,14 +147,17 @@ sub manage_pages {
 	while ((my $id, my $name)=db_getrow()){
 		push @items,"server:$id:$name";
 	}
+	db_close();
 	db_dosql("SELECT id,nwaddress,cidr FROM subnet ORDER BY nwaddress");
 	while ((my $id, my $nwaddress,my $cidr)=db_getrow()){
 		push @items,"subnet:$id:$nwaddress/$cidr";
 	}
+	db_close();
 	db_dosql("SELECT id,name FROM switch ORDER BY name");
 	while ((my $id, my $name)=db_getrow()){
 		push @items,"switch:$id:$name";
 	}
+	db_close();
 	my @selected;
 	splice @selected;
 	db_dosql ("	SELECT server.id AS id,name FROM server
@@ -154,6 +168,7 @@ sub manage_pages {
 	while ((my $id, my $name)=db_getrow()){
 		push @selected,"server:$id:$name";
 	}
+	db_close();
 	db_dosql ("	SELECT subnet.id AS id,nwaddress,cidr FROM subnet
 			INNER JOIN pages ON pages.item=subnet.id
 			WHERE pages.page='$pagename' AND pages.tbl='switch'
@@ -162,6 +177,7 @@ sub manage_pages {
 	while ((my $id, my $nwaddress,my $cidr)=db_getrow()){
 		push @selected,"subnet:$id:$nwaddress/$cidr";
 	}
+	db_close();
 	db_dosql ("	SELECT switch.id AS id,name FROM switch
 			INNER JOIN pages ON pages.item=switch.id
 			WHERE pages.page='$pagename' AND pages.tbl='switch'
@@ -170,6 +186,7 @@ sub manage_pages {
 	while ((my $id, my $name)=db_getrow()){
 		push @selected,"switch:$id:$name";
 	}
+	db_close();
 	my $cbfunc=\&mgpg_selector_callback;
 	selector({
 		options		=> \@items,
@@ -185,26 +202,31 @@ sub mgpg_selector_callback {
 	(my $func, my $arg,my $page)=@_;
 	debug($DEB_SUB,"mgpg_selector_callback");
 	(my $table, my $id, my $name)=split(':',$arg);
+	my $x;
+	my $y;
 	if ($table ne 'switch'){
 		db_dosql ("SELECT xcoord,ycoord FROM $table WHERE id=$id");
-		(my $x,my $y)=db_getrow();
+		($x,$y)=db_getrow();
+		db_close();
 	}
 	$x=100 unless defined $x;
 	$y=100 unless defined $y;
 	if (defined($page)){$pagename=$page;}
 	if ($func eq 'del'){
 		db_dosql("DELETE FROM pages WHERE tbl='$table' AND item=$id AND page='$pagename'");
+		db_close();
 	}
 	elsif ($func eq 'add'){
 		db_dosql("DELETE FROM pages WHERE tbl='$table' AND item=$id AND page='$pagename'");
 		db_dosql("INSERT INTO pages (page,tbl,item,xcoord,ycoord) VALUES ('$pagename','$table',$id,$x,$y)");
+		db_close();
 	}
 }
 
 sub manage_pages_change_action {
 	(my $pgname)=@_;
 	debug($DEB_SUB,"manage_pages_change_action");
-	$managepg_pagename=$pgname;
+	#$managepg_pagename=$pgname;
 	my @servers;
 	my @subnets;
 	splice @servers;
@@ -214,15 +236,17 @@ sub manage_pages_change_action {
 		$servers[$id]=$name;
 		push @managepg_options,"server:$id:$name";
 	}
+	db_close();
 	splice @subnets;
-	my $sth=db_dosql("SELECT id,name,nwaddress,cidr FROM subnet");
+	$sth=db_dosql("SELECT id,name,nwaddress,cidr FROM subnet");
 	while((my $id,my $name,my $nwaddress,my $cidr) = db_getrow()){
 		$name="$nwaddress/$cidr" unless defined $name;
 		$subnets[$id]=$name;
 		push @managepg_options,"subnet:$id:$name";
 	}
+	db_close();
 	splice @managepg_selection;
-	my $sth=db_dosql("SELECT tbl,item FROM pages WHERE page='$pgname'");
+	$sth=db_dosql("SELECT tbl,item FROM pages WHERE page='$pgname'");
 	while((my $tbl,my $item) = db_getrow()){
 		my $sname='';
 		if ($tbl eq 'subnet'){
@@ -233,6 +257,7 @@ sub manage_pages_change_action {
 		}
 		push @managepg_selection, "$tbl:$item:$sname";
 	}
+	db_close();
 	my $cbfunc=\&mgpg_selector_callback;
 	selector({
 		options		=> \@managepg_options,
@@ -248,6 +273,7 @@ sub manage_pages_del_action {
 	debug($DEB_SUB,"manage_pages_del_action");
 	db_dosql("DELETE FROM config WHERE item='$pgname'");
 	db_dosql("DELETE FROM pages  WHERE page='$pgname'");
+	db_close();
 	fill_pagelist();
 	make_pageselectframe( $button_frame);
 	manage_pages();
@@ -265,6 +291,7 @@ sub manage_pages_add_action {
 	if ($flag==0){
         	my $sql = "INSERT INTO config (attribute,item,value) VALUES ('page:type','$pageadd','l3')";
         	my $sth =  db_dosql($sql);
+		db_close();
 	}
 	else {
 		$Message="Page $pageadd already exists";
@@ -285,8 +312,11 @@ sub repeat_selected_page {
 	debug($DEB_SUB,"repeat_selected_page");
 	db_dosql("SELECT value FROM config WHERE attribute='run:param' AND item='changed'");
 	(my $changed)=db_getrow();
+	while(db_getrow()){};
+	db_close();
 	if ($changed eq 'yes'){
 		db_dosql("UPDATE config SET value='no' WHERE attribute='run:param' AND item='changed'");
+		db_close();
 		display_selected_page($selected_page);
 	}
 	$DEBUG=$OLDDEBUG;

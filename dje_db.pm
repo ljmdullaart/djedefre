@@ -3,6 +3,8 @@
 #INSTALL@ /opt/djedefre/dje_db.pm
 #INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 use DBI;
+use strict;
+use warnings;
 
 our $DEBUG;
 our $DEB_DB;
@@ -22,6 +24,9 @@ our $mainframe;
 our $repeat_sub;
 our @pagelist;
 our @realpagelist;
+our $package;
+our $filename;
+our $line;
 
 our %config;
 our %nw_logos;
@@ -41,6 +46,7 @@ our @if_macid;
 our @if_port;
 our @if_subnet;
 our @if_switch;
+our @if_connect_if;
 
 our @l2_id;
 our @l2_from_id;
@@ -93,19 +99,37 @@ my $db;
 my $db_sth;
 my $db_error=0;
 
+my $database_open=0;
+
 sub connect_db {
 	(my $dbfile)=@_;
+	my ($package, $filename, $line) = caller;
+	# print "Opening database $package, $filename, line number $line\n";
+	
 	debug($DEB_SUB,"connect_db");
 	$db = DBI->connect("dbi:SQLite:dbname=".$dbfile)
 		or die $DBI::errstr;
 	$db_error=0;
+	$database_open=1;
 	return $db;
 }
 
 
 sub db_dosql{
 	(my $sql)=@_;
+	my ($package, $filename, $line) = caller;
 	debug($DEB_SUB,"db_dosql \"$sql\"");
+	if ($database_open==0){
+		connect_db($config{'dbfile'});
+		$database_open=1;
+	}
+	else {
+		
+		print "Someone left the database open before $package, $filename, line number $line\n";
+		db_close();
+		connect_db($config{'dbfile'});
+	}
+	
 	if ($db_sth = $db->prepare($sql)){
 		$db_sth->execute();
 		$db_error=0;
@@ -135,6 +159,15 @@ sub db_getrow {
 sub db_value {
 	(my $sql)=@_;
 	my @row;
+	if ($database_open==0){
+		connect_db($config{'dbfile'});
+		$database_open=1;
+	}
+	else {
+		print "Someone left the database open before $package, $filename, line number $line\n";
+		db_close();
+		connect_db($config{'dbfile'});
+	}
 	debug($DEB_SUB,"db_value \"$sql\"");
 	if ($db_sth = $db->prepare($sql)){
 		$db_sth->execute();
@@ -145,10 +178,24 @@ sub db_value {
 			print "Empty row for $sql\n";
 			return undef;
 		}
+		db_close();
 	}
 	else { 
 		print "Prepare failed for $sql\n";
 		return undef;
+	}
+}
+
+sub db_close {
+	my ($package, $filename, $line) = caller;
+	if (defined ($db_sth)){
+		if ($db_sth->{Active}){
+			print "db_close called with open statement handler from $filename, line: $line\n";
+		}
+	}
+	if ($database_open==1){
+		$db->disconnect() if defined $db;
+		$database_open=0;
 	}
 }
 
@@ -180,6 +227,7 @@ sub db_get_interfaces {
 		$if_ifname[$id]=$ifname;
 		$if_name[$id]=$ifname;
 	}
+	db_close;
 }
 
 sub db_get_subnet {
@@ -201,6 +249,7 @@ sub db_get_subnet {
 		$net_options[$id]=$options;
 		$net_access[$id]=$access;
 	}
+	db_close;
 }
 	
 
@@ -237,6 +286,7 @@ sub db_get_server {
 		$srv_memory[$id]=$memory;
 		$srv_id{$name}=$id;
 	}
+	db_close;
 }
 
 
@@ -262,6 +312,7 @@ sub db_get_l2 {
 		$l2_to_port[$id]=$to_port;
 		$l2_source[$id]=$source;
 	}
+	db_close;
 }
 
 
@@ -271,7 +322,6 @@ sub db_get_sw {
 	splice @sw_server;
 	splice @sw_name;
 	splice @sw_ports;
-#our %sw_id;
 	db_dosql("SELECT id,switch,server,name,ports FROM switch");
 	while ((my $id,my $switch,my $server,my $name,my $ports)=db_getrow()){
 		$sw_switch[$id]=$switch;
@@ -280,6 +330,7 @@ sub db_get_sw {
 		$sw_ports[$id]=$ports;
 		$sw_id{$name}=$id;
 	}
+	db_close;
 }
 		
 

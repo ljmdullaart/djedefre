@@ -138,6 +138,7 @@ sub mkconnectframe {
 	db_get_server();
 	db_dosql("SELECT id,name FROM switch");
 	while ((my $id, my $name)=db_getrow()){ $switchname[$id]=$name;}
+	db_close();
 	$connect_listing_frame>destroy if Tk::Exists($connect_listing_frame);
 	$connect_listing_frame=$parent->Frame()->pack(-side =>'top');
 	$connect_listing_frame->Label(-text=>"Connections")->pack()-side =>'top';
@@ -232,6 +233,7 @@ sub mkconnectselectedframe {
 	while ((my $nme)=db_getrow()){
 		push @objlist,$nme;
 	}
+	db_close();
 	@sort_if_ip=uniq( @if_ip);
 	@sort_if_ip=sort @sort_if_ip;
 	my @usrvlist=uniq(@objlist);
@@ -247,7 +249,8 @@ sub mkconnectselectedframe {
 		@fromiflist=uniq(@if_ifname);
 	}
 	else {
-		db_dosql("SELECT id FROM server WHERE name='$sel_from_if_host_name'");
+		#db_dosql("SELECT id FROM server WHERE name='$sel_from_if_host_name'");
+
 		@fromiflist=uniq(@if_ifname);
 	}
 
@@ -416,9 +419,11 @@ sub do_button {
 print "to=$sel_to_ip from=$sel_from_ip\n";
 	if ($action eq 'delete'){
 		db_dosql( "DELETE FROM l2connect WHERE id=$sel_id");
+		db_close();
 	}
 	if ($action eq 'change'){
 		db_dosql( "DELETE FROM l2connect WHERE id=$sel_id");
+		db_close();
 		$action='add'
 	}
 	if ($action eq 'add'){

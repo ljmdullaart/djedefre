@@ -1,5 +1,8 @@
 #INSTALL@ /opt/djedefre/options.pm
 #INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+
+use strict;
+use warnings;
 #              _   _                 
 #   ___  _ __ | |_(_) ___  _ __  ___ 
 #  / _ \| '_ \| __| |/ _ \| '_ \/ __|
@@ -10,7 +13,7 @@
 require dje_db;
 
 our $main_window;
-our $mainframe;
+our $main_frame;
 
 our $Message;
 
@@ -24,6 +27,7 @@ sub options_read {
 	while ((my $item,my $value)=db_getrow()){
 		$config{"line:color:$item"}=$value;
 	}
+	db_close();
 	if (! defined $config{'line:color:vlan1'}){
 		$config{"line:color:vlan1"}='black';
 		db_dosql ("DELETE FROM config WHERE attribute='line:color' AND item='vlan1'");
@@ -45,6 +49,7 @@ sub options_read {
 			db_dosql ("INSERT INTO config (attribute,item,value) VALUES ('line:color','$vlan','black')");
 		}
 	}
+	db_close();
 		
 }
 
@@ -71,7 +76,7 @@ sub options_window {
 	$perlineframe->Entry (
 		-textvariable	=> \$inputnew,
 		-width		=> 30
-	)->pack(-side=>left);
+	)->pack(-side=>'left');
 	$inputlab=$perlineframe->Label(
 		-text	=> '     ',
 		-width	=> 5,
@@ -95,6 +100,7 @@ sub options_window {
 				db_dosql ("DELETE FROM config WHERE attribute='line:color' AND item='$inputcol'");
 				db_dosql ("INSERT INTO config (attribute,item,value) VALUES ('line:color','$inputnew','$inputcol')");
 				options_window();
+				db_close();
 			}
 		}
 	)->pack(-side=>'left');
@@ -126,6 +132,7 @@ sub options_window {
 					$config{"line:color:$linename"}=$config{$key};
 					db_dosql ("DELETE FROM config WHERE attribute='line:color' AND item='$linename'");
 					db_dosql ("INSERT INTO config (attribute,item,value) VALUES ('line:color','$linename','$config{$key}')");
+					db_close();
 				}
 			)->pack(-side=>'left');
 			my $buttontext='Delete';
@@ -140,6 +147,7 @@ sub options_window {
 					else{
 						delete($config{"line:color:$linename"});
 						db_dosql ("DELETE FROM config WHERE attribute='line:color' AND item='$linename'");
+						db_close();
 						options_window();
 					}
 				}

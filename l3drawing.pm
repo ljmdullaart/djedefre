@@ -1,5 +1,8 @@
 #INSTALL@ /opt/djedefre/l3drawing.pm
 #INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+
+use strict;
+use warnings;
 #	     _		             _
 #  _ __   ___| |___      _____  _ __| | __
 # | '_ \ / _ \ __\ \ /\ / / _ \| '__| |/ /
@@ -17,6 +20,7 @@ my @l3_obj;
 our $l3_showpage;
 $l3_showpage='top';
 our $repeat_sub;
+our $Message;
 
 
 my $nw_tmpx=100;
@@ -43,7 +47,7 @@ our $DEB_SUB;
 our $DEBUG;
 
 
-connect_db($config{'dbfile'});
+# connect_db($config{'dbfile'});
 
 sub l3_objects {
 	debug($DEB_SUB,"l3_objects");
@@ -53,6 +57,7 @@ sub l3_objects {
 	while ((my $id,my $name)=db_getrow()){
 		$hostnames[$id]=$name;
 	}
+	db_close();
 	db_get_interfaces;
 	put_netinobj($l3_showpage,\@l3_obj);
 	put_serverinobj($l3_showpage,\@l3_obj,3);
@@ -71,12 +76,15 @@ sub l3_lines {
 	while ((my $item,my $value)=db_getrow()){
 		$colorization{$item}=$value;
 	}
+	db_close();
 	db_dosql("SELECT id,host FROM interfaces");
 	while ((my $id, my $host)=db_getrow()){
 		$ifserver[$id]=$host;
 	}
+	db_close();
 	db_dosql("SELECT id,options FROM subnet WHERE nwaddress='Internet'");
 	(my $Internet,my $Internetoptions)=db_getrow();
+	while (db_getrow()){};db_close();
 	my $Internetcolor='black';
 	if ($Internetoptions=~/color=([^;]+);/){
 		$Internetcolor=$1;
@@ -92,6 +100,7 @@ sub l3_lines {
 			while((my $ip) = db_getrow()){
 				push @interfacelist,$ip;
 			}
+			db_close();
 			for my $j ( 0 .. $#l3_obj){
 				if ($l3_obj[$j]->{'table'} eq 'subnet'){
 					my $netw_id=$l3_obj[$j]->{'newid'};
@@ -192,7 +201,7 @@ sub l3_page {
 	(my $table,my $id,my $name,my $action,my $page)=@_;
 	debug($DEB_SUB,"l3_page");
 	my $arg="$table:$id:$name";
-	$managepg_pagename=$page;
+	#$managepg_pagename=$page;
 	mgpg_selector_callback ($action,$arg,$page);
 	l3_renew_content();
 }
@@ -203,11 +212,13 @@ sub l3_color {
 	if ($table eq 'subnet'){
 		db_dosql("SELECT options FROM $table WHERE id=$id");
 		(my $opts)=db_getrow();
+		while (db_getrow()){}; db_close();
 		while ($opts=~/color=[^;]*;/){
 			$opts=~s/color=[^;]*;//;
 		}
 		$opts="color=$color;$opts";
 		db_dosql("UPDATE $table SET options='$opts' WHERE id=$id");
+		db_close();
 	}
 	l3_renew_content();
 }
@@ -217,6 +228,7 @@ sub l3_devicetype {
 	if ($table eq 'server'){
 		#my $sql = "UPDATE $table SET type='$type' WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
 		db_dosql("UPDATE $table SET devicetype='$type' WHERE id=$id");
+		db_close();
 	}
 	l3_renew_content();
 }
@@ -226,17 +238,19 @@ sub l3_type {
 	if ($table eq 'server'){
 		#my $sql = "UPDATE $table SET type='$type' WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
 		db_dosql("UPDATE $table SET type='$type' WHERE id=$id");
+		db_close();
 	}
 	elsif ($table eq 'cloud'){
 		#my $sql = "UPDATE $table SET type='$type' WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
 		db_dosql("UPDATE $table SET type='$type' WHERE id=$id");
+		db_close();
 	}
 	l3_renew_content();
 }
 sub l3_name {
 	(my $table, my $id, my $name)=@_;
 	debug($DEB_SUB,"l3_name");
-	my $sql = "UPDATE $table SET name='$name' WHERE id=$id"; db_dosql($sql);
+	my $sql = "UPDATE $table SET name='$name' WHERE id=$id"; db_dosql($sql); db_close();
 	l3_renew_content();
 }
 sub l3_delete {
@@ -246,12 +260,16 @@ sub l3_delete {
 		db_dosql("SELECT id FROM interfaces WHERE host=$id");
 		my @ifids; splice @ifids;
 		while ((my $ifid)=db_getrow()){ push @ifids,$ifid; }
+		db_close();
 		for my $ifid (@ifids){
 			db_dosql("DELETE FROM l2connect WHERE to_tbl='interfaces' and to_id=$ifid");
+			db_close();
 		}
 		db_dosql("DELETE FROM interfaces WHERE host=$id");
+		db_close();
 	}
 	my $sql = "DELETE FROM $table WHERE id=$id";  db_dosql($sql);
+	db_close();
 	l3_renew_content();
 }
 sub l3_move {
@@ -260,12 +278,12 @@ sub l3_move {
 	my $sql;
 	if ((defined($id)) && (defined($x)) && (defined ($y))){
 		if ( $l3_showpage eq 'top'){
-			$sql = "UPDATE $table SET xcoord=$x WHERE id=$id"; db_dosql($sql);
-			$sql = "UPDATE $table SET ycoord=$y WHERE id=$id"; db_dosql($sql);
+			$sql = "UPDATE $table SET xcoord=$x WHERE id=$id"; db_dosql($sql);db_close();
+			$sql = "UPDATE $table SET ycoord=$y WHERE id=$id"; db_dosql($sql);db_close();
 		}
 		else {
-			$sql = "UPDATE pages SET xcoord=$x WHERE item=$id AND tbl='$table' AND page='$l3_showpage'"; db_dosql($sql);
-			$sql = "UPDATE pages SET ycoord=$y WHERE item=$id AND tbl='$table' AND page='$l3_showpage'"; db_dosql($sql);
+			$sql = "UPDATE pages SET xcoord=$x WHERE item=$id AND tbl='$table' AND page='$l3_showpage'"; db_dosql($sql);db_close();
+			$sql = "UPDATE pages SET ycoord=$y WHERE item=$id AND tbl='$table' AND page='$l3_showpage'"; db_dosql($sql);db_close();
 		}
 	}
 }
@@ -281,6 +299,7 @@ sub l3_merge {
 			while((my $host) = db_getrow()){
 				$targetid=$host;
 			}
+			db_close();
 		}
 		elsif ($target=~/^([A-Za-z]\w*)/){
 			my $sql = "SELECT id FROM server WHERE name='$1'";
@@ -288,6 +307,7 @@ sub l3_merge {
 			while((my $host) = db_getrow()){
 				$targetid=$host;
 			}
+			db_close();
 		}
 		if ($targetid == $id){
 			$Message="No valid target for merge\n";
@@ -300,12 +320,14 @@ sub l3_merge {
 			while((my $ifid) = db_getrow()){
 				push @iflist,$ifid;
 			}
+			db_close();
 			foreach(@iflist){
 				my $sql = "UPDATE interfaces SET host=$targetid WHERE id=$_";
 				db_dosql($sql);
+				db_close();
 			}
-			db_dosql("DELETE FROM server WHERE id=$id");
-			db_dosql("DELETE FROM pages  WHERE item=$id AND tbl='server'");
+			db_dosql("DELETE FROM server WHERE id=$id");db_close();
+			db_dosql("DELETE FROM pages  WHERE item=$id AND tbl='server'");db_close();
 		}
 	}
 	l3_renew_content();
