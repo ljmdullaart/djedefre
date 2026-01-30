@@ -3,6 +3,8 @@
 
 use strict;
 use warnings;
+use Scalar::Util qw(looks_like_number);
+
 #	     _		             _
 #  _ __   ___| |___      _____  _ __| | __
 # | '_ \ / _ \ __\ \ /\ / / _ \| '__| |/ /
@@ -99,11 +101,13 @@ sub l2_lines {
 	my $lineto=0;
 	db_dosql("SELECT vlan,from_tbl,from_id,from_port,to_tbl,to_id,to_port FROM l2connect");
 	while ((my $vlan,my $from_tbl,my $from_id,my $from_port,my $to_tbl,my $to_id,my $to_port)=db_getrow()){
-		$to_port='' unless defined $to_port;
-		$from_port='' unless defined $from_port;
+		#$to_port=9999999 unless defined $to_port;
+		#$from_port=9999999 unless defined $from_port;
 		$vlan=0 unless defined $vlan;
-		if ($to_port>1000){$to_port='';}
-		if ($from_port>1000){$from_port='';}
+		#if ($to_port>1000){$to_port='';}
+		#if ($from_port>1000){$from_port='';}
+		$to_port = ( defined($to_port) && $to_port ne "" && looks_like_number($to_port) && $to_port <= 1000 ) ? $to_port : "";
+		$from_port = ( defined($from_port) && $from_port ne "" && looks_like_number($from_port) && $from_port <= 1000 ) ? $from_port : "";
 		if ($from_tbl eq 'interfaces'){
 			my $host=$ifserver[$from_id];
 			$linefrom=$host*$qobjtypes+$objtserver

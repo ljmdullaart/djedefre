@@ -107,6 +107,7 @@ sub l3_lines {
 					my $netw=$l3_obj[$j]->{'nwaddress'};
 					my $cidr=$l3_obj[$j]->{'cidr'};
 					my $color=$l3_obj[$j]->{'color'};
+					$cidr=24 unless defined $cidr;
 					$color='black' unless defined $color;
 					for (@interfacelist){
 						my $lastbyte=$_; $lastbyte=~s/.*\.//;
@@ -132,6 +133,7 @@ sub l3_lines {
 				}
 			}
 			my $options=$l3_obj[$i]->{'options'};
+			$options='' unless defined $options;
 			if ($options=~/vboxhost:([0-9]*),/ ){
 				my $hostid=$1;
 				my $host=$hostid*$qobjtypes+$objtserver;

@@ -12,7 +12,6 @@ our $nw_tmpx;
 our $nw_tmpy;
 our $l3_showpage;
 our @l2_obj;
-our $l3_showpage;
 
 sub put_netinobj {
 	(my $page,my $ar_ref)=@_;
@@ -128,6 +127,8 @@ sub put_serverinobj {
 		if($table eq 'server'){
 			my $sth = db_dosql("SELECT ip,macid FROM interfaces WHERE host=$id");
 			while((my $ip,my $mac) = db_getrow()){
+				$mac='' unless defined $mac;
+				$ip='' unless defined $ip;
 				push @ifar, "$mac $ip";
 			}
 			db_close();
@@ -186,7 +187,7 @@ sub put_cloudinobj {
 			table	=> 'cloud',
 			vendor  => $vendor,
 			service => $service,
-			pages	=> ()
+			pages	=> []
 		};
 	}
 	db_close();
