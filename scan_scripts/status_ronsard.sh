@@ -16,7 +16,7 @@ ssh ronsard.home ps -ef | grep VBoxHeadless > $TMP
 
 down=no
 
-for vhost in Win10 win7 UnifyNetworkController nullboard ; do
+for vhost in UnifyNetworkController nullboard Webservers ; do
 	if grep -q $vhost $TMP ; then
 		if [ $verbose = yes ] ; then
 			echo "$vhost is up"
