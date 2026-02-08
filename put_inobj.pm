@@ -25,15 +25,18 @@ our @l2_obj;
 #-----------------------------------------------------------------------
 sub put_netinobj {
 	(my $page,my $ar_ref)=@_;
-	my $sql;
 	my @pagear=[];
-	query_subnet_on_page($page);
+	query_obj_on_page($page,'subnet');
 	while (my $r=sql_getrow()){
 		my $id=$r->{id};
 		my $nwaddress=$r->{nwaddress};
 		my $cidr=$r->{cidr};
-		my $x=$r->{xcoord};
-		my $y=$r->{ycoord};
+		my $x=$r->{pagex};
+		my $y=$r->{pagey};
+		if ($page eq 'top'){
+			 $x=$r->{xcoord};
+			 $y=$r->{ycoord};
+		}
 		my $name=$r->{name};
 		my $options=$r->{options};
 		if ((!defined $x) || !(defined $y)){
@@ -80,19 +83,25 @@ sub put_serverinobj {
 	my @pagear=[];
 	my @ifar=[];
 	my $sql;
-	
-	if ($page eq 'top'){
-		$sql = 'SELECT id,name,xcoord,ycoord,type,interfaces,status,options,ostype,os,processor,memory,devicetype FROM server';
-	}
-	else {
-		$sql="	SELECT  server.id,name,pages.xcoord,pages.ycoord,type,interfaces,status,options,ostype,os,processor,memory,devicetype
-			FROM   server
-			INNER JOIN pages ON pages.item = server.id
-			WHERE  pages.page='$page' AND pages.tbl='server'
-		";
-	}
-	my $sth = db_dosql($sql);
-	while((my $id,my $name, my $x,my $y,my $type,my $interfaces,my $status,my $options,my $ostype,my $os,my $processor,my $memory,my $devicetype) = db_getrow()){
+	query_obj_on_page($page,'server');
+	while(my $r=sql_getrow()){
+		my $id=$r->{id};
+		my $name=$r->{name};
+		my $x=$r->{pagex};
+		my $y=$r->{pagey};
+		if ($page eq 'top'){
+			 $x=$r->{xcoord};
+			 $y=$r->{ycoord};
+		}
+		my $type=$r->{type};
+		my $interfaces=$r->{interfaces};
+		my $status=$r->{status};
+		my $options=$r->{options};
+		my $ostype=$r->{ostype};
+		my $os=$r->{os};
+		my $processor=$r->{processor};
+		my $memory=$r->{memory};
+		my $devicetype=$r->{devicetype};
 		$type='server' unless defined $type;
 		if ((!defined $x) || !(defined $y)){
 			nxttmploc();
@@ -118,10 +127,8 @@ sub put_serverinobj {
 			pages	=> \@pagear
 		};
 		my $max=$#l2_obj;
-		#push @{$l2_obj[$max]{pages}},' ';
 		
 	}
-	db_close();
 	foreach my $element (@$ar_ref) {
 		my $id=$element->{'id'};
 		my $table=$element->{'table'};
@@ -129,19 +136,20 @@ sub put_serverinobj {
 		splice @pagear;
 		splice @ifar;
 		if($table eq 'server'){
-			my $sth = db_dosql("SELECT ip,macid FROM interfaces WHERE host=$id");
-			while((my $ip,my $mac) = db_getrow()){
+			query_if_from_host($id);
+			while(my $r=sql_getrow()){
+				my $ip=$r->{ip};
+				my $mac=$r->{macid};
 				$mac='' unless defined $mac;
 				$ip='' unless defined $ip;
 				push @ifar, "$mac $ip";
 			}
-			db_close();
 			$element->{interfaces}=[@ifar];
-			$sth = db_dosql("SELECT page FROM pages WHERE tbl='server' AND item=$id");
-			while ((my $item) = db_getrow()){
+			#$sth = db_dosql("SELECT page FROM pages WHERE tbl='server' AND item=$id");
+			query_pages_tbl_id('server',$id);
+			while (my $item = sql_getvalue()){
 				push @pagear, $item;
 			}
-			db_close();
 			$element->{'pages'}=[@pagear];
 
 			if ($layer == 2){

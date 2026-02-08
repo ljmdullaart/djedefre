@@ -176,30 +176,6 @@ sub query_set_line_color {
 	sql_query ("INSERT INTO config (attribute,item,value) VALUES ('line:color', ? , ? )",$colorname,$colorvalue);
 }
 
-
-#    _   _  _          _  ____ 
-# |   ) /  / \|\ ||\ ||_ /  |  
-# |_ /_ \_ \_/| \|| \||_ \_ |  
-#                          
-
-
-#-----------------------------------------------------------------------
-# Name        : query_l2_getvlans
-# Purpose     : Get the list of VLANs in the l2 connection table
-# Arguments   : 
-# Returns     : array refference to a list of VLANs
-# Globals     : 
-# Side‑effects: 
-# Notes       : 
-#-----------------------------------------------------------------------
-sub query_l2_getvlans {
-	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_l2_getvlans $package, $filename, line number $line");
-	my $rows = sql_query("SELECT DISTINCT vlan FROM l2connect");
-	my @vlans = map { $_->{vlan} } @$rows;
-	return \@vlans;
-}
-
 #
 # _ | _     _| 
 #(_ |(_)|_|(_| 
@@ -256,60 +232,48 @@ sub query_cloud_update_type {
 	sql_query("UPDATE cloud SET type= ? WHERE id= ? ",$type,$id);
 }
 
-# __  _  _      _  _  
-#(_  |_ |_)\  /|_ |_) 
-#__) |_ | \ \/ |_ | \ 
+# ___      ___  _  _   _       _  _  __ 
+#  |  |\ |  |  |_ |_) |_  /\  /  |_ (_  
+# _|_ | \|  |  |_ | \ |  /--\ \_ |_ __) 
 #
+#-----------------------------------------------------------------------
+# Name        : query_if_from_host
+# Purpose     : Get all interfaces velonging to a host
+# Arguments   : host-id
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : Results must be obtained with sql_getrow
+#-----------------------------------------------------------------------
+sub query_if_from_host {
+	(my $hostid)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_if_from_host $package, $filename, line number $line");
+	sql_query("SELECT * FROM interfaces WHERE host= ? ",$hostid);
+}
+
+#     _   _  _          _  _ ___ 
+# |    ) /  / \|\ ||\ ||_ /   |  
+# |_  /_ \_ \_/| \|| \||_ \_  |  
+#                          
+
 
 #-----------------------------------------------------------------------
-# Name        : query_server_update_type
-# Purpose     : Update the type of a server
-# Arguments   : id
-#		type
-# Returns     : 
+# Name        : query_l2_getvlans
+# Purpose     : Get the list of VLANs in the l2 connection table
+# Arguments   : 
+# Returns     : array refference to a list of VLANs
 # Globals     : 
 # Side‑effects: 
 # Notes       : 
 #-----------------------------------------------------------------------
-sub query_server_update_type {
-	(my $id, my $type)=@_;
+sub query_l2_getvlans {
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_server_update_type $package, $filename, line number $line");
-	sql_query("UPDATE server SET type= ? WHERE id= ? ",$type,$id);
+	debug($DEB_DB,"query_l2_getvlans $package, $filename, line number $line");
+	my $rows = sql_query("SELECT DISTINCT vlan FROM l2connect");
+	my @vlans = map { $_->{vlan} } @$rows;
+	return \@vlans;
 }
-
-# _     _     _ ___
-#(_ | ||_)|\||_  |  
-# _)|_||_)| ||_  |  
-#
-
-
-#-----------------------------------------------------------------------
-# Name        : query_subnet_on_page
-# Purpose     : Initiate query for subbnets on a page
-# Arguments   : page
-# Returns     : 
-# Globals     : @lastresult
-# Side‑effects: 
-# Notes       : Results must be obtained using sql_getrow()
-#-----------------------------------------------------------------------
-sub query_subnet_on_page {
-	(my $page)=@_;
-	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_subnet_on_page $package, $filename, line number $line");
-	my $sql;
-	if ($page eq 'top'){
-		sql_query('SELECT id,nwaddress,cidr,xcoord,ycoord,name,options FROM subnet');
-	}
-	else {
-		sql_query ("	SELECT subnet.id,nwaddress,cidr,pages.xcoord,pages.ycoord,name,subnet.options
-				FROM   subnet
-				INNER JOIN pages ON pages.item = subnet.id
-				WHERE  pages.page= ? AND pages.tbl='subnet'
-			", $page);
-	}
-}
-		
 
 #  _     __  _  _  
 # |_)/\ /__ |_ (_  
@@ -332,6 +296,62 @@ sub query_pages_tbl_id {
 	debug($DEB_DB,"query_pages_tbl_id $package, $filename, line number $line");
 	sql_query("SELECT page FROM pages WHERE tbl= ? AND item= ?",$table,$id);
 }
+#-----------------------------------------------------------------------
+# Name        : query_obj_on_page
+# Purpose     : Initiate query for servers on a page
+# Arguments   : page
+# Returns     : 
+# Globals     : @lastresult
+# Side‑effects: 
+# Notes       : Results must be obtained using sql_getrow()
+#-----------------------------------------------------------------------
+sub query_obj_on_page {
+	(my $page,my $tbl)=@_;
+	my  %allowed_tables = (cloud => 1, server => 1, subnet => 1);
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_obj_on_page $package, $filename, line number $line page=$page tbl=$tbl");
+	if ($allowed_tables{$tbl}) {
+		if ($page eq 'top'){
+			sql_query("SELECT * FROM $tbl");
+		}
+		else {
+			sql_query ("	SELECT  $tbl.*,pages.xcoord AS pagex, pages.ycoord as pagey
+					FROM   $tbl
+					INNER JOIN pages ON pages.item = $tbl.id
+					WHERE  pages.page= ? AND pages.tbl='$tbl'
+				", $page);
+		}
+	}
+}
+
+
+# __  _  _      _  _  
+#(_  |_ |_)\  /|_ |_) 
+#__) |_ | \ \/ |_ | \ 
+#
+
+#-----------------------------------------------------------------------
+# Name        : query_server_update_type
+# Purpose     : Update the type of a server
+# Arguments   : id
+#		type
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_server_update_type {
+	(my $id, my $type)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_server_update_type $package, $filename, line number $line");
+	sql_query("UPDATE server SET type= ? WHERE id= ? ",$type,$id);
+}
+
+
+# _     _     _ ___
+#(_ | ||_)|\||_  |  
+# _)|_||_)| ||_  |  
+#
 
 
 

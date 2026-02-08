@@ -15,8 +15,6 @@ use File::Spec;
 use File::Slurp;
 use File::Slurper qw/ read_text /;
 use File::HomeDir;
-use Module::Refresh;
-
 use FindBin;
 use lib $FindBin::Bin;
 use List::MoreUtils qw(first_index);
@@ -39,6 +37,8 @@ require overview;
 require selector;
 require standard;
 require put_inobj;
+
+our $dbfile;
 
 our %config;
 our @colors;
@@ -78,7 +78,7 @@ our $DEBUG;
 $DEB_FRAME=1;
 $DEB_DB=2;
 $DEB_SUB=4;
-$DEBUG=0;
+$DEBUG=$DEB_DB;
 
 sub debug {
 	(my $level, my $message)=@_;
@@ -140,22 +140,14 @@ sub make_inputselectframe{
 
 connect_db($config{'dbfile'});
 
-db_dosql("SELECT value FROM config WHERE attribute='run:param' AND item='changed'");
-if ((my $val)=db_getrow()){
-	db_dosql("UPDATE config SET value='no' WHERE attribute='run:param' AND item='changed'");
-}
-else{
-	db_dosql("INSERT INTO config (attribute,item,value) values('run:param','changed','no')");
-}
-
+query_changed_no();
 options_read();
 
 fill_pagelist();
 #
 #	Main Window
 #
-$main_window = MainWindow->new(
-);
+$main_window = MainWindow->new();
 $main_window->FullScreen;
 nw_read_logos($main_window,"$config{'image_directory'}");
 my $msgcolor='black';
@@ -164,12 +156,12 @@ debug ($DEB_FRAME,"19 Create button_frame");
 $button_frame=$main_window->Frame(
 	-height      => 0.05*$main_window_height,
 	-width       => $main_window_width
-)->pack(-side=>'top');
+	)->pack(-side=>'top');
 debug ($DEB_FRAME,"20 Create main_frame");
 $main_frame=$main_window->Frame(
 	-height      => 0.95*$main_window_height,
 	-width       => $main_window_width
-)->pack(-side =>'top');
+	)->pack(-side =>'top');
 
 my $button_frame_local=$button_frame->Frame()->pack(-side=>'left');
 make_overviewselectframe($button_frame_local);
@@ -179,11 +171,10 @@ $button_frame_local=$button_frame->Frame()->pack(-side=>'left');
 make_listingselectframe($button_frame_local);
 my $button_frame_local=$button_frame->Frame()->pack(-side=>'left');
 make_inputselectframe($button_frame_local);
-#$button_frame_local->Label (-text =>' ', -width=>2000)->pack(-side=>'right');
 
 
 my $image = $main_frame->Photo(-file => "$config{'image_directory'}/djedefre.gif");
-logoframe();
+logoframe($main_frame);
 
 
 sub repeat {
