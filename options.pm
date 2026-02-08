@@ -22,35 +22,35 @@ our @colors;
 
 
 
+#-----------------------------------------------------------------------
+# Name        : options_read
+# Purpose     : Read the color options for the VLANs
+# Arguments   : none.
+# Returns     : 
+# Globals     : %config
+# Side‑effects: If vlan1 and/or vbox are not defined, they will be created.
+# Notes       : 
+#-----------------------------------------------------------------------
 sub options_read {
-	db_dosql("SELECT item,value FROM config WHERE attribute='line:color'");
-	while ((my $item,my $value)=db_getrow()){
-		$config{"line:color:$item"}=$value;
-	}
-	db_close();
+	query_line_color();
 	if (! defined $config{'line:color:vlan1'}){
 		$config{"line:color:vlan1"}='black';
-		db_dosql ("DELETE FROM config WHERE attribute='line:color' AND item='vlan1'");
-		db_dosql ("INSERT INTO config (attribute,item,value) VALUES ('line:color','vlan1','black')");
+		query_set_line_color('vlan1','black');
 	}
 
 	if (! defined $config{'line:color:vbox'}){
 		$config{"line:color:vbox"}='lightgrey';
-		db_dosql ("DELETE FROM config WHERE attribute='line:color' AND item='vbox'");
-		db_dosql ("INSERT INTO config (attribute,item,value) VALUES ('line:color','vbox','lightgrey')");
+		query_set_line_color('vbox','lightgrey');
 	}
-	db_dosql('SELECT DISTINCT vlan FROM l2connect');
-	while ((my $vlan)=db_getrow()){
+	my $vlansref=query_l2_getvlans();
+	for my $vlan (@$vlansref){
 		$vlan=1 unless defined $vlan;
 		if ($vlan=~/^[0-9][0-9]*$/){ $vlan="vlan$vlan";}
 		if (! defined $config{"line:color:$vlan"}){
 			$config{"line:color:$vlan"}='black';
-			db_dosql ("DELETE FROM config WHERE attribute='line:color' AND item='$vlan'");
-			db_dosql ("INSERT INTO config (attribute,item,value) VALUES ('line:color','$vlan','black')");
+			query_set_line_color($vlan,'black');
 		}
 	}
-	db_close();
-		
 }
 
 

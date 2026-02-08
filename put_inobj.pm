@@ -13,22 +13,29 @@ our $nw_tmpy;
 our $l3_showpage;
 our @l2_obj;
 
+#-----------------------------------------------------------------------
+# Name        : put_netinobj
+# Purpose     : Put subnets of a page in an array
+# Arguments   : page - name of the page
+#		ar_ref - refference of the array where to put the subnets
+# Returns     : 
+# Globals     : @lastresult
+# Side-effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
 sub put_netinobj {
 	(my $page,my $ar_ref)=@_;
 	my $sql;
 	my @pagear=[];
-	if ($page eq 'top'){
-		$sql = 'SELECT id,nwaddress,cidr,xcoord,ycoord,name,options FROM subnet';
-	}
-	else {
-		$sql="	SELECT subnet.id,nwaddress,cidr,pages.xcoord,pages.ycoord,name,subnet.options
-			FROM   subnet
-			INNER JOIN pages ON pages.item = subnet.id
-			WHERE  pages.page='$page' AND pages.tbl='subnet'
-		";
-	}
-	my $sth = db_dosql($sql);
-	while((my $id,my $nwaddress, my $cidr,my $x,my $y,my $name,my $options) = db_getrow()){
+	query_subnet_on_page($page);
+	while (my $r=sql_getrow()){
+		my $id=$r->{id};
+		my $nwaddress=$r->{nwaddress};
+		my $cidr=$r->{cidr};
+		my $x=$r->{xcoord};
+		my $y=$r->{ycoord};
+		my $name=$r->{name};
+		my $options=$r->{options};
 		if ((!defined $x) || !(defined $y)){
 			nxttmploc();
 			if (! defined $x){ $x=$nw_tmpx; $nw_tmpx=$nw_tmpx+5;}
@@ -52,20 +59,17 @@ sub put_netinobj {
 			pages	=> \@pagear
 		} 
 	}
-	db_close();
-	foreach my $element (@$ar_ref) {
+	foreach my $element (@$ar_ref) { #separate loop to prevent overwriting open sql_query
 		my $id=$element->{'id'};
 		my $table=$element->{'table'};
 		my $name=$element->{'name'};
 		splice @pagear;
 		if($table eq 'subnet'){
 			splice @pagear;
-			my $sql = "SELECT page FROM pages WHERE tbl='subnet' AND item=$id";
-			my $sth = db_dosql($sql);
-			while ((my $item) = db_getrow()){
+			query_pages_tbl_id('subnet',$id);
+			while (my $item = sql_getvalue()){
 				push @pagear, $item;
 			}
-			db_close();
 			$element->{'pages'}=[@pagear];
 		}
 	}

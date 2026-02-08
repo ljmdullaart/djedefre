@@ -22,16 +22,17 @@ our $main_window;
 
 
 my $image;
+my $logo_frame;
 
 sub logoframe {
+	(my $parent)=@_;
 	debug($DEB_SUB,"logoframe");
 	$Message='';
-	$main_frame->destroy if Tk::Exists($main_frame);
-	$image = $main_window->Photo(-file => "$config{image_directory}/djedefre.gif");
-	$main_frame=$main_window->Frame(
-	)->pack(-side =>'top');
-	$main_frame->Label(-text=>'Djedefre', -width=>1500)->pack(-side=>'top');
-	$main_frame->Label(-image => $image)->pack(-side=>'top');
+	$logo_frame->destroy if Tk::Exists($logo_frame);
+	$logo_frame=$parent->Frame()->pack(-side =>'top');
+	$image = $logo_frame->Photo(-file => "$config{image_directory}/djedefre.gif");
+	$logo_frame->Label(-text=>'Djedefre', -width=>1500)->pack(-side=>'top');
+	$logo_frame->Label(-image => $image)->pack(-side=>'top');
 }
 	
 1;

@@ -52,12 +52,6 @@ our $DEBUG;
 sub l3_objects {
 	debug($DEB_SUB,"l3_objects");
 	splice @l3_obj;
-	my @hostnames;
-	db_dosql("SELECT interfaces.id,server.name FROM interfaces INNER JOIN server WHERE interfaces.host=server.id");
-	while ((my $id,my $name)=db_getrow()){
-		$hostnames[$id]=$name;
-	}
-	db_close();
 	db_get_interfaces;
 	put_netinobj($l3_showpage,\@l3_obj);
 	put_serverinobj($l3_showpage,\@l3_obj,3);
@@ -70,18 +64,6 @@ sub l3_lines {
 	my @interfacelist;
 	splice @l3_line;
 
-	my @ifserver;
-	my %colorization;
-	db_dosql("SELECT item,value FROM config WHERE attribute='line:color'");
-	while ((my $item,my $value)=db_getrow()){
-		$colorization{$item}=$value;
-	}
-	db_close();
-	db_dosql("SELECT id,host FROM interfaces");
-	while ((my $id, my $host)=db_getrow()){
-		$ifserver[$id]=$host;
-	}
-	db_close();
 	db_dosql("SELECT id,options FROM subnet WHERE nwaddress='Internet'");
 	(my $Internet,my $Internetoptions)=db_getrow();
 	while (db_getrow()){};db_close();
@@ -191,7 +173,6 @@ sub make_l3_plot {
 	nw_callback ('name',\&l3_name);
 	nw_callback ('page',\&l3_page);
 	nw_callback ('type',\&l3_type);
-	#nw_drawall();
 }
 sub cbdump {
 	debug($DEB_SUB,"cbdump");
@@ -203,7 +184,6 @@ sub l3_page {
 	(my $table,my $id,my $name,my $action,my $page)=@_;
 	debug($DEB_SUB,"l3_page");
 	my $arg="$table:$id:$name";
-	#$managepg_pagename=$page;
 	mgpg_selector_callback ($action,$arg,$page);
 	l3_renew_content();
 }
@@ -234,18 +214,33 @@ sub l3_devicetype {
 	}
 	l3_renew_content();
 }
+
+#-----------------------------------------------------------------------
+# Name        : l3_type
+# Purpose     : Update the type of a server or cloud
+# Arguments   : table - server or cloud
+#		id
+#               type
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
 sub l3_type {
 	(my $table, my $id, my $type)=@_;
-	debug($DEB_SUB,"l3_type");
+	my ($package, $filename, $line) = caller;
+	debug($DEB_SUB,"l3_type $package, $filename, line number $line");
 	if ($table eq 'server'){
 		#my $sql = "UPDATE $table SET type='$type' WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
-		db_dosql("UPDATE $table SET type='$type' WHERE id=$id");
-		db_close();
+		#db_dosql("UPDATE $table SET type='$type' WHERE id=$id");
+		#db_close();
+		query_server_update_type($id,$type);
 	}
 	elsif ($table eq 'cloud'){
 		#my $sql = "UPDATE $table SET type='$type' WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
-		db_dosql("UPDATE $table SET type='$type' WHERE id=$id");
-		db_close();
+		#db_dosql("UPDATE $table SET type='$type' WHERE id=$id");
+		#db_close();
+		query_cloud_update_type($id,$type);
 	}
 	l3_renew_content();
 }

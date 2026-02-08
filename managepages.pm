@@ -327,8 +327,8 @@ sub display_selected_page {	# What to do if a page was selected from the menubar
 	debug($DEB_SUB,"display_selected_page");
 	$selected_page=$pagename;
 	$repeat_sub=\&repeat_selected_page;
-	if ($pagename eq 'none'){ logoframe() ; }
-	elsif ($pagename eq 'Pages'){ logoframe() ; }
+	if ($pagename eq 'none'){ logoframe($main_frame) ; }
+	elsif ($pagename eq 'Pages'){ logoframe($main_frame) ; }
 	elsif ($pagename eq 'top'){ display_top_page ; }
 	else {
 		$l3_showpage=$pagename;

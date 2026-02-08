@@ -32,18 +32,40 @@ my $cloud_service;
 
 	
 
+#-----------------------------------------------------------------------
+# Name        : cloud_del_a_cloud
+# Purpose     : Delete a cloud named $cloud_addcloud
+# Arguments   : none; a global variable is used
+# Returns     : 
+# Globals     : $cloud_addcloud
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
 sub cloud_del_a_cloud {
-	debug($DEB_SUB,"cloud_del_a_cloud");
-	db_dosql("DELETE FROM cloud WHERE name='$cloud_addcloud'");
-	db_close();
+	my ($package, $filename, $line) = caller;
+	debug($DEB_SUB,"cloud_del_a_cloud caled from $package, $filename, line number $line");
+	#db_dosql("DELETE FROM cloud WHERE name='$cloud_addcloud'");
+	#db_close();
+	query_cloud_del_name($cloud_addcloud);
 	cloud_input();
 }
+
+#-----------------------------------------------------------------------
+# Name        : cloud_add_a_cloud
+# Purpose     : Add a cloud named from global variables
+# Arguments   : none;  global variables are used
+# Returns     : 
+# Globals     : $cloud_addcloud,$cloud_vendor,$cloud_type,$cloud_service
+# Side‑effects: If the cloud-name exists, it is deleted first.
+# Notes       : 
+#-----------------------------------------------------------------------
 
 sub cloud_add_a_cloud {
 	debug($DEB_SUB,"cloud_add_a_cloud");
 	cloud_del_a_cloud();
-	db_dosql("INSERT INTO cloud (name,vendor,type,service) VALUES ('$cloud_addcloud','$cloud_vendor','$cloud_type','$cloud_service')");
-	db_close();
+	#db_dosql("INSERT INTO cloud (name,vendor,type,service) VALUES ('$cloud_addcloud','$cloud_vendor','$cloud_type','$cloud_service')");
+	#db_close();
+	query_cloud_add_a_cloud ($cloud_addcloud,$cloud_vendor,$cloud_type,$cloud_service);
 	cloud_input();
 }	
 
