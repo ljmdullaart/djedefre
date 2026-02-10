@@ -107,6 +107,47 @@ sub sql_getvalue {
 # All queries are centralised here below. This is to facilitate 
 # a possible change of database.
 
+#  __  _       _  _          
+# /__ |_ |\ | |_ |_)  /\  |  
+# \_| |_ | \| |_ | \ /--\ |_ 
+#   (queries for multiple tables)
+#-----------------------------------------------------------------------
+# Name        : query_coordinates
+# Purpose     : Get the x and y coordinates of an object
+# Arguments   : page, table, id
+# Returns     : array with x and y coordinates
+# Globals     : @lastresult
+# Side‑effects: 
+# Notes       : Results must be obtained using sql_getrow()
+#-----------------------------------------------------------------------
+sub query_coordinates {
+	(my $page,my $tbl,my $id)=@_;
+	my  %allowed_tables = (
+		cloud	=> 1,
+		server	=> 1,
+		subnet	=> 1,
+		switch	=> 1
+	);
+	my @retval=();
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_coordinates $package, $filename, line number $line page=$page tbl=$tbl");
+	if ($allowed_tables{$tbl}) {
+		if ($page eq 'top'){
+			sql_query("SELECT xcoord FROM $tbl WHERE id=$id");
+			$retval[0]=sql_getvalue();
+			sql_query("SELECT ycoord FROM $tbl WHERE id=$id");
+			$retval[1]=sql_getvalue();
+		}
+		else {
+			sql_query ("SELECT xcoord FROM pages WHERE page= ? AND tbl= ? AND item= ? ",$page,$tbl,$id);
+			$retval[0]=sql_getvalue();
+			sql_query ("SELECT ycoord FROM pages WHERE page= ? AND tbl= ? AND item= ? ",$page,$tbl,$id);
+			$retval[1]=sql_getvalue();
+		}
+	}
+	return @retval;
+}
+
 #         _
 # _ _  __|_. _  _|_ _ |_ | _  
 #(_(_)| || |(_|  |_(_||_)|(/_ 
@@ -136,6 +177,21 @@ sub query_changed_no {
 	return 'no';
 }
 
+
+#-----------------------------------------------------------------------
+# Name        : query_pagelist
+# Purpose     : Gets a list of pages from the config table
+# Arguments   : none
+# Returns     : 
+# Globals     : @lastresult
+# Side‑effects: 
+# Notes       :  item,value must be retrieved with sql_getrow() 
+#-----------------------------------------------------------------------
+sub query_pagelist {
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_pagelist $package, $filename, line number $line");
+	sql_query ("SELECT DISTINCT item,value FROM config WHERE attribute LIKE 'page:%'");
+}
 
 #-----------------------------------------------------------------------
 # Name        : query_line_color
@@ -174,6 +230,24 @@ sub query_set_line_color {
 	debug($DEB_DB,"query_set_line_color $package, $filename, line number $line");
 	sql_query ("DELETE FROM config WHERE attribute='line:color' AND item= ? ",$colorname);
 	sql_query ("INSERT INTO config (attribute,item,value) VALUES ('line:color', ? , ? )",$colorname,$colorvalue);
+}
+
+#-----------------------------------------------------------------------
+# Name        : query_set_pagetype
+# Purpose     : Sets the color for a specific purpose
+# Arguments   : page
+#               type
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_set_pagetype {
+	(my $page, my $type)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_set_pagetype $package, $filename, line number $line");
+	sql_query ("DELETE FROM config WHERE attribute='page:type' AND item= ? ",$page);
+	sql_query ("INSERT INTO config (attribute,item,value) VALUES ('page:type', ? , ? )",$page,$type);
 }
 
 #
@@ -230,6 +304,22 @@ sub query_cloud_update_type {
 	my ($package, $filename, $line) = caller;
 	debug($DEB_DB,"query_cloud_update_type $package, $filename, line number $line");
 	sql_query("UPDATE cloud SET type= ? WHERE id= ? ",$type,$id);
+}
+
+#-----------------------------------------------------------------------
+# Name        : query_cloud_from_id
+# Purpose     : Get the cloud from the ID
+# Arguments   : cloud-id
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : Results must be obtained with sql_getrow
+#-----------------------------------------------------------------------
+sub query_cloud_from_id {
+	(my $id)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_cloud_from_id $package, $filename, line number $line");
+	sql_query("SELECT * FROM cloud WHERE id = ? ",$id);
 }
 
 # ___      ___  _  _   _       _  _  __ 
@@ -296,10 +386,46 @@ sub query_pages_tbl_id {
 	debug($DEB_DB,"query_pages_tbl_id $package, $filename, line number $line");
 	sql_query("SELECT page FROM pages WHERE tbl= ? AND item= ?",$table,$id);
 }
+
+#-----------------------------------------------------------------------
+# Name        : query_pages_del_obj
+# Purpose     : Delete an object in the page table
+# Arguments   : page
+#		table (e.g. subnet or server)
+#		item (foreign id)
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_pages_del_obj {
+	(my $page,my $table,my $item)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_pages_del_obj $package, $filename, line number $line");
+	sql_query("DELETE FROM pages WHERE page= ? AND tbl= ? AND item= ? ",$page,$table,$item);
+}
+#-----------------------------------------------------------------------
+# Name        : query_pages_add_obj
+# Purpose     : Add an object to the page table
+# Arguments   : page
+#		table (e.g. subnet or server)
+#		item
+#		x,y
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_pages_add_obj {
+	(my $page,my $table,my $item,my $x,my $y)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_pages_add_obj $package, $filename, line number $line");
+	sql_query("INSERT INTO pages (page,tbl,item,xcoord,ycoord) VALUES ( ? ,? ,? ,? ,? )",$page,$table,$item,$x,$y);
+}
 #-----------------------------------------------------------------------
 # Name        : query_obj_on_page
 # Purpose     : Initiate query for servers on a page
-# Arguments   : page
+# Arguments   : page, table
 # Returns     : 
 # Globals     : @lastresult
 # Side‑effects: 
@@ -307,7 +433,12 @@ sub query_pages_tbl_id {
 #-----------------------------------------------------------------------
 sub query_obj_on_page {
 	(my $page,my $tbl)=@_;
-	my  %allowed_tables = (cloud => 1, server => 1, subnet => 1);
+	my  %allowed_tables = (
+		cloud	=> 1,
+		server	=> 1,
+		subnet	=> 1,
+		switch	=> 1
+	);
 	my ($package, $filename, $line) = caller;
 	debug($DEB_DB,"query_obj_on_page $package, $filename, line number $line page=$page tbl=$tbl");
 	if ($allowed_tables{$tbl}) {
@@ -319,6 +450,7 @@ sub query_obj_on_page {
 					FROM   $tbl
 					INNER JOIN pages ON pages.item = $tbl.id
 					WHERE  pages.page= ? AND pages.tbl='$tbl'
+					ORDER BY name
 				", $page);
 		}
 	}
@@ -329,6 +461,24 @@ sub query_obj_on_page {
 #(_  |_ |_)\  /|_ |_) 
 #__) |_ | \ \/ |_ | \ 
 #
+
+#-----------------------------------------------------------------------
+# Name        : query_server
+# Purpose     : Select all from server
+# Arguments   : 
+# Returns     : 
+# Globals     : 
+# Side‑effects: @lastresult
+# Notes       : Results must be obtained via sql_getrow(). The order by
+#		name is for convenience of the user.
+#-----------------------------------------------------------------------
+sub query_server{
+	(my $id, my $type)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_server $package, $filename, line number $line");
+	sql_query("SELECT * FROM server ORDER BY name");
+}
+
 
 #-----------------------------------------------------------------------
 # Name        : query_server_update_type
@@ -353,7 +503,60 @@ sub query_server_update_type {
 # _)|_||_)| ||_  |  
 #
 
+#-----------------------------------------------------------------------
+# Name        : query_subnet
+# Purpose     : Select all from server
+# Arguments   : 
+# Returns     : 
+# Globals     : 
+# Side‑effects: @lastresult
+# Notes       : Results must be obtained via sql_getrow(). The order by
+#		nwaddress is for convenience of the user.
+#-----------------------------------------------------------------------
+sub query_subnet{
+	(my $id, my $type)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_subnet $package, $filename, line number $line");
+	sql_query("SELECT * FROM subnet ORDER BY nwaddress");
+}
 
+
+#  __        ___ ___  _     
+# (_  \    /  |   |  /  |_| 
+# __)  \/\/  _|_  |  \_ | | 
+#                           
+
+#-----------------------------------------------------------------------
+# Name        : query_switch
+# Purpose     : Select all rows from the tabel switch
+# Arguments   : 
+# Returns     : 
+# Globals     : @lastresult
+# Side‑effects: 
+# Notes       : Retrieve rows with sql_getrow()
+#-----------------------------------------------------------------------
+sub query_switch{
+	(my $name)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_switch $package, $filename, line number $line");
+	sql_query("SELECT * FROM switch ORDER BY name");
+}
+
+#-----------------------------------------------------------------------
+# Name        : query_switch_by_server
+# Purpose     : Select rows from the tabel switch by server
+# Arguments   : server
+# Returns     : 
+# Globals     : @lastresult
+# Side‑effects: 
+# Notes       : Retrieve rows with sql_getrow()
+#-----------------------------------------------------------------------
+sub query_switch_by_server {
+	(my $name)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_switch_by_name $package, $filename, line number $line");
+	sql_query("SELECT * FROM switch WHERE server = ? ", $name);
+}
 
 
 

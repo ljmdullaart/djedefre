@@ -37,6 +37,15 @@ my $pageselectframe;
 my $realpageselectframe;
 my $nDEBUG=0;
 
+#-----------------------------------------------------------------------
+# Name        : fill_pagelist
+# Purpose     : Fill the pagelist that is used for the drop-down menu
+# Arguments   : none
+# Returns     : Hashref representing one row, or undef if no rows left.
+# Globals     : @pagelist, @realpagelist, %pagetypes
+# Side-effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
 sub fill_pagelist {
 	debug($DEB_SUB,"fill_pagelist");
 	splice @pagelist;
@@ -47,18 +56,27 @@ sub fill_pagelist {
 	$pagetypes{'top'}='l3';
 	push @pagelist,'l2-top';
 	$pagetypes{'l2-top'}='l2';
-        my $sql = "SELECT DISTINCT item,value FROM config WHERE attribute LIKE 'page:%'";
-        my $sth =  db_dosql($sql);
-        while((my $p, my $t) = db_getrow()){
+	query_pagelist();
+	while (my $r=sql_getrow()){
+		my $p=$r->{item};
+		my $t=$r->{value};
                 push @pagelist,$p;
 		$pagetypes{$p}=$t;
                 push @realpagelist,$p;
 
         }
-	db_close();
 }
 
-sub display_top_page {		# Top-page is L3 drawing of all servers and subnets
+#-----------------------------------------------------------------------
+# Name        : display_top_page
+# Purpose     : Display the page "top"
+# Arguments   : 
+# Returns     : 
+# Globals     : $l3_showpage,$main_frame,$main_window
+# Side-effects: 
+# Notes       :  Top-page is L3 drawing of all servers and subnets
+#-----------------------------------------------------------------------
+sub display_top_page {
 	debug($DEB_SUB,"display_top_page");
 	$nDEBUG=0;
 	$Message='';
@@ -69,6 +87,15 @@ sub display_top_page {		# Top-page is L3 drawing of all servers and subnets
 	make_l3_plot($main_frame);
 }
 
+#-----------------------------------------------------------------------
+# Name        : display_other_page
+# Purpose     : Display all other pages
+# Arguments   : 
+# Returns     : 
+# Globals     : $l3_showpage,$main_frame,$main_window
+# Side-effects: 
+# Notes       :  Top-page is L3 drawing of all servers and subnets
+#-----------------------------------------------------------------------
 sub display_other_page {
 	debug($DEB_SUB,"display_other_page");
 	$nDEBUG=0;
@@ -79,13 +106,10 @@ sub display_other_page {
 		-height      => 1005,
 		-width       => 1505
 	)->pack(-side =>'top');
-print STDERR "pagetypes $pagetypes{$l3_showpage}\n";
 	if ($pagetypes{$l3_showpage} eq 'l3'){
-		print "display_other_page $l3_showpage L3\n";
 		make_l3_plot($main_frame);
 	}
 	elsif ($pagetypes{$l3_showpage} eq 'l2'){
-		print "display_other_page $l3_showpage L2\n";
 		$l2_showpage=$l3_showpage;
 		make_l2_plot($main_frame);
 	}
@@ -106,11 +130,9 @@ sub manage_pages {
 	debug($DEB_SUB,"manage_pages");
 	$Message='';
 	$main_frame->destroy if Tk::Exists($main_frame);
-	$main_frame=$main_window->Frame(
-	)->pack(-side =>'top');
+	$main_frame=$main_window->Frame()->pack(-side =>'top');
 	my $pagemngtframe=$main_frame->Frame()->pack(-side =>'left');
 	my $pagecontentframe=$main_frame->Frame()->pack(-side =>'right');
-
 	fill_pagelist();
 	my $pagelistbox=$pagemngtframe->Scrolled("Listbox",-scrollbars=>'e',-height=>20,-width=>28)->pack(-side =>'top');
 	$pagelistbox->insert('end',@realpagelist);
@@ -122,8 +144,7 @@ sub manage_pages {
 		-width=>10,
 		-text=>'Set type',
 		-command=>sub {
-			db_dosql("UPDATE config SET value='$pagetype' WHERE attribute='page:type' AND item='$pagename'");
-			db_close();
+			query_set_pagetype($pagename,$pagetype);
 		}
 	)->pack(-side=>'left');
 	$buttonpageframe->Button (
@@ -143,50 +164,50 @@ sub manage_pages {
 
 	my @items;
 	splice @items;
-	db_dosql("SELECT id,name FROM server ORDER BY name");
-	while ((my $id, my $name)=db_getrow()){
+
+	query_server();
+	while (my $r=sql_getrow()){
+		my $id=$r->{id};
+		my $name=$r->{name};
 		push @items,"server:$id:$name";
 	}
-	db_close();
-	db_dosql("SELECT id,nwaddress,cidr FROM subnet ORDER BY nwaddress");
-	while ((my $id, my $nwaddress,my $cidr)=db_getrow()){
+
+	query_subnet();
+	while (my $r=sql_getrow()){
+		my $id=$r->{id};
+		my $nwaddress=$r->{nwaddress};
+		my $cidr=$r->{cidr};
 		push @items,"subnet:$id:$nwaddress/$cidr";
 	}
-	db_close();
-	db_dosql("SELECT id,name FROM switch ORDER BY name");
-	while ((my $id, my $name)=db_getrow()){
+
+	query_switch();
+	while (my $r=sql_getrow()){
+		my $id=$r->{id};
+		my $name=$r->{name};
 		push @items,"switch:$id:$name";
 	}
-	db_close();
 	my @selected;
 	splice @selected;
-	db_dosql ("	SELECT server.id AS id,name FROM server
-			INNER JOIN pages ON pages.item=server.id
-			WHERE pages.page='$pagename' AND pages.tbl='server'
-			ORDER BY name
-	");
-	while ((my $id, my $name)=db_getrow()){
+	query_obj_on_page($pagename,'server');
+	while (my $r=sql_getrow()){
+		my $id=$r->{id};
+		my $name=$r->{name};
 		push @selected,"server:$id:$name";
 	}
-	db_close();
-	db_dosql ("	SELECT subnet.id AS id,nwaddress,cidr FROM subnet
-			INNER JOIN pages ON pages.item=subnet.id
-			WHERE pages.page='$pagename' AND pages.tbl='switch'
-			ORDER BY nwaddress
-	");
-	while ((my $id, my $nwaddress,my $cidr)=db_getrow()){
+	query_obj_on_page($pagename,'subnet');
+	while (my $r=sql_getrow()){
+		my $id=$r->{id};
+		my $name=$r->{name};
+		my $nwaddress=$r->{nwaddress};
+		my $cidr=$r->{cidr};
 		push @selected,"subnet:$id:$nwaddress/$cidr";
 	}
-	db_close();
-	db_dosql ("	SELECT switch.id AS id,name FROM switch
-			INNER JOIN pages ON pages.item=switch.id
-			WHERE pages.page='$pagename' AND pages.tbl='switch'
-			ORDER BY name
-	");
-	while ((my $id, my $name)=db_getrow()){
+	query_obj_on_page($pagename,'switch');
+	while (my $r=sql_getrow()){
+		my $id=$r->{id};
+		my $name=$r->{name};
 		push @selected,"switch:$id:$name";
 	}
-	db_close();
 	my $cbfunc=\&mgpg_selector_callback;
 	selector({
 		options		=> \@items,
@@ -205,28 +226,23 @@ sub mgpg_selector_callback {
 	my $x;
 	my $y;
 	if ($table ne 'switch'){
-		db_dosql ("SELECT xcoord,ycoord FROM $table WHERE id=$id");
-		($x,$y)=db_getrow();
-		db_close();
+		($x,$y)=query_coordinates('top',$table,$id);
 	}
 	$x=100 unless defined $x;
 	$y=100 unless defined $y;
 	if (defined($page)){$pagename=$page;}
 	if ($func eq 'del'){
-		db_dosql("DELETE FROM pages WHERE tbl='$table' AND item=$id AND page='$pagename'");
-		db_close();
+		query_pages_del_obj($pagename,$table,$id);
 	}
 	elsif ($func eq 'add'){
-		db_dosql("DELETE FROM pages WHERE tbl='$table' AND item=$id AND page='$pagename'");
-		db_dosql("INSERT INTO pages (page,tbl,item,xcoord,ycoord) VALUES ('$pagename','$table',$id,$x,$y)");
-		db_close();
+		query_pages_del_obj($pagename,$table,$id);
+		query_pages_add_obj($pagename,$table,$id,$x,$y);
 	}
 }
 
 sub manage_pages_change_action {
 	(my $pgname)=@_;
 	debug($DEB_SUB,"manage_pages_change_action");
-	#$managepg_pagename=$pgname;
 	my @servers;
 	my @subnets;
 	splice @servers;

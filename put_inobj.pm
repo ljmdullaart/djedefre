@@ -78,6 +78,16 @@ sub put_netinobj {
 	}
 }
 
+#-----------------------------------------------------------------------
+# Name        : put_serverinobj
+# Purpose     : Put servers of a page in an array
+# Arguments   : page - name of the page
+#		ar_ref - refference of the array where to put the subnets
+# Returns     : 
+# Globals     : @lastresult
+# Side-effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
 sub put_serverinobj {
 	(my $page,my $ar_ref,my $layer)=@_;
 	my @pagear=[];
@@ -145,7 +155,6 @@ sub put_serverinobj {
 				push @ifar, "$mac $ip";
 			}
 			$element->{interfaces}=[@ifar];
-			#$sth = db_dosql("SELECT page FROM pages WHERE tbl='server' AND item=$id");
 			query_pages_tbl_id('server',$id);
 			while (my $item = sql_getvalue()){
 				push @pagear, $item;
@@ -153,34 +162,45 @@ sub put_serverinobj {
 			$element->{'pages'}=[@pagear];
 
 			if ($layer == 2){
-				db_dosql("SELECT switch FROM switch WHERE server='$name'");
-				while ((my $nwtype) = db_getrow()){
-					$element->{'logo'}=$nwtype;
+				query_switch_by_server($name);
+				while (my $r = sql_getrow()){
+					$element->{'logo'}='switch';
 				}
-				db_close();
 			}
 		
 		}
 	}
 }
 
+#-----------------------------------------------------------------------
+# Name        : put_cloudinobj
+# Purpose     : Put clouds of a page in an array
+# Arguments   : page - name of the page
+#		ar_ref - refference of the array where to put the subnets
+# Returns     : 
+# Globals     : @lastresult
+# Side-effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
 sub put_cloudinobj {
 	(my $page,my $ar_ref)=@_;
 	my @pagear=[];
 	my $sql;
-	if ($page eq 'top'){
-		$sql = 'SELECT id,name,xcoord,ycoord,type,vendor,service FROM cloud';
-	}
-	else {
-		$sql="	SELECT  cloud.id,name,pages.xcoord,pages.ycoord,type,vendor,service
-			FROM    cloud
-			INNER JOIN pages ON pages.item =  cloud.id
-			WHERE  pages.page='$l3_showpage' AND pages.tbl='cloud'
-		";
-	}
-	my $sth = db_dosql($sql);
-	while((my $id,my $name, my $x,my $y,my $type,my $vendor,my $service) = db_getrow()){
-		$type='server' unless defined $type;
+	query_obj_on_page($page,'cloud');
+	
+	while(my $r=sql_getrow()){
+		my $id=$r->{id};
+		my $name=$r->{name};
+		my $type=$r->{type};
+		my $vendor=$r->{vendor};
+		my $service=$r->{servie};
+		my $x=$r->{pagex};
+		my $y=$r->{pagey};
+		if ($page eq 'top'){
+			$x=$r->{xcoord};
+			$y=$r->{ycoord};
+		}
+		$type='cloud' unless defined $type;
 		$vendor='none' unless defined $vendor;
 		$service='server' unless defined $service;
 		if ((!defined $x) || !(defined $y)){
@@ -202,36 +222,42 @@ sub put_cloudinobj {
 			pages	=> []
 		};
 	}
-	db_close();
 	foreach my $element (@$ar_ref) {
 		my $id=$element->{'id'};
 		my $table=$element->{'table'};
 		my $name=$element->{'name'};
 		splice @pagear;
 		if($table eq 'cloud'){
-			my $sth = db_dosql("SELECT page FROM pages WHERE tbl='cloud' AND item=$id");
-			while ((my $item) = db_getrow()){
+			query_pages_tbl_id('cloud',$id);
+			while (my $r=sql_getrow()){
+				my $item=$r->{page};
 				push @pagear, $item;
 			}
-			db_close();
 			$element->{'pages'}=[@pagear];
 		}
 	}
 }
 
-
+#-----------------------------------------------------------------------
+# Name        : put_switchinobj
+# Purpose     : Put switches of a page in an array
+# Arguments   : page - name of the page
+#		ar_ref - refference of the array where to put the subnets
+# Returns     : 
+# Globals     : @lastresult
+# Side-effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
 sub put_switchinobj {
 	(my $page,my $ar_ref)=@_;
 	my @pagear=[];
-	my $sql;
-	$sql="	SELECT s.id, s.name,p.xcoord,p.ycoord,s.switch
-		FROM switch s
-		LEFT JOIN server srv ON s.name = srv.name
-		LEFT JOIN pages p ON s.id = p.item AND p.tbl = 'switch'
-		WHERE srv.name IS NULL AND p.page='$page'
-	";
-	my $sth = db_dosql($sql);
-	while((my $id,my $name, my $x,my $y,my $type) = db_getrow()){
+	query_obj_on_page ($page,'switch');
+	while(my $r=sql_getrow()){
+		my $id=$r->{id};
+		my $name=$r->{name};
+		my $x=$r->{pagex};
+		my $y=$r->{pagey};
+		my $type=$r->{type};
 		$type='switch' unless defined $type;
 		if ((!defined $x) || !(defined $y)){
 			nxttmploc();
@@ -247,7 +273,7 @@ sub put_switchinobj {
 			logo	=> $type,
 			name	=> $name,
 			table	=> 'switch',
-			pages	=> ()
+			pages	=> []
 		};
 	}
 	db_close();
@@ -257,11 +283,11 @@ sub put_switchinobj {
 		my $name=$element->{'name'};
 		splice @pagear;
 		if($table eq 'switch'){
-			my $sth = db_dosql("SELECT page FROM pages WHERE tbl='switch' AND item=$id");
-			while ((my $item) = db_getrow()){
+			query_pages_tbl_id('switch',$id);
+			while (my $r=sql_getrow()){
+				my $item=$r->{page};
 				push @pagear, $item;
 			}
-			db_close();
 			$element->{'pages'}=[@pagear];
 		}
 	}
