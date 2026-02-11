@@ -107,7 +107,7 @@ sub ml_insert {
 			my $val=$args[$i];
 			$val='' unless defined $val;
 			$mlcolval[$i][$mlmaxcolval]=$val;
-			print "mlcolval[$i][$mlmaxcolval]=$val\n";
+			
 		}
 	}
 	$mlmaxcolval++;
