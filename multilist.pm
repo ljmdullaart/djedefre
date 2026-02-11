@@ -22,8 +22,8 @@ use Sort::Naturally qw/ncmp/;
 #	1	ml_new($parent,$height,$pack_side)	Create a multilist in $parent, and pack on the $pac_side
 #	2	ml_colwidth(@width)			set the column-widths in the multilist
 #	3	ml_colhead(@headers)			set the labels of the column-headers
-#	4	ml_create()				create the multilist
-#	5	ml_insert(@content)			Add content to the multilist
+#	4	ml_insert(@content)			Add content to the multilist
+#	5	ml_create()				create the multilist
 #	6	ml_callback(\&subroutine)		Add a call-back for selection
 #	7	ml_destroy
 #
@@ -52,10 +52,10 @@ my $mlcallback=\&ml_prt_cb;
 
 sub scroll_listboxes {
 	my ($sb, $scrolled, $lbs, @args) = @_;
-	$sb->set(@args); # tell the Scrollbar what to display
+	$sb->set(@args); 
 	my ($top, $bottom) = $scrolled->yview( );
 	foreach my $list (@$lbs) {
-		$list->yviewMoveto($top); # adjust each lb
+		$list->yviewMoveto($top); 
 	}
 }
 
@@ -107,6 +107,7 @@ sub ml_insert {
 			my $val=$args[$i];
 			$val='' unless defined $val;
 			$mlcolval[$i][$mlmaxcolval]=$val;
+			print "mlcolval[$i][$mlmaxcolval]=$val\n";
 		}
 	}
 	$mlmaxcolval++;
@@ -155,7 +156,8 @@ sub ml_create {
 	foreach my $list (@mlcolumns){
 		$list->pack(-side => 'left');
 	}
-	for (my $i=0; $i<$mlmaxcolval; $i++){
+	for (my $i=0; $i<=$qcol; $i++){
+		#if (exists($mlcolval[$i])){
 		if (exists($mlcolval[$i])){
 			my @args=@{$mlcolval[$i]};
 			for my $j (0.. $#args){
