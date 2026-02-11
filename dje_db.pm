@@ -328,7 +328,7 @@ sub query_cloud_from_id {
 #
 #-----------------------------------------------------------------------
 # Name        : query_if_from_host
-# Purpose     : Get all interfaces velonging to a host
+# Purpose     : Get all interfaces belonging to a host
 # Arguments   : host-id
 # Returns     : 
 # Globals     : 
@@ -340,6 +340,21 @@ sub query_if_from_host {
 	my ($package, $filename, $line) = caller;
 	debug($DEB_DB,"query_if_from_host $package, $filename, line number $line");
 	sql_query("SELECT * FROM interfaces WHERE host= ? ",$hostid);
+}
+
+#-----------------------------------------------------------------------
+# Name        : query_interfaces
+# Purpose     : Get all interfaces 
+# Arguments   : 
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : Results must be obtained with sql_getrow
+#-----------------------------------------------------------------------
+sub query_interfaces {
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_interfaces $package, $filename, line number $line");
+	sql_query("SELECT * FROM interfaces ");
 }
 
 #     _   _  _          _  _ ___ 

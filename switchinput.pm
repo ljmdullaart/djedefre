@@ -1,4 +1,5 @@
 use strict;
+use warnings;
 #INSTALL@ /opt/djedefre/switchnput.pm
 #INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 #       _                 _ 

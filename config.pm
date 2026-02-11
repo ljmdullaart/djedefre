@@ -1,6 +1,8 @@
 #!/usr/bin/perl
 #INSTALL@ /opt/djedefre/config.pm
 #INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+use strict;
+use warnings;
 
 use File::Spec;
 use File::Slurp;

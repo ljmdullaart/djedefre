@@ -1,6 +1,8 @@
 
 #INSTALL@ /opt/djedefre/l2input.pm
 #INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+#use strict;
+#use warnings;
 
 #  _     ____    _                   _   
 # | |   |___ \  (_)_ __  _ __  _   _| |_ 
@@ -35,6 +37,7 @@ our @srv_ycoord;
 our %srv_id;
 
 our @devicetypes;
+our @vlans;
 
 our @if_access;
 our @if_host;
@@ -216,29 +219,29 @@ sub mkl2connectframe {
 }
 
 
-sub l2connect_callback {
+sub l2connect_callback { # does nothing? need to see what it should do.
 	(my $i)=@_;
-	$id        =   '';
-	$from_tbl  =   '';
-	$fromhosts =   '';
-	$fromif    =   '';
-	$fromif    =   '';
-	$from_port =   '';
-	$to_tbl    =   '';
-	$tohost    =   '';
-	$toif      =   '';
-	$to_port   =   '';
-	$vlan      =   '';
-	$id       = $ids[$i]        if defined $ids[$i];
-	$from_tbl = $from_tbls[$i]  if defined $from_tbls[$i];
-	$fromhost = $fromhosts[$i]  if defined $fromhosts[$i];
-	$fromif   = $fromifs[$i]    if defined $fromifs[$i];
-	$from_port= $from_ports[$i] if defined $from_ports[$i];
-	$to_tbl   = $to_tbls[$i]    if defined $to_tbls[$i];
-	$tohost   = $tohosts[$i]    if defined $tohosts[$i];
-	$toif     = $toifs[$i]      if defined $toifs[$i];
-	$to_port  = $to_ports[$i]   if defined $to_ports[$i];
-	$vlan     = $vlans[$i]      if defined $vlans[$i];
+	my $id        =   '';
+	my $from_tbl  =   '';
+	my $fromhosts =   '';
+	my $fromif    =   '';
+	my $fromif    =   '';
+	my $from_port =   '';
+	my $to_tbl    =   '';
+	my $tohost    =   '';
+	my $toif      =   '';
+	my $to_port   =   '';
+	my $vlan      =   '';
+	#$id       = $ids[$i]        if defined $ids[$i];
+	#$from_tbl = $from_tbls[$i]  if defined $from_tbls[$i];
+	#$fromhost = $fromhosts[$i]  if defined $fromhosts[$i];
+	#$fromif   = $fromifs[$i]    if defined $fromifs[$i];
+	#$from_port= $from_ports[$i] if defined $from_ports[$i];
+	#$to_tbl   = $to_tbls[$i]    if defined $to_tbls[$i];
+	#$tohost   = $tohosts[$i]    if defined $tohosts[$i];
+	#$toif     = $toifs[$i]      if defined $toifs[$i];
+	#$to_port  = $to_ports[$i]   if defined $to_ports[$i];
+	#$vlan     = $vlans[$i]      if defined $vlans[$i];
 }
 	
 1;

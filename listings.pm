@@ -29,16 +29,24 @@ our $main_window_height;
 our $Message;
 
 my $selected_listing='Lists';
+#-----------------------------------------------------------------------
+# Name        : menu_make_listing
+# Purpose     : Make the selected listing
+# Arguments   : 
+# Returns     : 
+# Globals     : $listing_frame, $main_frame, $main_window
+# Side‑effects: 
+# Notes       : There should be an entry for evrey listing in
+#		make_listingselectframe()
+#-----------------------------------------------------------------------
 sub menu_make_listing {
 	debug($DEB_SUB,"menu_make_listing");
 	$main_frame->destroy if Tk::Exists($main_frame);
         $main_frame=$main_window->Frame()->pack();
 	$listing_frame->destroy if Tk::Exists($listing_frame);
 	$listing_frame=$main_frame->Frame()->pack(-side=>'left');
-	$listing_button_frame=$listing_frame->Frame(
-	)->pack(-side=>'top');
-	$listing_listing_frame=$listing_frame->Frame(
-	)->pack(-side=>'top');
+	$listing_button_frame=$listing_frame->Frame()->pack(-side=>'top');
+	$listing_listing_frame=$listing_frame->Frame()->pack(-side=>'top');
 	$Message='';
 	$listing_listing_frame->destroy if Tk::Exists($listing_listing_frame);
 	$listing_listing_frame=$listing_frame->Frame(
@@ -67,6 +75,16 @@ sub menu_make_listing {
 	$selected_listing='Lists';
 }
 
+#-----------------------------------------------------------------------
+# Name        : make_listingselectframe
+# Purpose     : Make the selection-list for the listings
+# Arguments   : 
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : There should be an entry for every listing in
+#               menu_make_listing()
+#-----------------------------------------------------------------------
 sub make_listingselectframe {
 	(my $parent)=@_;
 	debug($DEB_SUB,"make_listingselectframe");
@@ -80,6 +98,7 @@ sub make_listingselectframe {
 }
 	
 
+# duplicate van menu_make_listing? welke wordt gebruikt wanneer?
 sub make_listing {
 	(my $parent)=@_;
 	debug($DEB_SUB,"make_listing");
@@ -137,16 +156,33 @@ sub make_listing {
 }
 
 my $listing_server_frame;
+#-----------------------------------------------------------------------
+# Name        : list_sel_srv
+# Purpose     : stub voor een callback
+# Arguments   : id
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
 sub list_sel_srv {
 	(my $id)=@_;
 	print "list_sel_srv: $id\n";
 }
+#-----------------------------------------------------------------------
+# Name        : listing_servers
+# Purpose     : Create a listing of all servers
+# Arguments   : parent - parent frame for the listing
+# Returns     : 
+# Globals     : $listing_server_frame
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
 sub listing_servers{
 	(my $parent)=@_;
 	debug($DEB_SUB,"listing_servers");
 	$listing_server_frame->destroy if Tk::Exists($listing_server_frame);
-	$listing_server_frame=$parent->Frame(
-	)->pack();
+	$listing_server_frame=$parent->Frame()->pack();
 	$listing_server_frame->Label(-text=>"Servers")->pack();
 	ml_new($listing_server_frame,$main_window_height*0.07,'top');
 	my @ar;
@@ -162,32 +198,32 @@ sub listing_servers{
 	splice @ar;
 	@ar=('ID','Name','Type','Devicetype','OS Type','OS','Processor','Memory');
 	ml_colhead(@ar);
-	my $sql = 'SELECT id,name,type,devicetype,ostype,os,processor,memory FROM server ORDER BY id';
-	my $sth =  db_dosql($sql);
-	while((my $id,my $name,my $type,my $devicetype,my $ostype,my $os,my $processor,my $memory) = db_getrow()){
-		$type='server' unless defined $type;
-		$devicetype='server' unless defined $devicetype;
-		$ostype='' unless defined $ostype;
-		$os='' unless defined $os;
-		$os=~s/ADVENTERPRISE/ADVENTPR/;
-		$processor='' unless defined $processor;
-		$memory='' unless defined $memory;
-		$ar[0]= $id;
-		$ar[1]= $name;
-		$ar[2]= $type;
-		$ar[3]= $devicetype;
-		$ar[4]= $ostype;
-		$ar[5]= $os;
-		$ar[6]= $processor;
-		$ar[7]= $memory;
+	query_server();
+	while (my $r=sql_getrow()){
+		$ar[0]= $r->{id};
+		$ar[1]= defined ($r->{name}) ? $r->{name} : $r->{id};
+		$ar[2]= defined ($r->{type}) ? $r->{type} : "server";
+		$ar[3]= defined ($r->{devicetype}) ? $r->{devicetype} : "server";
+		$ar[4]= defined ($r->{ostype}) ? $r->{ostype} : "";
+		$ar[5]= defined ($r->{os}) ? $r->{os} : "";
+		$ar[6]= defined ($r->{processor}) ? $r->{processor} : "";
+		$ar[7]= defined ($r->{memory}) ? $r->{memory} : "";
 		ml_insert(@ar);
 	}
-	db_close();
 	ml_create();
 		
 }
 
 my $listing_subnet_frame;
+#-----------------------------------------------------------------------
+# Name        : listing_subnets
+# Purpose     : Create a listing of all subnets
+# Arguments   : parent - parent frame for the listing
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
 sub listing_subnets {
 	(my $parent)=@_;
 	debug($DEB_SUB,"listing_subnets");
@@ -207,28 +243,35 @@ sub listing_subnets {
 	$ar[2]='Network';
 	$ar[3]='CIDR';
 	ml_colhead(@ar);
-	my $sql = 'SELECT id,nwaddress,cidr,xcoord,ycoord,name FROM subnet ORDER BY id';
-	my $sth =  db_dosql($sql);
-	while((my $id,my $nwaddress,my $cidr, my $x,my $y,my $name) = db_getrow()){
-		$name="$nwaddress/$cidr" unless defined $name;
-		$name="$nwaddress/$cidr" if ($name eq '');
-		$ar[0]=$id;
-		$ar[1]=$name;
-		$ar[2]=$nwaddress;
+	query_subnet();
+	while (my $r=sql_getrow()){
+		my $cidr=defined($r->{cidr}) ? $r->{cidr} :"";
+		my $tn=$r->{nwaddress} . '/' . $cidr;
+		$ar[0]=$r->{id};
+		$ar[1]=defined ($r->{name}) ? $r->{name} : $tn;
+		  $ar[1]= $tn if ( $ar[1] eq '');
+		$ar[2]=$r->{nwaddress};
 		$ar[3]=$cidr;
 		ml_insert(@ar);
 	}
-	db_close();
 	ml_create();
 }
 		
 my $listing_interfaces_frame;
+#-----------------------------------------------------------------------
+# Name        : listing_interfaces
+# Purpose     : Create a listing of all interfaces
+# Arguments   : parent - parent frame for the listing
+# Returns     : 
+# Globals     : $listing_interfaces_frame
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
 sub listing_interfaces {
 	(my $parent)=@_;
 	debug($DEB_SUB,"listing_interfaces");
 	$listing_server_frame->destroy if Tk::Exists($listing_server_frame);
-	$listing_server_frame=$parent->Frame(
-	)->pack();
+	$listing_server_frame=$parent->Frame()->pack();
 	$listing_server_frame->Label(-text=>"Interfaces")->pack();
 	ml_new($listing_server_frame,$main_window_height*0.07,'top');
 	my @ar;
@@ -247,44 +290,48 @@ sub listing_interfaces {
 	$ar[5]='Options';
 	ml_colhead(@ar);
 	my @servers=[];
-	my $sql = 'SELECT id,name FROM server';
-	my $sth =  db_dosql($sql);
-	while((my $id,my $name) = db_getrow()){
-		$servers[$id]=$name;
+	query_server();
+	while(my $r=sql_getrow()){
+		$servers[$r->{id}]=$r->{name};
 	}
-	db_close();
-	my @subnets=[];
-	$sql = 'SELECT id,nwaddress,cidr FROM subnet';
-	$sth =  db_dosql($sql);
+	my @subnets;
 	$subnets[0]=' ';
-	while((my $id,my $nwaddress,my $cidr) = db_getrow()){
-		$subnets[$id]="$nwaddress/$cidr";
+	query_subnet();
+	while (my $r=sql_getrow()){
+		my $cidr=defined($r->{cidr}) ? $r->{cidr} :"";
+		my $id= $r->{id};
+		$subnets[$id]=$r->{nwaddress} . '/' . $cidr;
 	}
-	db_close();
-	$sql = 'SELECT id,macid,ip,hostname,host,subnet,access,options FROM interfaces ORDER BY id';
-	$sth =  db_dosql($sql);
-	while((my $id,my $macid,my $ip,my $hostname,my $host,my $subnet,my $access,my $options) = db_getrow()){
-		my $name=$servers[$host];
+	query_interfaces();
+	while (my $r=sql_getrow()){
+		my $name=$servers[$r->{host}];
 		$name=' ' unless defined $name;
-		my $snet;
-		if (defined $subnets[$subnet]){
-			$snet=$subnets[$subnet];
+		my $snet='';
+		if ((defined ($r->{subnet})&&($r->{subnet} ne ''))){
+			if (defined $subnets[$r->{subnet}]){
+				$snet=$subnets[$r->{subnet}];
+			}
 		}
-		else {
-			$snet=' ';
-		}
-		$ar[0]=$id;
-		$ar[1]=$macid;
-		$ar[2]=$ip;
+		$ar[0]=$r->{id};
+		$ar[1]=$r->{macid};
+		$ar[2]=$r->{ip};
 		$ar[3]=$name;
 		$ar[4]=$snet;
-		$ar[5]=$options;
+		$ar[5]=$r->{options};
 		ml_insert(@ar);
 	}
-	db_close();
 	ml_create();
 }
 
+#-----------------------------------------------------------------------
+# Name        : listing_virtual
+# Purpose     : Create a listing of all virtual systems
+# Arguments   : parent - parent frame for the listing
+# Returns     : 
+# Globals     : $listing_server_frame
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
 sub listing_virtual {
 	(my $parent)=@_;
 	debug($DEB_SUB,"listing_virtual");
@@ -302,29 +349,37 @@ sub listing_virtual {
 	$ar[2]='Hypervisor';
 	ml_colhead(@ar);
 	my @servers=[];
-	my $sql = 'SELECT id,name FROM server';
-	my $sth =  db_dosql($sql);
-	while((my $id,my $name) = db_getrow()){
-		$servers[$id]=$name;
+	query_server();
+	while(my $r=sql_getrow()){
+		$servers[$r->{id}]=$r->{name};
 	}
-	db_close();
-	db_dosql("SELECT id,name,options FROM server WHERE options LIKE '%vboxhost%'");
-	while ((my $id, my $name, my $options)=db_getrow()){
+	query_server();
+	while(my $r=sql_getrow()){
 		my $host=-1;
+		my $options=$r->{options};
+		$options='' unless defined $options;
 		if ($options=~/vboxhost:([^,]*)/){
 			$host=$1;
-		}
-		if ($host>-1){
-			$ar[0]=$id;
-			$ar[1]=$name;
-			$ar[2]=$servers[$host];
-			ml_insert(@ar);
+			if ($host>-1){
+				$ar[0]=$r->{id};
+				$ar[1]=$r->{name};
+				$ar[2]=$servers[$host];
+				ml_insert(@ar);
+			}
 		}
 	}
-	db_close();
 	ml_create();
 }
 
+#-----------------------------------------------------------------------
+# Name        : listing_switch
+# Purpose     : Create a listing of all switches
+# Arguments   : parent - parent frame for the listing
+# Returns     : 
+# Globals     : $listing_server_frame
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
 sub listing_switch {
 	(my $parent)=@_;
 	debug($DEB_SUB,"listing_switch");
@@ -343,17 +398,18 @@ sub listing_switch {
 	$ar[2]='Type';
 	$ar[3]='Ports';
 	ml_colhead(@ar);
-	db_dosql("SELECT id,name,switch,ports FROM switch");
-	while ((my $id, my $name, my $switch, my $ports)=db_getrow()){
-		if ($switch eq 'accesspoint'){ $ports='-';}
-		$ar[0]=$id;
-		$ar[1]=$name;
-		$ar[2]=$switch;
-		$ar[3]=$ports;
-
+	query_switch();
+	#db_dosql("SELECT id,name,switch,ports FROM switch");
+	#while ((my $id, my $name, my $switch, my $ports)=db_getrow()){
+	while(my $r=sql_getrow()){
+		$ar[0]=$r->{id};
+		$ar[1]=$r->{name};
+		$ar[1]='hoppa';
+		$ar[2]=$r->{switch};
+		$ar[3]=$r->{ports};
+		if ($r->{switch} eq 'accesspoint'){ $ar[3]='-';}
 		ml_insert(@ar);
 	}
-	db_close();
 	ml_create();
 }
 

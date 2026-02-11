@@ -1,4 +1,5 @@
 use strict;
+use warnings;
 #INSTALL@ /opt/djedefre/cloudnput.pm
 #INSTALLEDFROM verlaine:/home/ljm/src/djedefre
 #       _                 _ 

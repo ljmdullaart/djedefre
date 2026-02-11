@@ -1,5 +1,7 @@
 
 #INSTALL@ /opt/djedefre/connections.pm
+use strict;
+use warnings;
 
 #                                  _   _                 
 #   ___ ___  _ __  _ __   ___  ___| |_(_) ___  _ __  ___ 
@@ -13,12 +15,13 @@ use Tk::JBrowseEntry;
 require dje_db;
 
 our $main_window;
-our $mainframe;
+our $main_frame;
 
 our $DEB_FRAME;
 our $DEB_DB;
 our $DEB_SUB;
 our $DEBUG;
+
 
 our @srv_devicetype;
 our @srv_interfaces;
@@ -139,9 +142,9 @@ sub mkconnectframe {
 	db_dosql("SELECT id,name FROM switch");
 	while ((my $id, my $name)=db_getrow()){ $switchname[$id]=$name;}
 	db_close();
-	$connect_listing_frame>destroy if Tk::Exists($connect_listing_frame);
+	$connect_listing_frame->destroy if Tk::Exists($connect_listing_frame);
 	$connect_listing_frame=$parent->Frame()->pack(-side =>'top');
-	$connect_listing_frame->Label(-text=>"Connections")->pack()-side =>'top';
+	$connect_listing_frame->Label(-text=>"Connections")->pack(-side =>'top');
 	ml_new($connect_listing_frame,25,'top');
 	my @ar;
 	$ar[0]=5;
@@ -414,6 +417,7 @@ sub do_button {
 	my $fromtype='';
 	my $toid;
 	my $totype='';
+	my $retval;
 	$sel_vlan='' unless defined $sel_vlan;
 	$sel_source='manual' unless defined $sel_source;
 print "to=$sel_to_ip from=$sel_from_ip\n";
