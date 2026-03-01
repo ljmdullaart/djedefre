@@ -399,8 +399,6 @@ sub listing_switch {
 	$ar[3]='Ports';
 	ml_colhead(@ar);
 	query_switch();
-	#db_dosql("SELECT id,name,switch,ports FROM switch");
-	#while ((my $id, my $name, my $switch, my $ports)=db_getrow()){
 	while(my $r=sql_getrow()){
 		$ar[0]=$r->{id};
 		$ar[1]=$r->{name};
@@ -413,6 +411,15 @@ sub listing_switch {
 	ml_create();
 }
 
+#-----------------------------------------------------------------------
+# Name        : listing_cloud
+# Purpose     : Create a listing of all clouds
+# Arguments   : parent - parent frame for the listing
+# Returns     : 
+# Globals     : $listing_server_frame
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
 sub listing_cloud {
 	(my $parent)=@_;
 	debug($DEB_SUB,"listing_cloud");
@@ -433,12 +440,15 @@ sub listing_cloud {
 	$ar[3]='Type';
 	$ar[4]='Service';
 	ml_colhead(@ar);
-	db_dosql("SELECT id,name,vendor,type,service FROM cloud");
-	@ar=();
-	while ( @ar=db_getrow()){
+	query_cloud();
+	while (my $r=sql_getrow()){
+		$ar[0]=$r->{id};
+		$ar[1]=$r->{name};
+		$ar[2]=$r->{vendor};
+		$ar[3]=$r->{type};
+		$ar[4]=$r->{service};
 		ml_insert(@ar);
 	}
-	db_close();
 	ml_create();
 }
 
@@ -462,12 +472,15 @@ sub listing_nfs {
 	$ar[3]='Client';
 	$ar[4]='Mount';
 	ml_colhead(@ar);
-	db_dosql("SELECT id,server,export,client,mountpoint FROM nfs");
-	@ar=();
-	while ( @ar=db_getrow()){
+	query_nfs();
+	while ( my $r=sql_getrow()){
+		$ar[0]=$r->{id};
+		$ar[1]=$r->{server};
+		$ar[2]=$r->{export};
+		$ar[3]=$r->{client};
+		$ar[4]=$r->{mountpoint};
 		ml_insert(@ar);
 	}
-	db_close();
 	ml_create();
 }
 	

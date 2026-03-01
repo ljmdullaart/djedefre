@@ -172,6 +172,9 @@ CREATE TABLE IF NOT EXISTS config (
 	item       string,
 	value      string
 	);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_config_attr_item
+    ON config(attribute, item);
+
 ";
 $db->do($schema) or die $db->errstr;
 $schema="

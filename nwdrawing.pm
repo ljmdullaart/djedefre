@@ -455,7 +455,14 @@ sub nw_drawobjects {
 		my $devicetype=$objects[$i]->{'devicetype'};
 		$devicetype='server' unless defined $devicetype;
 		my $devidx= first { $devicetypes[$_] eq $devicetype} 0..$#devicetypes;
-		my $txtcol=$colors[$devidx];
+		my $txtcol;
+		if (defined ($devidx)){
+			$txtcol=$colors[$devidx];
+		}
+		else {
+			$txtcol='black';
+		}
+		$txtcol='black' unless defined $txtcol;
 		my $objectdraw=$nw_canvas->createImage($x, $y, -image=>$nw_logos{$logo} ,-tags=>['draggable','scalable']);
 		$objects[$i]->{'draw'}=$objectdraw;
 		$objects[$i]->{'namedraw'}=$nw_canvas->createText($x,$y+25,-text=>$name,-fill=>$txtcol,-tags=>['scalable']);

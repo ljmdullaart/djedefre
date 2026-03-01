@@ -7,6 +7,14 @@ use strict;
 use warnings;
 
 
+#
+# Prefixes:
+# sql_     Get results from the database
+# query_   Do a standard query; all queries should be centralized to improve 
+#          portablility across databases.
+# q_       Get a value from a table, always by ID without using @lastresult.
+# db_      Old databas access; in the process of being removed.
+
 
 #      _       _        _                                          
 #   __| | __ _| |_ __ _| |__   __ _ ___  ___   _ __   _____      __
@@ -50,7 +58,6 @@ sub sql_query {
 		"",
 		{ RaiseError => 1, AutoCommit => 1 }
 	) or die "Cannot open database $dbfile: $DBI::errstr";
-
 	my $sth = $db->prepare($query);
 	$sth->execute(@bind_values);
 	my $rows = $sth->fetchall_arrayref({});
@@ -59,6 +66,33 @@ sub sql_query {
 	$db->disconnect;
 	return \@lastresult;
 }
+
+#-----------------------------------------------------------------------
+# Name        : sql_qvalue
+# Purpose     : Return a single value from the database
+# Arguments   : query, bind values
+# Returns     : the requested value or undef
+# Globals     : 
+# Side-effects: 
+# Notes       : The sub does not use @results and can therefore be used
+#               in a loop over @results.
+#-----------------------------------------------------------------------
+sub sql_qvalue{
+	my ($query, @bind) = @_;
+	my $dbfile=$config{'dbfile'};
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"sql_query  $package, $filename, line number $line using $dbfile");
+	my $db = DBI->connect(
+		"dbi:SQLite:dbname=$dbfile",
+		"",
+		"",
+		{ RaiseError => 1, AutoCommit => 1 }
+	) or die "Cannot open database $dbfile: $DBI::errstr";
+	my ($value) = $db->selectrow_array($query, undef, @bind);
+	$db->disconnect;
+	return $value;
+}
+	
 
 #-----------------------------------------------------------------------
 # Name        : sql_getrow
@@ -93,7 +127,8 @@ sub sql_getvalue {
 	return undef unless @lastresult;
 	my $row = shift @lastresult;
 	return undef unless $row && %$row;
-	my ($value) = values %$row;
+	my $value = (values %$row)[0];
+	$value='-' unless defined $value;
 	return $value;
 }
 
@@ -133,20 +168,17 @@ sub query_coordinates {
 	debug($DEB_DB,"query_coordinates $package, $filename, line number $line page=$page tbl=$tbl");
 	if ($allowed_tables{$tbl}) {
 		if ($page eq 'top'){
-			sql_query("SELECT xcoord FROM $tbl WHERE id=$id");
-			$retval[0]=sql_getvalue();
-			sql_query("SELECT ycoord FROM $tbl WHERE id=$id");
-			$retval[1]=sql_getvalue();
+			$retval[0]=sql_qvalue("SELECT xcoord FROM $tbl WHERE id=$id");
+			$retval[1]=sql_qvalue("SELECT ycoord FROM $tbl WHERE id=$id");
 		}
 		else {
-			sql_query ("SELECT xcoord FROM pages WHERE page= ? AND tbl= ? AND item= ? ",$page,$tbl,$id);
-			$retval[0]=sql_getvalue();
-			sql_query ("SELECT ycoord FROM pages WHERE page= ? AND tbl= ? AND item= ? ",$page,$tbl,$id);
-			$retval[1]=sql_getvalue();
+			$retval[0]=sql_qvalue ("SELECT xcoord FROM pages WHERE page= ? AND tbl= ? AND item= ? ",$page,$tbl,$id);
+			$retval[1]=sql_qvalue ("SELECT ycoord FROM pages WHERE page= ? AND tbl= ? AND item= ? ",$page,$tbl,$id);
 		}
 	}
 	return @retval;
 }
+
 
 #         _
 # _ _  __|_. _  _|_ _ |_ | _  
@@ -154,6 +186,41 @@ sub query_coordinates {
 #            _|               
 #
 
+#-----------------------------------------------------------------------
+# Name        : q_config
+# Purpose     : Query the value of an attribute, item
+# Arguments   : attribute, item
+# Returns     : The value
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+
+sub q_config {
+	(my $attr,my $item)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"q_config $package, $filename, line number $line");
+	my $retval=sql_qvalue ("SELECT value FROM config WHERE attribute= ? AND item= ? ",$attr,$item);
+	return $retval;
+}
+
+#-----------------------------------------------------------------------
+# Name        : q_changed
+# Purpose     : Query the value of changed; always set it to no
+# Arguments   : none
+# Returns     : The value of changed
+# Globals     : 
+# Side‑effects: After query, it is always set to 'no'
+# Notes       : 
+#-----------------------------------------------------------------------
+
+sub q_changed {
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"q_changed$package, $filename, line number $line");
+	my $retval=sql_qvalue ("SELECT value FROM config WHERE attribute='run:param' AND item='changed'");
+	sql_qvalue ("UPDATE config SET value='no' WHERE attribute='run:param' AND item='changed'");
+	return $retval;
+}
 #-----------------------------------------------------------------------
 # Name        : query_changed_no
 # Purpose     : Sets the value of changed to no in the config table
@@ -256,10 +323,25 @@ sub query_set_pagetype {
 #             
 
 #-----------------------------------------------------------------------
+# Name        : query_delete_cloud
+# Purpose     : Delete a cloud by id
+# Arguments   : ID
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_delete_cloud {
+	(my $id)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_cloud_delete $package, $filename, line number $line");
+	sql_query("DELETE FROM cloud WHERE id= ? ",$id);
+}
+#-----------------------------------------------------------------------
 # Name        : query_cloud_del_name
 # Purpose     : Delete a cloud by name
 # Arguments   : $name: the name of the cloud
-# Returns     : array refference to a list of VLANs
+# Returns     : 
 # Globals     : 
 # Side‑effects: 
 # Notes       : 
@@ -305,6 +387,35 @@ sub query_cloud_update_type {
 	debug($DEB_DB,"query_cloud_update_type $package, $filename, line number $line");
 	sql_query("UPDATE cloud SET type= ? WHERE id= ? ",$type,$id);
 }
+#-----------------------------------------------------------------------
+# Name        : q_cloud_update
+# Purpose     : Update a column in the cloud table
+# Arguments   : id, column,value
+# Returns     : requested value
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub q_cloud_update {
+	my ($id, %updates) = @_;
+        my  %allowed_column = (
+		id         => 1,
+		name       => 1,
+		xcoord     => 1,
+		ycoord     => 1,
+		type       => 1,
+		vendor     => 1,
+		service    => 1
+        );
+	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
+	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	return unless defined $id;
+	while (my ($var, $val) = each %updates) {
+		if ($allowed_column{$var}) {
+			sql_qvalue("UPDATE cloud SET $var = ?  WHERE id= ? ",$val, $id);
+		}
+	}
+}
 
 #-----------------------------------------------------------------------
 # Name        : query_cloud_from_id
@@ -320,6 +431,69 @@ sub query_cloud_from_id {
 	my ($package, $filename, $line) = caller;
 	debug($DEB_DB,"query_cloud_from_id $package, $filename, line number $line");
 	sql_query("SELECT * FROM cloud WHERE id = ? ",$id);
+}
+
+#-----------------------------------------------------------------------
+# Name        : query_cloud_from_name
+# Purpose     : Get the cloud from the name
+# Arguments   : cloud-name
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : Results must be obtained with sql_getrow
+#-----------------------------------------------------------------------
+sub query_cloud_from_name {
+	(my $name)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_cloud_from_name $package, $filename, line number $line");
+	sql_query("SELECT * FROM cloud WHERE name = ? ",$name);
+}
+
+#-----------------------------------------------------------------------
+# Name        : query_cloud
+# Purpose     : Get the clouds
+# Arguments   : 
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : Results must be obtained with sql_getrow
+#-----------------------------------------------------------------------
+sub query_cloud{
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_cloud $package, $filename, line number $line");
+	sql_query("SELECT * FROM cloud");
+}
+#  _        __      _   _        _   _  
+# | \  /\  (_  |_| |_) / \  /\  |_) | \ 
+# |_/ /--\ __) | | |_) \_/ /--\ | \ |_/ 
+#   
+#-----------------------------------------------------------------------
+# Name        : query_dashboard
+# Purpose     : Get the dashboard
+# Arguments   : 
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : Results must be obtained with sql_getrow
+#-----------------------------------------------------------------------
+sub query_dashboard{
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_dashboard $package, $filename, line number $line");
+	sql_query("SELECT * FROM dashboard");
+}
+#-----------------------------------------------------------------------
+# Name        : query_dashboard_servers
+# Purpose     : Get the the servers  from the dashboard
+# Arguments   : 
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : Results must be obtained with sql_getvalue
+#-----------------------------------------------------------------------
+sub query_dashboard_servers{
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_dashboard_servers $package, $filename, line number $line");
+	sql_query("SELECT DISTINCT server FROM dashboard");
 }
 
 # ___      ___  _  _   _       _  _  __ 
@@ -341,6 +515,142 @@ sub query_if_from_host {
 	debug($DEB_DB,"query_if_from_host $package, $filename, line number $line");
 	sql_query("SELECT * FROM interfaces WHERE host= ? ",$hostid);
 }
+#-----------------------------------------------------------------------
+# Name        : query_if_ip_by_host
+# Purpose     : Get all IP-addresses belonging to a host
+# Arguments   : $host_id
+# Returns     : An array of IP addresses
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_if_ip_by_host{
+	(my $host_id)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_if_by_host_ifname $package, $filename, line number $line");
+	my @retvals;
+	sql_query("SELECT ip FROM interfaces WHERE host= ? ",$host_id);
+	my $ip=sql_getvalue();
+	while (defined $ip){
+		push @retvals,$ip;
+		$ip=sql_getvalue();
+	}
+	return @retvals;
+}
+#-----------------------------------------------------------------------
+# Name        : query_if_by_host_ifname
+# Purpose     : Get all interface belonging to a hostand ifname
+# Arguments   : $host_id,$ifname
+# Returns     : id 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_if_by_host_ifname {
+	(my $host_id,my $ifname)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_if_by_host_ifname $package, $filename, line number $line");
+	return sql_qvalue("SELECT id FROM interfaces WHERE host= ?  AND ifname= ? ",$host_id,$ifname);
+}
+#-----------------------------------------------------------------------
+# Name        : query_if_by_id
+# Purpose     : Get interface by id
+# Arguments   : id
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : Results must be obtained with sql_getrow
+#-----------------------------------------------------------------------
+sub query_if_by_id {
+	(my $id)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_if_by_id $package, $filename, line number $line");
+	sql_query("SELECT * FROM interfaces WHERE id = ? ",$id);
+}
+#-----------------------------------------------------------------------
+# Name        : query_if_names
+# Purpose     : Get all interface names
+# Arguments   : 
+# Returns     : array with interface names
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_if_names {
+	my @retval;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_if_names $package, $filename, line number $line");
+	sql_query("SELECT DISTINCT ifname FROM interfaces ORDER BY ifname");
+	my $val=sql_getvalue();
+	while (defined $val){
+		push @retval,$val;
+		$val=sql_getvalue();
+	}
+	return @retval;
+}
+
+#-----------------------------------------------------------------------
+# Name        : query_if_id_by
+# Purpose     : Get all ID based on a column value
+# Arguments   : 
+# Returns     : id
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_if_id_by {
+	my (%updates) = @_;
+	(my $var, my $val)=@_;
+        my  %allowed_column = (
+		id         =>1,
+		macid      =>1,
+		ip         =>1,
+		hostname   =>1,
+		host       =>1,
+		subnet     =>1,
+		access     =>1,
+		connect_if =>1,
+		port       =>1,
+		ifname     =>1,
+		switch     =>1,
+                options    =>1
+        );
+	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
+	debug($DEB_DB,"$sbr $package, $filename, line number $line");
+	my $where='';
+	my @args;
+	while (my ($var, $val) = each %updates) {
+		if ($allowed_column{$var}) {
+			$where="$where AND $var = ? ";
+			push @args,$val;
+		}
+		else {
+			debug($DEB_DB,"ILLEGAL COLUMN $var");
+		}
+	}
+	$where=~s/^ AND//;
+	return sql_qvalue("SELECT id FROM interfaces WHERE $where LIMIT 1", @args);
+}
+
+#-----------------------------------------------------------------------
+# Name        : query_if_ips
+# Purpose     : Get all IP adresses from interfaces
+# Arguments   : 
+# Returns     : array op IP addresses
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_if_ip {
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_if_ip $package, $filename, line number $line");
+	my @iplist;
+	sql_query("SELECT DISTINCT ip FROM interfaces ORDER BY ip");
+	while (my $ip=sql_getvalue()){
+		push @iplist,$ip;
+	}
+	return @iplist;
+}
 
 #-----------------------------------------------------------------------
 # Name        : query_interfaces
@@ -356,6 +666,58 @@ sub query_interfaces {
 	debug($DEB_DB,"query_interfaces $package, $filename, line number $line");
 	sql_query("SELECT * FROM interfaces ");
 }
+#-----------------------------------------------------------------------
+# Name        : q_interfaces
+# Purpose     : The following routines allow simple lookups in the table
+#		always based on the id
+# Arguments   : column,id
+# Returns     : requested value
+# Globals     : 
+# Side‑effects: 
+# Notes       : The routines use sql_qvalue, and do not touch @lastresults
+#-----------------------------------------------------------------------
+sub q_interfaces {
+	(my $var, my $id)=@_;
+        my  %allowed_column = (
+		id         =>1,
+		macid      =>1,
+		ip         =>1,
+		hostname   =>1,
+		host       =>1,
+		subnet     =>1,
+		access     =>1,
+		connect_if =>1,
+		port       =>1,
+		ifname     =>1,
+		switch     =>1,
+                options    =>1
+        );
+	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
+	debug($DEB_DB,"$sbr $package, $filename, line number $line");
+	if ($allowed_column{$var}) {
+		return sql_qvalue("SELECT $var FROM interfaces WHERE id= ? ", $id);
+	}
+	else {
+		debug($DEB_DB,"ILLEGAL COLUMN $var");
+		return sql_qvalue("SELECT id FROM interfaces WHERE id= ? ", $id);
+	}
+}
+
+#-----------------------------------------------------------------------
+# Name        : q_if_delete
+# Purpose     : Delete an interface
+# Arguments   : id
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub q_if_delete {
+	(my $id)=@_;
+	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
+	debug($DEB_DB,"$sbr $package, $filename, line number $line");
+	sql_qvalue("DELETE FROM interfaces WHERE id= ? ", $id);
+}
 
 #     _   _  _          _  _ ___ 
 # |    ) /  / \|\ ||\ ||_ /   |  
@@ -364,10 +726,52 @@ sub query_interfaces {
 
 
 #-----------------------------------------------------------------------
+# Name        : query_l2_sources
+# Purpose     : Get the list of sources in the l2 connection table
+# Arguments   : 
+# Returns     : array of VLANs
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_l2_sources {
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_l2_sources $package, $filename, line number $line");
+	sql_query("SELECT DISTINCT source FROM l2connect ORDER BY source");
+	my @sources;
+	my $source = sql_getvalue();
+	while (defined $source){
+		push @sources,$source;
+		$source = sql_getvalue();
+	}
+	return @sources;
+}
+#-----------------------------------------------------------------------
+# Name        : query_l2_ids
+# Purpose     : Get the list of ids in the l2 connection table
+# Arguments   : 
+# Returns     : array of ids
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_l2_ids {
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_l2_ids $package, $filename, line number $line");
+	sql_query("SELECT DISTINCT id FROM l2connect ORDER BY id");
+	my @ids;
+	my $id=sql_getvalue();
+	while (defined $id){
+		push @ids,$id;
+		$id=sql_getvalue();
+	}
+	return @ids;
+}
+#-----------------------------------------------------------------------
 # Name        : query_l2_getvlans
 # Purpose     : Get the list of VLANs in the l2 connection table
 # Arguments   : 
-# Returns     : array refference to a list of VLANs
+# Returns     : array of VLANs
 # Globals     : 
 # Side‑effects: 
 # Notes       : 
@@ -375,15 +779,229 @@ sub query_interfaces {
 sub query_l2_getvlans {
 	my ($package, $filename, $line) = caller;
 	debug($DEB_DB,"query_l2_getvlans $package, $filename, line number $line");
-	my $rows = sql_query("SELECT DISTINCT vlan FROM l2connect");
-	my @vlans = map { $_->{vlan} } @$rows;
-	return \@vlans;
+	sql_query("SELECT DISTINCT vlan FROM l2connect ORDER BY vlan");
+	my @vlans;
+	my $vlan=sql_getvalue();
+	while (defined $vlan){
+		push @vlans,$vlan;
+		$vlan=sql_getvalue();
+	}
+	return @vlans;
+}
+#-----------------------------------------------------------------------
+# Name        : query_l2
+# Purpose     : Get all rows from l2
+# Arguments   : 
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : get the row with sql_getrow();
+#-----------------------------------------------------------------------
+sub query_l2{
+	(my $id)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_l2$package, $filename, line number $line");
+	my $rows = sql_query("SELECT * FROM l2connect");
+}
+#-----------------------------------------------------------------------
+# Name        : query_l2_by_id
+# Purpose     : Get a row from l2 by id
+# Arguments   : 
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : get the row with sql_getrow();
+#-----------------------------------------------------------------------
+sub query_l2_by_id {
+	(my $id)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_l2_by_id $package, $filename, line number $line");
+	my $rows = sql_query("SELECT * FROM l2connect WHERE id= ? ", $id);
+}
+#-----------------------------------------------------------------------
+# Name        : q_l2connect
+# Purpose     : The following routines allow simple lookups in the table
+#		always based on the id
+# Arguments   : column,id
+# Returns     : requested value
+# Globals     : 
+# Side‑effects: 
+# Notes       : The routines use sql_qvalue, and do not touch @lastresults
+#-----------------------------------------------------------------------
+sub q_l2connect {
+	(my $var, my $id)=@_;
+        my  %allowed_column = (
+                id         => 1,
+                vlan       => 1,
+                from_tbl   => 1,
+                from_id    => 1,
+                from_port  => 1,
+                to_tbl     => 1,
+                to_id      => 1,
+                to_port    => 1,
+		source     => 1
+        );
+	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
+	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	if ($allowed_column{$var}) {
+		return sql_qvalue("SELECT $var FROM l2connect WHERE id= ? ", $id);
+	}
+	else {
+		return sql_qvalue("SELECT id FROM l2connect WHERE id= ? ", $id);
+	}
+}
+
+#-----------------------------------------------------------------------
+# Name        : query_l2_insert
+# Purpose     : Insert an l2 row
+# Arguments   : $from_tbl,$from_id,$from_port,$to_tbl,$to_id,$to_port,$vlan,$source
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_l2_insert {
+	(my $from_tbl,my $from_id,my $from_port,my $to_tbl,my $to_id,my $to_port,my $vlan,my $source)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_l2_delete $package, $filename, line number $line");
+	sql_query("INSERT INTO l2connect (from_tbl,from_id,from_port,to_tbl,to_id,to_port,vlan,source) VALUES ( ? , ? , ? , ? , ? , ? , ? , ? )",
+	          $from_tbl,$from_id,$from_port,$to_tbl,$to_id,$to_port,$vlan,$source) ;
+}
+#-----------------------------------------------------------------------
+# Name        : query_l2_delete
+# Purpose     : Delete an l2connect entry by ID
+# Arguments   : ID
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_l2_delete {
+	(my $id)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_l2_delete $package, $filename, line number $line");
+	sql_query("DELETE FROM l2connect WHERE id= ? ",$id);
+}
+#-----------------------------------------------------------------------
+# Name        : query_l2_delete_to
+# Purpose     : Delete an l2connect entry by to_tbl and to_id
+# Arguments   : to_tbl, to_id
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_l2_delete_to {
+	(my $to_tbl,my $to_id)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_l2_delete_to $package, $filename, line number $line");
+	sql_query("DELETE FROM l2connect WHERE to_tbl= ? AND to_id= ? ",$to_tbl,$to_id);
+}
+#-----------------------------------------------------------------------
+# Name        : query_l2_delete_to_by_host
+# Purpose     : Delete an l2connect entry by to_tbl and to_id
+# Arguments   : to_tbl, to_id
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_l2_delete_to_by_host {
+	(my $to_tbl,my $to_host)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_l2_delete_to_by_host $package, $filename, line number $line");
+	sql_query("DELETE FROM l2connect WHERE to_tbl= ? AND to_id= ? ",$to_tbl,$to_host);
+}
+
+
+
+#       _  __ 
+# |\ | |_ (_  
+# | \| |  __) 
+#      
+
+#-----------------------------------------------------------------------
+# Name        : query_nfs
+# Purpose     : Get all the nfs mounts
+# Arguments   : 
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : retrieve results with "while ( my $r=sql_getrow()){"
+#-----------------------------------------------------------------------
+sub query_nfs {
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_nfs $package, $filename, line number $line");
+	sql_query("SELECT * FROM nfs");
 }
 
 #  _     __  _  _  
 # |_)/\ /__ |_ (_  
 # | /--\\_| |_  _) 
 # 
+
+#-----------------------------------------------------------------------
+# Name        : q_page_id
+# Purpose     : get page-id fron the arguments
+# Arguments   : var,value pairs
+# Returns     : id
+# Globals     : 
+# Side‑effects: 
+# Notes       : var,value pairs are used in the where-clause
+#-----------------------------------------------------------------------
+sub q_page_id {
+	my (%updates) = @_;
+	my  %allowed_column = (
+		id	=> 1,
+		page	=> 1,
+		tbl	=> 1,
+		item	=> 1,
+		xcoord	=> 1,
+		ycoord	=> 1
+	);
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"q_page_id $package, $filename, line number $line");
+	my $where='';
+	my @vals;
+	my $retval=0;
+	while (my ($var, $val) = each %updates) {
+		$where="$where AND $var = ?";
+		push @vals,$val;
+	}
+	$where=~s/^ AND//;
+	if ($where ne ''){
+		$retval=sql_qvalue("SELECT id FROM pages WHERE $where",@vals);
+	}
+}
+
+#-----------------------------------------------------------------------
+# Name        : q_page_update
+# Purpose     : get page-id fron the arguments
+# Arguments   : id, var,value pairs
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub q_page_update {
+	my ($id,%updates) = @_;
+	my  %allowed_column = (
+		id	=> 1,
+		page	=> 1,
+		tbl	=> 1,
+		item	=> 1,
+		xcoord	=> 1,
+		ycoord	=> 1
+	);
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"q_page_update $package, $filename, line number $line");
+	my $where='';
+	my @vals;
+	my $retval=0;
+	while (my ($var, $val) = each %updates) {
+		sql_qvalue("UPDATE pages SET $var = ? WHERE id= ? ",$val,$id);
+	}
+}
 
 #-----------------------------------------------------------------------
 # Name        : query_pages_tbl_id
@@ -488,10 +1106,182 @@ sub query_obj_on_page {
 #		name is for convenience of the user.
 #-----------------------------------------------------------------------
 sub query_server{
-	(my $id, my $type)=@_;
 	my ($package, $filename, $line) = caller;
 	debug($DEB_DB,"query_server $package, $filename, line number $line");
 	sql_query("SELECT * FROM server ORDER BY name");
+}
+#-----------------------------------------------------------------------
+# Name        : query_server_names
+# Purpose     : List all server names
+# Arguments   : 
+# Returns     : server names as an array
+# Globals     : 
+# Side‑effects: @lastresult
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_server_names{
+	(my $id)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_server_names $package, $filename, line number $line");
+	my @srvnames;
+	sql_query("SELECT name FROM server ORDER BY name");
+	while (my $name=sql_getvalue()){
+		push @srvnames,$name;
+	}
+	return @srvnames;
+}
+#-----------------------------------------------------------------------
+# Name        : q_server_by_name
+# Purpose     : The following routines allow simple lookups in the table
+#		always based on the name
+# Arguments   : column,id
+# Returns     : requested value
+# Globals     : 
+# Side‑effects: 
+# Notes       : The routines use sql_qvalue, and do not touch @lastresults
+#-----------------------------------------------------------------------
+sub q_server_by_name {
+	(my $var, my $name)=@_;
+        my  %allowed_column = (
+		id         => 1,
+		name       => 1,
+		xcoord     => 1,
+		ycoord     => 1,
+		type       => 1,
+		status     => 1,
+		last_up    => 1,
+		options    => 1,
+		ostype     => 1,
+		os         => 1,
+		processor  => 1,
+		devicetype => 1,
+		memory     => 1,
+		interfaces => 1
+        );
+	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
+	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	if ($allowed_column{$var}) {
+		return sql_qvalue("SELECT $var FROM server WHERE name= ? ", $name);
+	}
+	else {
+		return $name;
+	}
+}
+
+#-----------------------------------------------------------------------
+# Name        : q_server
+# Purpose     : The following routines allow simple lookups in the table
+#		always based on the id
+# Arguments   : column,id
+# Returns     : requested value
+# Globals     : 
+# Side‑effects: 
+# Notes       : The routines use sql_qvalue, and do not touch @lastresults
+#-----------------------------------------------------------------------
+sub q_server {
+	(my $var, my $id)=@_;
+        my  %allowed_column = (
+		id         => 1,
+		name       => 1,
+		xcoord     => 1,
+		ycoord     => 1,
+		type       => 1,
+		status     => 1,
+		last_up    => 1,
+		options    => 1,
+		ostype     => 1,
+		os         => 1,
+		processor  => 1,
+		devicetype => 1,
+		memory     => 1,
+		interfaces => 1
+        );
+	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
+	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	if ($allowed_column{$var}) {
+		return sql_qvalue("SELECT $var FROM server WHERE id= ? ", $id);
+	}
+	else {
+		return $id;
+	}
+}
+
+#-----------------------------------------------------------------------
+# Name        : q_server_id_by
+# Purpose     : Get a server ID
+# Arguments   : column,value
+# Returns     : id
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub q_server_id_by {
+	my (%updates) = @_;
+        my  %allowed_column = (
+		id         => 1,
+		name       => 1,
+		xcoord     => 1,
+		ycoord     => 1,
+		type       => 1,
+		status     => 1,
+		last_up    => 1,
+		options    => 1,
+		ostype     => 1,
+		os         => 1,
+		processor  => 1,
+		devicetype => 1,
+		memory     => 1,
+		interfaces => 1
+        );
+	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
+	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	my $where='';
+	my @args;
+	while (my ($var, $val) = each %updates) {
+		if ($allowed_column{$var}) {
+			$where="$where AND $var = ? ";
+			push @args, $val;
+		}
+	}
+	$where=~s/^ AND//;
+	return sql_qvalue("SELECT id FROM server $where",@args);
+	
+}
+#-----------------------------------------------------------------------
+# Name        : q_server_update
+# Purpose     : Update a column in the server table
+# Arguments   : id, column,value
+# Returns     : requested value
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub q_server_update {
+	my ($id, %updates) = @_;
+        my  %allowed_column = (
+		id         => 1,
+		name       => 1,
+		xcoord     => 1,
+		ycoord     => 1,
+		type       => 1,
+		status     => 1,
+		last_up    => 1,
+		options    => 1,
+		ostype     => 1,
+		os         => 1,
+		processor  => 1,
+		devicetype => 1,
+		memory     => 1,
+		interfaces => 1
+        );
+	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
+	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	return unless defined $id;
+	while (my ($var, $val) = each %updates) {
+		if ($allowed_column{$var}) {
+			sql_qvalue("UPDATE server SET $var = ?  WHERE id= ? ",$val, $id);
+		}
+	}
 }
 
 
@@ -513,6 +1303,35 @@ sub query_server_update_type {
 }
 
 
+#-----------------------------------------------------------------------
+# Name        : query_delete_server
+# Purpose     : Delete a server. Remove also the interfaces and connections
+# Arguments   : id
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_delete_server {
+	(my $id)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_delete_server $package, $filename, line number $line");
+	my @iflist;
+	sql_query("DELETE FROM pages WHERE tbl='server' AND item = ? ",$id);
+	sql_query("SELECT id FROM interfaces WHERE host= ? ",$id);
+	my $interface=sql_getvalue();
+	while (defined $interface){
+		push @iflist,$interface;
+		$interface=sql_getvalue();
+	}
+	for $interface (@iflist){
+		sql_query("DELETE FROM l2connect  WHERE to_tbl='interfaces' and to_id= ? ", $interface);
+		sql_query("DELETE FROM l2connect  WHERE from_tbl='interfaces' and from_id= ? ", $interface);
+		sql_query("DELETE FROM interfaces WHERE id= ? ", $interface);
+	}
+	sql_query("DELETE FROM server WHERE id= ? ", $id);
+}
+
 # _     _     _ ___
 #(_ | ||_)|\||_  |  
 # _)|_||_)| ||_  |  
@@ -529,12 +1348,125 @@ sub query_server_update_type {
 #		nwaddress is for convenience of the user.
 #-----------------------------------------------------------------------
 sub query_subnet{
-	(my $id, my $type)=@_;
 	my ($package, $filename, $line) = caller;
 	debug($DEB_DB,"query_subnet $package, $filename, line number $line");
 	sql_query("SELECT * FROM subnet ORDER BY nwaddress");
 }
 
+#-----------------------------------------------------------------------
+# Name        : query_delete_subnet
+# Purpose     : Detele a subnet
+# Arguments   : id
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : It is not possible to delete all interfaces on the subnet
+#		because they could be on another subnet as well
+#-----------------------------------------------------------------------
+sub query_delete_subnet{
+	(my $id)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_delete_subnet $package, $filename, line number $line");
+	sql_query("DELETE FROM subnet WHERE id= ?", $id);
+}
+
+
+#-----------------------------------------------------------------------
+# Name        : q_subnet_id_by
+# Purpose     : Get an ID based on a column value
+# Arguments   : 
+# Returns     : id
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub q_subnet_id_by {
+	(my $var, my $val)=@_;
+        my  %allowed_column = (
+		id         =>1,
+		nwaddress  =>1,
+		cidr       =>1,
+		xcoord     =>1,
+		ycoord     =>1,
+		name       =>1,
+		options    =>1,
+		access     =>1
+        );
+	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
+	debug($DEB_DB,"$sbr $package, $filename, line number $line");
+	if ($allowed_column{$var}) {
+		return sql_qvalue("SELECT id FROM subnet WHERE $var= ? LIMIT 1", $val);
+	}
+	else {
+		debug($DEB_DB,"ILLEGAL COLUMN $var");
+		return $val;
+	}
+}
+
+#-----------------------------------------------------------------------
+# Name        : q_subnet
+# Purpose     : Get a a value based on a column value
+# Arguments   : 
+# Returns     : column name, id
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub q_subnet {
+	(my $var,my $id)=@_;
+        my  %allowed_column = (
+		id         =>1,
+		nwaddress  =>1,
+		cidr       =>1,
+		xcoord     =>1,
+		ycoord     =>1,
+		name       =>1,
+		options    =>1,
+		access     =>1
+        );
+	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
+	debug($DEB_DB,"$sbr $package, $filename, line number $line");
+	if ($allowed_column{$var}) {
+		return sql_qvalue("SELECT $var FROM subnet WHERE id= ? LIMIT 1", $id);
+	}
+	else {
+		debug($DEB_DB,"ILLEGAL COLUMN $var");
+		return $id;
+	}
+}
+#-----------------------------------------------------------------------
+# Name        : q_subnet_update
+# Purpose     : Update a column based on ID
+# Arguments   : 
+# Returns     : id
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub q_subnet_update {
+	my ($id, %updates) = @_;
+        my  %allowed_column = (
+		id         =>1,
+		nwaddress  =>1,
+		cidr       =>1,
+		xcoord     =>1,
+		ycoord     =>1,
+		name       =>1,
+		options    =>1,
+		access     =>1
+        );
+	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
+	debug($DEB_DB,"$sbr $package, $filename, line number $line");
+	return unless defined $id;
+	while (my ($var, $val) = each %updates) {
+		if ($allowed_column{$var}) {
+			sql_qvalue("UPDATE subnet SET $var = ? WHERE id = ? ", $val,$id);
+		}
+		else {
+			debug($DEB_DB,"ILLEGAL COLUMN $var");
+		}
+	}
+}
 
 #  __        ___ ___  _     
 # (_  \    /  |   |  /  |_| 
@@ -558,23 +1490,162 @@ sub query_switch{
 }
 
 #-----------------------------------------------------------------------
-# Name        : query_switch_by_server
-# Purpose     : Select rows from the tabel switch by server
-# Arguments   : server
+# Name        : query_delete_switch
+# Purpose     : Delets a switch
+# Arguments   : ID
 # Returns     : 
-# Globals     : @lastresult
+# Globals     : 
 # Side‑effects: 
-# Notes       : Retrieve rows with sql_getrow()
+# Notes       : 
 #-----------------------------------------------------------------------
-sub query_switch_by_server {
-	(my $name)=@_;
+sub query_delete_switch {
+	(my $id)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_switch_by_name $package, $filename, line number $line");
-	sql_query("SELECT * FROM switch WHERE server = ? ", $name);
+	debug($DEB_DB,"query_delete_switch $package, $filename, line number $line");
+	sql_query("DELETE FROM switch WHERE id = ? ", $id);
+}
+#-----------------------------------------------------------------------
+# Name        : query_switch_names
+# Purpose     : List all switch names
+# Arguments   : 
+# Returns     : switch names as an array
+# Globals     : 
+# Side‑effects: @lastresult
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_switch_names{
+	(my $id)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_switch_names $package, $filename, line number $line");
+	my @swnames;
+	sql_query("SELECT name FROM switch");
+	while (my $name=sql_getvalue()){
+		push @swnames,$name;
+	}
+	return @swnames;
 }
 
+#-----------------------------------------------------------------------
+# Name        : q_switch
+# Purpose     : The following routines allow simple lookups in the table
+#		always based on the id
+# Arguments   : column,id
+# Returns     : requested value
+# Globals     : 
+# Side‑effects: 
+# Notes       : The routines use sql_qvalue, and do not touch @lastresults
+#-----------------------------------------------------------------------
+sub q_switch {
+	(my $var, my $id)=@_;
+        my  %allowed_column = (
+		id         => 1,
+		name       => 1,
+		server     => 1,
+		switch     => 1,
+		port       => 1
+        );
+	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
+	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	if ($allowed_column{$var}) {
+		return sql_qvalue("SELECT $var  FROM server WHERE id= ? ", $id);
+	}
+	else {
+		return $id;
+	}
+}
+#-----------------------------------------------------------------------
+# Name        : q_switch_id_by
+# Purpose     : Get the ID of the switch from the value of another column
+# Arguments   : column,value
+# Returns     : id
+# Globals     : 
+# Side‑effects: 
+# Notes       : The routines use sql_qvalue, and do not touch @lastresults
+#-----------------------------------------------------------------------
+sub q_switch_id_by {
+	(my $var, my $val)=@_;
+        my  %allowed_column = (
+		id         => 1,
+		name       => 1,
+		server     => 1,
+		switch     => 1,
+		port       => 1
+        );
+	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
+	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	if ($allowed_column{$var}) {
+		return sql_qvalue("SELECT id  FROM switch WHERE $var= ? ", $val);
+	}
+	else {
+		return $val;
+	}
+}
+#-----------------------------------------------------------------------
+# Name        : q_switch_update
+# Purpose     : Update a column based on ID
+# Arguments   : 
+# Returns     : id
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub q_switch_update {
+	my ($id, %updates) = @_;
+        my  %allowed_column = (
+		id         => 1,
+		name       => 1,
+		server     => 1,
+		switch     => 1,
+		port       => 1
+        );
+	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
+	debug($DEB_DB,"$sbr $package, $filename, line number $line");
+	return unless defined $id;
+	while (my ($var, $val) = each %updates) {
+		if ($allowed_column{$var}) {
+			sql_qvalue("UPDATE switch SET $var = ? WHERE id = ? ", $val,$id);
+		}
+		else {
+			debug($DEB_DB,"ILLEGAL COLUMN $var");
+		}
+	}
+}
 
-
+#-----------------------------------------------------------------------
+# Name        : q_switch_insert
+# Purpose     : Insert a new switch
+# Arguments   : pairs of column,value
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : There must alway be a name
+#-----------------------------------------------------------------------
+sub q_switch_insert {
+	my (%updates) = @_;
+        my  %allowed_column = (
+		name       => 1,
+		server     => 1,
+		switch     => 1,
+		port       => 1
+        );
+	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
+	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	my %values;
+	while (my ($var, $val) = each %updates) {
+		if ($allowed_column{$var}) {
+			$values{$var}=$val;
+		}
+	}
+	return 0 unless defined $values{name};
+	sql_qvalue("INSERT INTO switch (name) VALUES ( ? )",$values{name});
+	while (my ($var, $val) = each %updates) {
+		if ($allowed_column{$var}) {
+			if(defined($val)){
+				sql_qvalue("UPDATE switch SET $var = ? WHERE name = ? ", $val,$values{name});
+			}
+		}
+	}
+}
 
 our $button_frame;
 our $buttonframe;

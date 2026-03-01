@@ -35,28 +35,33 @@ my $switch_ports=0;
 
 sub switch_del_a_switch {
 	debug($DEB_SUB,"switch_del_a_switch");
-	db_dosql("DELETE FROM switch WHERE name='$switch_addswitch'");
+	my $sw_id=q_switch_id_by('mame',$switch_addswitch);
+	query_delete_switch($sw_id);
 	switch_input();
 }
 
 sub switch_add_a_switch {
 	debug($DEB_SUB,"switch_add_a_switch");
 	switch_del_a_switch();
-	db_dosql("INSERT INTO switch (name,switch,server,ports) VALUES ('$switch_addswitch','$switch_type','$switch_server',$switch_ports)");
+	q_switch_insert ('name',$switch_addswitch,'switch',$switch_type,'server',$switch_server,'ports',$switch_ports);
 	switch_input();
 }	
 
 sub switch_change_a_switch {
 	debug($DEB_SUB,"switch_change_a_switch");
 	switch_del_a_switch();
-	db_dosql("INSERT INTO switch (name,switch,server,ports) VALUES ('$switch_addswitch','$switch_type','$switch_server',$switch_ports)");
+	q_switch_insert ('name',$switch_addswitch,'switch',$switch_type,'server',$switch_server,'ports',$switch_ports)
 }
 
 sub switch_select_a_switch {
 	debug($DEB_SUB,"switch_select_a_switch");
 	$switch_addswitch=$switch_selectedswitch;
-	db_dosql("SELECT id,name,switch,server,ports FROM switch WHERE name='$switch_selectedswitch'");
-	($switch_id,$switch_name,$switch_type,$switch_server,$switch_ports)=db_getrow();
+	$switch_id=q_switch_id_by('name',$switch_selectedswitch);
+	$switch_name=q_switch('name',$switch_id);
+	$switch_type=q_switch('switch',$switch_id);
+	$switch_server=q_switch('server',$switch_id);
+	$switch_ports=q_switch('ports',$switch_id);
+	
 }
 
 
@@ -70,12 +75,7 @@ sub switch_input {
 	my $detailsframe=$main_frame->Frame()->pack(-side =>'right');
 
 	splice @switch_switchlist;
-	my $i=0;
-	db_dosql("SELECT name FROM switch");
-	while((my $name) = db_getrow()){
-		$switch_switchlist[$i]=$name;
-		$i++;
-	}
+	@switch_switchlist=query_switch_names();
 	my $switchlistbox=$switchframe->Scrolled("Listbox", -scrollbars=>'e',-width=>28,-height=>20)->pack(-side=>'top');
 	$switchlistbox->insert('end',@switch_switchlist);
 	$switchlistbox->bind('<<ListboxSelect>>' => sub {

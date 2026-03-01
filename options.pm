@@ -42,8 +42,8 @@ sub options_read {
 		$config{"line:color:vbox"}='lightgrey';
 		query_set_line_color('vbox','lightgrey');
 	}
-	my $vlansref=query_l2_getvlans();
-	for my $vlan (@$vlansref){
+	my @vlanslist=query_l2_getvlans();
+	for my $vlan (@vlanslist){
 		$vlan=1 unless defined $vlan;
 		if ($vlan=~/^[0-9][0-9]*$/){ $vlan="vlan$vlan";}
 		if (! defined $config{"line:color:$vlan"}){

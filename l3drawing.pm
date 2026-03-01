@@ -52,7 +52,6 @@ our $DEBUG;
 sub l3_objects {
 	debug($DEB_SUB,"l3_objects");
 	splice @l3_obj;
-	db_get_interfaces;
 	put_netinobj($l3_showpage,\@l3_obj);
 	put_serverinobj($l3_showpage,\@l3_obj,3);
 	put_cloudinobj($l3_showpage,\@l3_obj);
@@ -64,9 +63,8 @@ sub l3_lines {
 	my @interfacelist;
 	splice @l3_line;
 
-	db_dosql("SELECT id,options FROM subnet WHERE nwaddress='Internet'");
-	(my $Internet,my $Internetoptions)=db_getrow();
-	while (db_getrow()){};db_close();
+	my $Internet=q_subnet_id_by('nwaddress','Internet');
+	my $Internetoptions=q_subnet('options',$Internet);
 	my $Internetcolor='black';
 	if ($Internetoptions=~/color=([^;]+);/){
 		$Internetcolor=$1;
@@ -76,13 +74,7 @@ sub l3_lines {
 		if ($l3_obj[$i]->{'table'} eq 'server'){
 			my $orig_id=$l3_obj[$i]->{'id'};
 			my $obj_id=$l3_obj[$i]->{'newid'};
-			splice my @interfacelist;
-			my $sql = "SELECT ip FROM interfaces WHERE host='$orig_id'";
-			my $sth = db_dosql($sql);
-			while((my $ip) = db_getrow()){
-				push @interfacelist,$ip;
-			}
-			db_close();
+			@interfacelist=query_if_ip_by_host($orig_id);
 			for my $j ( 0 .. $#l3_obj){
 				if ($l3_obj[$j]->{'table'} eq 'subnet'){
 					my $netw_id=$l3_obj[$j]->{'newid'};
@@ -192,15 +184,12 @@ sub l3_color {
 	(my $table, my $id, my $color)=@_;
 	debug($DEB_SUB,"l3_color");
 	if ($table eq 'subnet'){
-		db_dosql("SELECT options FROM $table WHERE id=$id");
-		(my $opts)=db_getrow();
-		while (db_getrow()){}; db_close();
+		my $opts=q_subnet('options',$id);
 		while ($opts=~/color=[^;]*;/){
 			$opts=~s/color=[^;]*;//;
 		}
 		$opts="color=$color;$opts";
-		db_dosql("UPDATE $table SET options='$opts' WHERE id=$id");
-		db_close();
+		q_subnet_update($id,'options',$opts);
 	}
 	l3_renew_content();
 }
@@ -208,9 +197,7 @@ sub l3_devicetype {
 	(my $table, my $id, my $type)=@_;
 	debug($DEB_SUB,"l3_devicetype");
 	if ($table eq 'server'){
-		#my $sql = "UPDATE $table SET type='$type' WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
-		db_dosql("UPDATE $table SET devicetype='$type' WHERE id=$id");
-		db_close();
+		q_server_update($id,'devicetype',$type);
 	}
 	l3_renew_content();
 }
@@ -231,42 +218,30 @@ sub l3_type {
 	my ($package, $filename, $line) = caller;
 	debug($DEB_SUB,"l3_type $package, $filename, line number $line");
 	if ($table eq 'server'){
-		#my $sql = "UPDATE $table SET type='$type' WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
-		#db_dosql("UPDATE $table SET type='$type' WHERE id=$id");
-		#db_close();
-		query_server_update_type($id,$type);
+		q_server_update($id,'type',$type);
 	}
 	elsif ($table eq 'cloud'){
-		#my $sql = "UPDATE $table SET type='$type' WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
-		#db_dosql("UPDATE $table SET type='$type' WHERE id=$id");
-		#db_close();
-		query_cloud_update_type($id,$type);
+		q_cloud_update($id,'type',$type);
 	}
 	l3_renew_content();
 }
 sub l3_name {
 	(my $table, my $id, my $name)=@_;
-	debug($DEB_SUB,"l3_name");
-	my $sql = "UPDATE $table SET name='$name' WHERE id=$id"; db_dosql($sql); db_close();
+	if ($table eq 'subnet'){ q_subnet_update($id,'name',$name);}
+	if ($table eq 'server'){ q_server_update($id,'name',$name);}
+	if ($table eq 'cloud' ){ q_cloud_update ($id,'name',$name);}
 	l3_renew_content();
 }
 sub l3_delete {
 	(my $table, my $id, my $name)=@_;
 	debug($DEB_SUB,"l3_delete");
-	if ($table eq 'server'){
-		db_dosql("SELECT id FROM interfaces WHERE host=$id");
-		my @ifids; splice @ifids;
-		while ((my $ifid)=db_getrow()){ push @ifids,$ifid; }
-		db_close();
-		for my $ifid (@ifids){
-			db_dosql("DELETE FROM l2connect WHERE to_tbl='interfaces' and to_id=$ifid");
-			db_close();
-		}
-		db_dosql("DELETE FROM interfaces WHERE host=$id");
-		db_close();
+	if ($table eq 'server'){ query_delete_server($id) }
+	elsif ($table eq 'subnet'){ query_delete_subnet($id) }
+	elsif ($table eq 'cloud'){ query_delete_cloud($id) }
+	elsif ($table eq 'switch'){ query_delete_switch($id) }
+	else {
+		print "ERROR: Delete for $table ($id, $name) is not implemented\n";
 	}
-	my $sql = "DELETE FROM $table WHERE id=$id";  db_dosql($sql);
-	db_close();
 	l3_renew_content();
 }
 sub l3_move {
@@ -275,12 +250,17 @@ sub l3_move {
 	my $sql;
 	if ((defined($id)) && (defined($x)) && (defined ($y))){
 		if ( $l3_showpage eq 'top'){
-			$sql = "UPDATE $table SET xcoord=$x WHERE id=$id"; db_dosql($sql);db_close();
-			$sql = "UPDATE $table SET ycoord=$y WHERE id=$id"; db_dosql($sql);db_close();
+			if ($table eq 'server'){ q_server_update ($id,'xcoord',$x,'ycoord',$y) }
+			elsif ($table eq 'subnet'){ q_subnet_update($id,'xcoord',$x,'ycoord',$y) }
+			elsif ($table eq 'cloud'){ q_cloud_update($id,'xcoord',$x,'ycoord',$y) }
+			elsif ($table eq 'switch'){ q_switch_update($id,'xcoord',$x,'ycoord',$y) }
+			else {
+				print "ERROR: top move for $table ($id, $x,$y) is not implemented\n";
+			}
 		}
 		else {
-			$sql = "UPDATE pages SET xcoord=$x WHERE item=$id AND tbl='$table' AND page='$l3_showpage'"; db_dosql($sql);db_close();
-			$sql = "UPDATE pages SET ycoord=$y WHERE item=$id AND tbl='$table' AND page='$l3_showpage'"; db_dosql($sql);db_close();
+			my $pgid=q_page_id('tbl',$table,'item',$id,'page',$l3_showpage);
+			q_page_update($pgid,'xcoord',$x,'ycoord',$y);
 		}
 	}
 }
@@ -291,40 +271,24 @@ sub l3_merge {
 	if ($table eq "server"){
 		my $targetid=$id;
 		if ($target =~/^(\d+\.\d+\.\d+\.\d+)/){
-			my $sql = "SELECT host FROM interfaces WHERE ip='$1'";
-			my $sth=db_dosql($sql);
-			while((my $host) = db_getrow()){
-				$targetid=$host;
-			}
-			db_close();
+			$targetid=query_if_id_by('ip',$1);
 		}
 		elsif ($target=~/^([A-Za-z]\w*)/){
-			my $sql = "SELECT id FROM server WHERE name='$1'";
-			my $sth =  db_dosql($sql);
-			while((my $host) = db_getrow()){
-				$targetid=$host;
-			}
-			db_close();
+			$targetid=q_server_id_by('name',$1);
 		}
 		if ($targetid == $id){
 			$Message="No valid target for merge\n";
 		}
 		else {
-			my $sql = "SELECT id FROM interfaces WHERE host=$id";
-			my $sth=db_dosql($sql);
+			query_if_from_host($id);
 			my @iflist;
-			splice @iflist;
-			while((my $ifid) = db_getrow()){
-				push @iflist,$ifid;
+			while (my $r=sql_getrow()){
+				push @iflist,$r->{id};
 			}
-			db_close();
 			foreach(@iflist){
-				my $sql = "UPDATE interfaces SET host=$targetid WHERE id=$_";
-				db_dosql($sql);
-				db_close();
+				q_if_update($_,'host',$targetid);
 			}
-			db_dosql("DELETE FROM server WHERE id=$id");db_close();
-			db_dosql("DELETE FROM pages  WHERE item=$id AND tbl='server'");db_close();
+			query_delete_server($id);
 		}
 	}
 	l3_renew_content();

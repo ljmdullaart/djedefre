@@ -70,6 +70,8 @@ our $showlabels=1;
 
 our $drawingname='none';
 
+our $nw_tmpx=100;
+our $nw_tmpy=100;
 
 our $DEB_FRAME;
 our $DEB_DB;

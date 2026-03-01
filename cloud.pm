@@ -45,8 +45,6 @@ my $cloud_service;
 sub cloud_del_a_cloud {
 	my ($package, $filename, $line) = caller;
 	debug($DEB_SUB,"cloud_del_a_cloud caled from $package, $filename, line number $line");
-	#db_dosql("DELETE FROM cloud WHERE name='$cloud_addcloud'");
-	#db_close();
 	query_cloud_del_name($cloud_addcloud);
 	cloud_input();
 }
@@ -64,27 +62,44 @@ sub cloud_del_a_cloud {
 sub cloud_add_a_cloud {
 	debug($DEB_SUB,"cloud_add_a_cloud");
 	cloud_del_a_cloud();
-	#db_dosql("INSERT INTO cloud (name,vendor,type,service) VALUES ('$cloud_addcloud','$cloud_vendor','$cloud_type','$cloud_service')");
-	#db_close();
 	query_cloud_add_a_cloud ($cloud_addcloud,$cloud_vendor,$cloud_type,$cloud_service);
 	cloud_input();
 }	
 
+#-----------------------------------------------------------------------
+# Name        : cloud_change_a_cloud
+# Purpose     : Change a cloud named from global variables
+# Arguments   : none;  global variables are used
+# Returns     : 
+# Globals     : $cloud_addcloud,$cloud_vendor,$cloud_type,$cloud_service
+# Side‑effects: If the cloud-name exists, it is deleted first.
+# Notes       : 
+#-----------------------------------------------------------------------
 sub cloud_change_a_cloud {
 	debug($DEB_SUB,"cloud_change_a_cloud");
 	cloud_del_a_cloud();
-	db_dosql("INSERT INTO cloud (name,vendor,type,service) VALUES ('$cloud_addcloud','$cloud_vendor','$cloud_type','$cloud_service')");
-	db_close();
+	query_cloud_add_a_cloud ($cloud_addcloud,$cloud_vendor,$cloud_type,$cloud_service);
 	cloud_input();
 }
 
+#-----------------------------------------------------------------------
+# Name        : cloud_select_a_cloud
+# Purpose     : Select a cloud named from global variables
+# Arguments   : none;  global variables are used
+# Returns     : 
+# Globals     : $cloud_addcloud, $cloud_selectedcloud
+#		$cloud_id,$cloud_name,$cloud_vendor,$cloud_type,$cloud_service
+# Side‑effects: 
+# Notes       : Globals are filled based on the query
+#-----------------------------------------------------------------------
 sub cloud_select_a_cloud {
 	debug($DEB_SUB,"cloud_select_a_cloud");
 	$cloud_addcloud=$cloud_selectedcloud;
-	db_dosql("SELECT id,name,vendor,type,service FROM cloud WHERE name='$cloud_selectedcloud'");
-	($cloud_id,$cloud_name,$cloud_vendor,$cloud_type,$cloud_service)=db_getrow();
-	while (db_getrow()){}
-	db_close();
+	query_cloud_from_name($cloud_selectedcloud);
+	my $r=sql_getrow();
+	($cloud_id,$cloud_name,$cloud_vendor,$cloud_type,$cloud_service)=
+	  ($r->{id},$r->{name},$r->{vendor},$r->{type},$r->{service});
+	
 }
 
 
@@ -99,12 +114,12 @@ sub cloud_input {
 
 	splice @cloud_cloudlist;
 	my $i=0;
-	db_dosql("SELECT name FROM cloud");
-	while((my $name) = db_getrow()){
-		$cloud_cloudlist[$i]=$name;
+	
+	query_cloud();
+	while(my $r= sql_getrow()){
+		$cloud_cloudlist[$i]=$r->{name};
 		$i++;
 	}
-	db_close();
 	my $cloudlistbox=$cloudframe->Scrolled("Listbox", -scrollbars=>'e',-width=>28,-height=>20)->pack(-side=>'top');
 	$cloudlistbox->insert('end',@cloud_cloudlist);
 	$cloudlistbox->bind('<<ListboxSelect>>' => sub {

@@ -47,6 +47,7 @@ sub put_netinobj {
 		}
 		$name="$nwaddress/$cidr" unless defined $name;
 		my $color='black';
+		$options='' unless defined $options;
 		if ($options=~/color=([^;]*);/){$color=$1;}
 		push @$ar_ref, {
 			newid	=> $id*$qobjtypes+$objtsubnet,
@@ -162,9 +163,12 @@ sub put_serverinobj {
 			$element->{'pages'}=[@pagear];
 
 			if ($layer == 2){
-				query_switch_by_server($name);
-				while (my $r = sql_getrow()){
-					$element->{'logo'}='switch';
+				my $swid=q_switch_id_by('server',$name);
+				if (defined($swid)){
+					query_switch($swid);
+					while (my $r = sql_getrow()){
+						$element->{'logo'}='switch';
+					}
 				}
 			}
 		
@@ -276,7 +280,6 @@ sub put_switchinobj {
 			pages	=> []
 		};
 	}
-	db_close();
 	foreach my $element (@$ar_ref) {
 		my $id=$element->{'id'};
 		my $table=$element->{'table'};

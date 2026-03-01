@@ -21,47 +21,12 @@ our $DEB_FRAME;
 our $DEB_DB;
 our $DEB_SUB;
 our $DEBUG;
-
-
-our @srv_devicetype;
-our @srv_interfaces;
-our @srv_last_up;
-our @srv_memory;
-our @srv_name;
-our @srv_options;
-our @srv_os;
-our @srv_ostype;
-our @srv_processor;
-our @srv_status;
-our @srv_type;
-our @srv_xcoord;
-our @srv_ycoord;
-our %srv_id;
-
-our @devicetypes;
-
-our @if_access;
-our @if_host;
-our @if_hostname;
-our @if_ifname;
-our @if_id;
-our @if_ip;
-our @if_macid;
-our @if_port;
-our @if_subnet;
-our @if_connect_if;
-
-our @l2_id;
-our @l2_from_id;
-our @l2_from_port;
-our @l2_from_tbl;
-our @l2_to_id;
-our @l2_to_port;
-our @l2_to_tbl;
-our @l2_vlan;
-our @l2_source;
-
 our $Message;
+
+# our-list that must be removed
+
+
+
 
 my $connect_listing_frame;	
 my $connectionlist_frame;
@@ -94,6 +59,15 @@ my $sel_to_if_host_name;
 my $sel_vlan;
 my $sel_source;
 
+#-----------------------------------------------------------------------
+# Name        : connections_input
+# Purpose     : Called when input->connections is selected from the menus
+# Arguments   : 
+# Returns     : 
+# Globals     : $main_frame, $connectionlist_frame
+# Side-effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
 sub connections_input {
 	debug($DEB_SUB,"connections_input");
 	$Message='';
@@ -101,47 +75,85 @@ sub connections_input {
 	$main_frame=$main_window->Frame()->pack(-side =>'top');
 	$connectionlist_frame->destroy if Tk::Exists($connectionlist_frame);
 	$connectionlist_frame=$main_frame->Frame()->pack(-side =>'top');
-	@sort_if_ip=sort @if_ip;
+	@sort_if_ip=query_if_ip();
 	mkconnectframe($connectionlist_frame);
 	mkconnectselectedframe($connectionlist_frame);
 }
 
 
+#-----------------------------------------------------------------------
+# Name        : connect_select_callback
+# Purpose     : Called when a connection is selected from the list. The
+#		global variables in the mkconnectselectedframe are set
+#		from the selected line.
+# Arguments   : sel_id - the id of the selected connection
+# Returns     : 
+# Globals     : $sel_id
+#		$sel_from_tbl
+#		$sel_from_id
+#		sel_from_port
+#		$sel_to_tbl
+#		$sel_to_id
+#		$sel_to_port
+#		$sel_vlan
+#		$sel_source
+#		$sel_from_if_name
+#		$sel_from_ip
+#		$sel_from_if_host_id
+#		$sel_from_if_host_name
+#		$sel_to_if_name
+#		$sel_to_ip
+#		$sel_to_if_host_id
+#		$sel_to_if_host_name
+# Side-effects: The fields in the connectselectedframe are set.
+# Notes       : 
+#-----------------------------------------------------------------------
 sub connect_select_callback {
 	(my $arg)=@_;
 	$sel_id=$arg;
-	$sel_from_tbl=$l2_from_tbl[$sel_id];
-	$sel_from_id=$l2_from_id[$sel_id];
-	$sel_from_if_name=$if_ifname[$sel_from_id];
-	$sel_from_ip=$if_ip[$sel_from_id];
-	$sel_from_port=$l2_from_port[$sel_id];
-	$sel_from_if_host_id=$if_host[$sel_from_id];
-	$sel_from_if_host_name=$srv_name[$sel_from_if_host_id];
+	query_l2_by_id($sel_id);
+	my $r=sql_getrow();
+	$sel_from_tbl=$r->{from_tbl};
+	$sel_from_id=$r->{from_id};
+	$sel_from_port=$r->{from_port};
+	$sel_to_tbl=$r->{to_tbl};
+	$sel_to_id=$r->{to_id};
+	$sel_to_port=$r->{to_port};
+	$sel_vlan=$r->{vlan};
+	$sel_source=$r->{source};
+
+	query_if_by_id($sel_from_id);
+	$r=sql_getrow();
+	$sel_from_if_name=$r->{ifname};
+	$sel_from_ip=$r->{ip};
+	$sel_from_if_host_id=$r->{host};
+
+	$sel_from_if_host_name=q_server('name',$sel_from_if_host_id);
 	
-	$sel_to_tbl=$l2_to_tbl[$sel_id];
-	$sel_to_id=$l2_to_id[$sel_id];
-	$sel_to_if_name=$if_ifname[$sel_to_id];
-	$sel_to_ip=$if_ip[$sel_to_id];
-	$sel_to_port=$l2_to_port[$sel_id];
-	$sel_to_if_host_id=$if_host[$sel_to_id];
-	$sel_to_if_host_name=$srv_name[$sel_to_if_host_id];
-	$sel_vlan=$l2_vlan[$sel_id];
-	$sel_source=$l2_source[$sel_id];
+	query_if_by_id($sel_to_id);
+	$r=sql_getrow();
+	$sel_to_if_name=$r->{ifname};
+	$sel_to_ip=$r->{ip};
+	$sel_to_if_host_id=$r->{host};
+
+	$sel_to_if_host_name=q_server('name',$sel_to_if_host_id);
 
 }
 
 
-my @switchname;
 
-
+#-----------------------------------------------------------------------
+# Name        : mkconnectframe
+# Purpose     : Using a multilist, create a frame with all the connections
+#		in l2connect. Add information from other tables as well.
+# Arguments   : parent frame 
+# Returns     : 
+# Globals     : 
+# Side-effects: 
+# Notes       :
+#-----------------------------------------------------------------------
 sub mkconnectframe {
 	(my $parent)=@_;
-	db_get_l2();
-	db_get_interfaces();
-	db_get_server();
-	db_dosql("SELECT id,name FROM switch");
-	while ((my $id, my $name)=db_getrow()){ $switchname[$id]=$name;}
-	db_close();
 	$connect_listing_frame->destroy if Tk::Exists($connect_listing_frame);
 	$connect_listing_frame=$parent->Frame()->pack(-side =>'top');
 	$connect_listing_frame->Label(-text=>"Connections")->pack(-side =>'top');
@@ -165,102 +177,108 @@ sub mkconnectframe {
 	ml_colwidth(@ar);
 	@ar=('ID','FROM','Fr-ID','IF name','IP','Port','Host name','TO','To-ID','IF name','IP','Port','Host name','VLAN','Source');
 	ml_colhead(@ar);
+	my @l2_id=query_l2_ids();
 	foreach my $id (@l2_id){
 		next unless defined $id;
-		my $from_if;
-		my $from_ip;
-		my $from_if_name;
-		my $from_if_host;
+		my $from_if=q_l2connect('from_id',$id);
+		my $to_if=q_l2connect('to_id',$id);
+		my $from_tbl=q_l2connect('from_tbl',$id);
+		my $to_tbl=q_l2connect('to_tbl',$id);
+		my $fromport=q_l2connect('from_port',$id); 
+		$fromport='' unless defined $fromport;
+		if ($fromport =~ /^\d+$/ && $fromport> 9999){$fromport='';}
+		my $toport=q_l2connect('to_port',$id);
+		$toport='' unless defined $toport;
+		if ($toport =~ /^\d+$/ && $toport> 9999){$toport='';}
+
+		my $from_ip     =q_interfaces('ip'    ,$from_if);
+		my $from_if_name=q_interfaces('ifname',$from_if);
+		my $from_if_host=q_interfaces('host'  ,$from_if);
+
+		my $to_ip       =q_interfaces('ip'    ,$to_if);
+		my $to_if_name  =q_interfaces('ifname',$to_if);
+		my $to_if_host  =q_interfaces('host'  ,$to_if);
+
 		my $from_if_host_name;
-		my $to_if;
-		my $to_ip;
-		my $to_if_name;
-		my $to_if_host;
 		my $to_if_host_name;
-		my $fromport='';
-		my $toport='';
-		if ($l2_from_port[$id] < 10000){$fromport=$l2_from_port[$id];}
-		if ($l2_to_port[$id]   < 10000){$toport=  $l2_to_port[$id];}
 
-		$from_if=$l2_from_id[$id];
-		$from_if_name=$if_ifname[$from_if];
-		$from_ip=$if_ip[$from_if];
-		$from_if_host=$if_host[$from_if];
-		if ($l2_from_tbl[$id] eq 'switch'){
-			$from_if_host_name=$switchname[$from_if];
+		if ($from_tbl eq 'switch'){
+			$from_if_host_name=q_switch('name',$from_if);
 		}
 		else {
-			$from_if_host_name=$srv_name[$from_if_host];
+			$from_if_host_name=q_server('name',$from_if_host);
 		}
-		$to_if=$l2_to_id[$id];
-		$to_if_name=$if_ifname[$to_if];
-		$to_ip=$if_ip[$to_if];
-		$to_if_name="$if_ifname[$to_if]";
-		$to_if_host=$if_host[$to_if];
-		#if ($l2_to_tbl[$id] eq 'switch'){ $to_if_host_name=$switchname[$to_if]; } else { $to_if_host_name="$if_ifname[$to_if]";}
-
-		if ($l2_to_tbl[$id] eq 'switch'){
-			$to_if_host_name=$switchname[$to_if];
+		if ($to_tbl eq 'switch'){
+			$to_if_host_name=q_switch('name',$to_if);
 		}
 		else {
-			$to_if_host_name=$srv_name[$to_if_host];
+			$to_if_host_name=q_server('name',$to_if_host);
 		}
 		$ar[0]=$id;
-		$ar[1]=$l2_from_tbl[$id];
-		$ar[2]=$l2_from_id[$id];
+		$ar[1]=$from_tbl;
+		$ar[2]=q_l2connect('from_id',$id);
 		$ar[3]=$from_if_name;
 		$ar[4]=$from_ip;
 		$ar[5]=$fromport;
 		$ar[6]=$from_if_host_name;
-		$ar[7]=$l2_to_tbl[$id];
-		$ar[8]=$l2_to_id[$id];
+		$ar[7]=$to_tbl;
+		$ar[8]=q_l2connect('to_id',$id);
 		$ar[9]=$to_if_name;
 		$ar[10]=$to_ip;
 		$ar[11]=$toport;
 		$ar[12]=$to_if_host_name;
-		$ar[13]=$l2_vlan[$id];
-		$ar[14]=$l2_source[$id];
+		$ar[13]=q_l2connect('vlans',$id);
+		$ar[14]=q_l2connect('source',$id);
 		ml_insert(@ar);
 	}
 	ml_create();
 	ml_callback(\&connect_select_callback);
 }
 
+#-----------------------------------------------------------------------
+# Name        : mkconnectselectedframe
+# Purpose     : Make the fill-in list below the listing frame.
+# Arguments   : parent frame 
+# Returns     : 
+# Globals     : All content of the fields are global, but local to this file
+#		$sel_from_tbl
+#		$sel_from_if_host_name
+#		$sel_from_if_name
+#		$sel_from_ip
+#		$sel_from_id
+#		$sel_from_port
+#		$sel_to_tbl
+#		$sel_to_if_host_name
+#		$sel_to_if_name
+#		$sel_to_ip
+#		$sel_to_id
+#		$sel_to_port
+#		$sel_vlan
+#		$sel_source
+#		$sel_id
+# Side-effects: 
+# Notes       :
+#-----------------------------------------------------------------------
 sub mkconnectselectedframe {
 	(my $parent)=@_;
+	my $ref;
 	$lastparent=$parent;
 	my $localframe;
 	my $jbrowse;
-	my @objlist=@srv_name;
-	db_dosql("SELECT name FROM switch");
-	while ((my $nme)=db_getrow()){
-		push @objlist,$nme;
-	}
-	db_close();
-	@sort_if_ip=uniq( @if_ip);
-	@sort_if_ip=sort @sort_if_ip;
-	my @usrvlist=uniq(@objlist);
-	my @srtsrvlist=sort @usrvlist;
+	my @objlist=query_server_names();
+	my @tmp=query_switch_names();
+	push @objlist,@tmp;
+	@sort_if_ip=query_if_ip();
+	unshift (@sort_if_ip,'');
+	my @srtsrvlist=uniq(@objlist);
 	unshift (@srtsrvlist,'');
-	my @uvlanlist=uniq(@l2_vlan);
-	my @srtvlanlist=sort @uvlanlist;
+	@srtsrvlist=sort @srtsrvlist;
+	my @srtvlanlist=query_l2_getvlans();
 	unshift(@srtvlanlist,'');
-	splice @fromiflist;
-	my @toiflist; splice @toiflist;
 	$sel_from_if_host_name ='' unless defined $sel_from_if_host_name;
-	if ($sel_from_if_host_name eq ''){
-		@fromiflist=uniq(@if_ifname);
-	}
-	else {
-		#db_dosql("SELECT id FROM server WHERE name='$sel_from_if_host_name'");
-
-		@fromiflist=uniq(@if_ifname);
-	}
-
-	@fromiflist=sort @fromiflist;
-		@toiflist=sort @fromiflist;
-	my @sourcelist=uniq(@l2_source);
-	@sourcelist=sort @sourcelist;
+	my @fromiflist=query_if_names();
+	my @toiflist=@fromiflist;
+	my @sourcelist=query_l2_sources();
 	unshift (@sourcelist,"Manual");
 	unshift (@sourcelist,"");
 	my @tablelist=('','interfaces','switch');
@@ -420,59 +438,54 @@ sub do_button {
 	my $retval;
 	$sel_vlan='' unless defined $sel_vlan;
 	$sel_source='manual' unless defined $sel_source;
-print "to=$sel_to_ip from=$sel_from_ip\n";
 	if ($action eq 'delete'){
-		db_dosql( "DELETE FROM l2connect WHERE id=$sel_id");
-		db_close();
+		query_l2_delete($sel_id);
 	}
 	if ($action eq 'change'){
-		db_dosql( "DELETE FROM l2connect WHERE id=$sel_id");
-		db_close();
+		query_l2_delete($sel_id);
 		$action='add'
 	}
 	if ($action eq 'add'){
 		if ($sel_from_tbl eq 'interfaces'){
 			$fromtype='interfaces';
-			my $from_hostid=db_value("SELECT id FROM server WHERE name='$sel_from_if_host_name'");
-			print "Adding from $sel_from_if_host_name ($from_hostid)\n";
+			my $from_hostid=q_server_by_name('id',$sel_from_if_host_name);
 			$sel_from_id=-1;
 			if (defined ($from_hostid)){
 				$sel_from_if_name='' unless defined $sel_from_if_name;
-				my $retval=db_value("SELECT id FROM interfaces WHERE host=$from_hostid AND ifname='$sel_from_if_name'");
+				my $retval=query_if_by_host_ifname($from_hostid,$sel_from_if_name);
 				$sel_from_id=$retval if defined $retval;
 			}
 			if ($sel_from_id==-1){
-				$retval=db_value("SELECT id FROM interfaces WHERE ip='$sel_from_ip'");
+				$retval=query_if_id_by('ip',$sel_from_ip);
 				$sel_from_id=$retval if defined $retval;
 			}
 			if ($sel_from_id==-1){
-				$sel_from_id=db_value("SELECT id FROM interfaces WHERE host=$from_hostid");
+				$sel_from_id=query_if_id_by('host',$from_hostid);
 			}
 			if ("$sel_from_port" eq ""){$sel_from_port="NULL";}
 			$sel_from_port=10000 unless defined $sel_from_port;
 		}
 		if ($sel_from_tbl eq 'switch'){
 			$fromtype='switch';
-			my $from_swid=db_value("SELECT id FROM switch WHERE name='$sel_from_if_host_name'");
+			my $from_swid=q_switch_id_by('name',$sel_from_if_host_name);
 			$sel_from_id=$from_swid;
 		}
 		if ($sel_to_tbl eq 'interfaces'){
 			$totype='interfaces';
-			my $to_hostid=db_value("SELECT id FROM server WHERE name='$sel_to_if_host_name'");
-			print "Adding to $sel_to_if_host_name ($to_hostid)\n";
+			my $to_hostid=q_server_by_name('id',$sel_to_if_host_name);
 			
 			$sel_to_id=-1;
 			if (defined ($to_hostid)){
 				$sel_to_if_name='' unless defined $sel_to_if_name;
-				my $retval=db_value("SELECT id FROM interfaces WHERE host=$to_hostid AND ifname='$sel_to_if_name'");
+				my $retval=query_if_by_host_ifname($to_hostid,$sel_to_if_name);
 				$sel_to_id=$retval if defined $retval;
 			}
 			if ($sel_to_id==-1){
-				$retval=db_value("SELECT id FROM interfaces WHERE ip='$sel_to_ip'");
+				$retval=query_if_id_by('ip',$sel_to_ip);
 				$sel_to_id=$retval if defined $retval;
 			}
 			if ($sel_to_id==-1){
-				my $ip_id=db_value("SELECT id FROM interfaces WHERE host=$to_hostid");
+				$sel_from_id=query_if_id_by('host',$to_hostid);
 				
 			}
 			#$sel_to_port=10000 unless defined $sel_to_port;
@@ -480,21 +493,16 @@ print "to=$sel_to_ip from=$sel_from_ip\n";
 		}
 		if ($sel_to_tbl eq 'switch'){
 			$totype='switch';
-			my $to_swid=db_value("SELECT id FROM switch WHERE name='$sel_to_if_host_name'");
+			my $to_swid=q_switch_id_by('name',$sel_to_if_host_name);
 			$sel_to_id=$to_swid;
 		}
 		$sel_vlan=0 unless defined $sel_vlan;
-		db_dosql ("INSERT INTO l2connect (from_tbl,  from_id,     from_port,      to_tbl,  to_id,     to_port,      vlan,        source)
-		           VALUES (              '$fromtype',$sel_from_id,$sel_from_port,'$totype',$sel_to_id,$sel_to_port,'$sel_vlan','$sel_source')");
-	
+		query_l2_insert($fromtype,$sel_from_id,$sel_from_port,$totype,$sel_to_id,$sel_to_port,$sel_vlan,$sel_source);
 	}
 	mkconnectselectedframe($lastparent);
 }
 sub refill_fromif{
-	db_dosql("SELECT id FROM server WHERE name='$sel_from_if_host_name'");
-	splice @fromiflist;
-	@fromiflist=uniq(@if_ifname);
-	@fromiflist=sort @fromiflist;
+	my @fromiflist=query_if_names();
 	$fromiffield->configure(-choices => \@fromiflist);
 }
 #id          vlan        from_tbl    from_id     from_port   to_tbl      to_id       to_port     source
