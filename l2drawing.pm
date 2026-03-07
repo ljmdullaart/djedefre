@@ -18,9 +18,7 @@ use Scalar::Util qw(looks_like_number);
 #  \__,_|_|  \__,_| \_/\_/ |_|_| |_|\__, |
 #                                    |__/
 
-my @l2_obj;
 our $l2_showpage;
-#$l2_showpage='top';
 our $repeat_sub;
 
 our $DEB_FRAME;
@@ -29,18 +27,9 @@ our $DEB_SUB;
 our $DEBUG;
 our $Message;
 
+my @l2_obj;
 my $nw_tmpx=100;
 my $nw_tmpy=100;
-#sub nxttmploc {
-#	$nw_tmpx=$nw_tmpx+100;
-#	if ($nw_tmpx > 1000){
-#		$nw_tmpy=$nw_tmpy+100;
-#		$nw_tmpx=100;
-#	}
-#	if ($nw_tmpy>1000){
-#		$nw_tmpy=100;
-#	}
-#}
 my $qobjtypes=4;
 my $objtsubnet=0;
 my $objtserver=1;
@@ -49,18 +38,10 @@ my $objtcloud=3;
 
 
 
-#connect_db($config{'dbfile'});
-
 
 sub l2_objects {
 	debug($DEB_SUB,"l2_objects");
 	splice @l2_obj;
-	my @hostnames;
-	db_dosql("SELECT interfaces.id,server.name FROM interfaces INNER JOIN server WHERE interfaces.host=server.id");
-	while ((my $id,my $name)=db_getrow()){
-		$hostnames[$id]=$name;
-	}
-	db_close();
 	put_netinobj($l2_showpage,\@l2_obj);
 	put_serverinobj($l2_showpage,\@l2_obj,2);
 	put_cloudinobj($l2_showpage,\@l2_obj);
@@ -77,21 +58,19 @@ sub l2_lines {
 	my @ifserver;
 	my @serverif;
 	my %colorization;
-	db_dosql("SELECT item,value FROM config WHERE attribute='line:color'");
-	while ((my $item,my $value)=db_getrow()){
-		$colorization{$item}=$value;
+	query_config();
+	while (my $r=sql_getrow()){
+		if ($r->{attribute} eq 'line:color'){
+			$colorization{$r->{item}}=$r->{value};
+		}
 	}
-	db_close();
-	db_dosql("SELECT id,host FROM interfaces");
-	while ((my $id, my $host)=db_getrow()){
-		$ifserver[$id]=$host;
-		$serverif[$host]=$id;
+	query_interfaces();
+	while (my $r=sql_getrow()){
+		$ifserver[$r->{id}]=$r->{host};
+		$serverif[$r->{host}]=$r->{id};
 	}
-	db_close();
-	db_dosql("SELECT id,options FROM subnet WHERE nwaddress='Internet'");
-	(my $Internet,my $Internetoptions)=db_getrow();
-	while(db_getrow()){};
-	db_close();
+	my $Internet=q_subnet_id_by('nwaddress','Internet');
+	my $Internetoptions=q_subnet('options',$Internet);
 	my $Internetcolor='black';
 	if ($Internetoptions=~/color=([^;]+);/){
 		$Internetcolor=$1;
@@ -99,13 +78,11 @@ sub l2_lines {
 	my $newInternet=$Internet*$qobjtypes+$objtsubnet;
 	my $linefrom=0;
 	my $lineto=0;
-	db_dosql("SELECT vlan,from_tbl,from_id,from_port,to_tbl,to_id,to_port FROM l2connect");
-	while ((my $vlan,my $from_tbl,my $from_id,my $from_port,my $to_tbl,my $to_id,my $to_port)=db_getrow()){
-		#$to_port=9999999 unless defined $to_port;
-		#$from_port=9999999 unless defined $from_port;
+	query_l2();
+	while (my $r=sql_getrow()){
+		(my$id,my $vlan,my $from_tbl,my $from_id,my $from_port,my $to_tbl,my $to_id,my $to_port)=
+		    ($r->{id},$r->{vlan},$r->{from_tbl},$r->{from_id},$r->{from_port},$r->{to_tbl},$r->{to_id},$r->{to_port});
 		$vlan=0 unless defined $vlan;
-		#if ($to_port>1000){$to_port='';}
-		#if ($from_port>1000){$from_port='';}
 		$to_port = ( defined($to_port) && $to_port ne "" && looks_like_number($to_port) && $to_port <= 1000 ) ? $to_port : "";
 		$from_port = ( defined($from_port) && $from_port ne "" && looks_like_number($from_port) && $from_port <= 1000 ) ? $from_port : "";
 		if ($from_tbl eq 'interfaces'){
@@ -149,7 +126,6 @@ sub l2_lines {
 			}
 		}
 	}
-	db_close();
 }
 					
 my $l2_plot_frame;
@@ -192,7 +168,6 @@ sub l2_page {
 	(my $table,my $id,my $name,my $action,my $page)=@_;
 	debug($DEB_SUB,"l2_page");
 	my $arg="$table:$id:$name";
-	#$managepg_pagename=$page;
 	mgpg_selector_callback ($action,$arg,$page);
 	l2_renew_content();
 }
@@ -201,15 +176,12 @@ sub l2_color {
 	(my $table, my $id, my $color)=@_;
 	debug($DEB_SUB,"l2_color");
 	if ($table eq 'subnet'){
-		db_dosql("SELECT options FROM $table WHERE id=$id");
-		(my $opts)=db_getrow();
+		my $opts=q_subnet('options',$id); 
 		while ($opts=~/color=[^;]*;/){
 			$opts=~s/color=[^;]*;//;
 		}
-		db_close();
 		$opts="color=$color;$opts";
-		db_dosql("UPDATE $table SET options='$opts' WHERE id=$id");
-		db_close();
+		q_subnet_update ($id,'options',$opts);
 	}
 	l2_renew_content();
 }
@@ -217,9 +189,7 @@ sub l2_devicetype {
 	(my $table, my $id, my $type)=@_;
 	debug($DEB_SUB,"l2_devicetype");
 	if ($table eq 'server'){
-		#my $sql = "UPDATE $table SET type='$type' WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
-		db_dosql("UPDATE $table SET devicetype='$type' WHERE id=$id");
-		db_close();
+		q_server_update($id,'devicetype',$type);
 	}
 	l2_renew_content();
 }
@@ -227,41 +197,29 @@ sub l2_type {
 	(my $table, my $id, my $type)=@_;
 	debug($DEB_SUB,"l2_type");
 	if ($table eq 'server'){
-		#my $sql = "UPDATE $table SET type='$type' WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
-		db_dosql("UPDATE $table SET type='$type' WHERE id=$id");
-		db_close();
+		q_server_update($id,'type',$type);
 	}
 	elsif ($table eq 'cloud'){
-		#my $sql = "UPDATE $table SET type='$type' WHERE id=$id"; my $sth = $db->prepare($sql); $sth->execute();
-		db_dosql("UPDATE $table SET type='$type' WHERE id=$id");
-		db_close();
+		q_cloud_update ($id,'type',$type);
 	}
 	l2_renew_content();
 }
 sub l2_name {
 	(my $table, my $id, my $name)=@_;
 	debug($DEB_SUB,"l2_name");
-	my $sql = "UPDATE $table SET name='$name' WHERE id=$id"; db_dosql($sql);
-	db_close();
+	if ($table eq 'server'){ q_server_update($id,'name',$name);}
+	elsif ($table eq 'subnet'){ q_subnet_update($id,'name',$name);}
+	elsif ($table eq 'cloud'){ q_cloud_update($id,'name',$name);}
+	else { print "ERROR l2_name $table unsupported\n";}
 	l2_renew_content();
 }
 sub l2_delete {
 	(my $table, my $id, my $name)=@_;
 	debug($DEB_SUB,"l2_delete");
 	if ($table eq 'server'){
-		db_dosql("SELECT id FROM interfaces WHERE host=$id");
-		my @ifids; splice @ifids;
-		while ((my $ifid)=db_getrow()){ push @ifids,$ifid; }
-		db_close();
-		for my $ifid (@ifids){
-			db_dosql("DELETE FROM l2connect WHERE to_tbl='interfaces' and to_id=$ifid");
-			db_close();
-		}
-		db_dosql("DELETE FROM interfaces WHERE host=$id");
-		db_close();
+		query_delete_server($id);
 	}
-	my $sql = "DELETE FROM $table WHERE id=$id";  db_dosql($sql);
-	db_close();
+	else { print "ERROR l2_delete table unsupported\n";}
 	l2_renew_content();
 }
 sub l2_move {
@@ -269,11 +227,8 @@ sub l2_move {
 	debug($DEB_SUB,"l2_move");
 	my $sql;
 	if ((defined($id)) && (defined($x)) && (defined ($y))) {
-		$sql = "UPDATE pages SET xcoord=$x WHERE item=$id AND tbl='$table' AND page='$l2_showpage'";
-		db_dosql($sql);
-		db_close();
-		$sql = "UPDATE pages SET ycoord=$y WHERE item=$id AND tbl='$table' AND page='$l2_showpage'"; db_dosql($sql);
-		db_close();
+		my $idonpg=q_page_id('item',$id,'tbl',$table,'page',$l2_showpage);
+		q_page_update($idonpg,'xcoord',$x,'ycoord',$y);
 	}
 }
 
@@ -283,42 +238,25 @@ sub l2_merge {
 	if ($table eq "server"){
 		my $targetid=$id;
 		if ($target =~/^(\d+\.\d+\.\d+\.\d+)/){
-			my $sql = "SELECT host FROM interfaces WHERE ip='$1'";
-			my $sth=db_dosql($sql);
-			while((my $host) = db_getrow()){
-				$targetid=$host;
-			}
-			db_close();
+			my $ifid=query_if_id_by('ip',$1);
+			$targetid=q_interfaces('host',$ifid);
 		}
 		elsif ($target=~/^([A-Za-z]\w*)/){
-			my $sql = "SELECT id FROM server WHERE name='$1'";
-			my $sth =  db_dosql($sql);
-			while((my $host) = db_getrow()){
-				$targetid=$host;
-			}
-			db_close();
+			$targetid=q_server_id_by('name',$1);
 		}
 		if ($targetid == $id){
 			$Message="No valid target for merge\n";
 		}
 		else {
-			my $sql = "SELECT id FROM interfaces WHERE host=$id";
-			my $sth=db_dosql($sql);
+			query_if_from_host($id);
 			my @iflist;
-			splice @iflist;
-			while((my $ifid) = db_getrow()){
-				push @iflist,$ifid;
+			while (my $r=sql_getrow()){
+				push @iflist,$r->{id};
 			}
-			db_close();
 			foreach(@iflist){
-				my $sql = "UPDATE interfaces SET host=$targetid WHERE id=$_";
-				db_dosql($sql);
-				db_close();
+				 q_if_update($_,'host',$targetid);
 			}
-			db_dosql("DELETE FROM server WHERE id=$id");
-			db_close();
-			db_dosql("DELETE FROM pages  WHERE item=$id AND tbl='server'");
-			db_close();
+			query_delete_server($id);
 		}
 	}
 	l2_renew_content();

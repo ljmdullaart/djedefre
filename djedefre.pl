@@ -140,7 +140,7 @@ sub make_inputselectframe{
 #   
 
 
-connect_db($config{'dbfile'});
+#connect_db($config{'dbfile'});
 
 query_changed_no();
 options_read();

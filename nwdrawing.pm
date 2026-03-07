@@ -142,7 +142,6 @@ my $nw_cbcolor=\&dump;
 
 my $last_info='';
 
-our @pagelist;
 our @realpagelist;
 
 sub nw_callback {
@@ -578,7 +577,6 @@ sub nw_drag_end {
 # | | | | |  _| (_) | |  _| | | (_| | | | | | |  __/
 # |_|_| |_|_|  \___/  |_| |_|  \__,_|_| |_| |_|\___|
 #    
-# our @realpagelist;
 my $typechoice;
 my $devicetypechoice;
 

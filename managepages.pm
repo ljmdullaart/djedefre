@@ -13,9 +13,9 @@ use warnings;
 #
 
 our $buttonframe;
-our @pagelist;
-our %pagetypes;
-our @realpagelist;
+my @pagelist;
+my %pagetypes;
+my @realpagelist;
 our $l3_showpage;
 our $l2_showpage;
 our $repeat_sub;
@@ -247,23 +247,24 @@ sub manage_pages_change_action {
 	my @subnets;
 	splice @servers;
 	splice @managepg_options;
-	my $sth=db_dosql("SELECT id,name FROM server");
-	while((my $id,my $name) = db_getrow()){
+	query_server();
+	while(my $r=sql_getrow()){
+		(my $id,my $name) = ($r->{id},$r->{name});
 		$servers[$id]=$name;
 		push @managepg_options,"server:$id:$name";
 	}
-	db_close();
 	splice @subnets;
-	$sth=db_dosql("SELECT id,name,nwaddress,cidr FROM subnet");
-	while((my $id,my $name,my $nwaddress,my $cidr) = db_getrow()){
+	query_subnet();
+	while(my $r=sql_getrow()){
+		(my $id,my $name,my $nwaddress,my $cidr) = ($r->{id},$r->{name},$r->{nwaddress},$r->{cidr});
 		$name="$nwaddress/$cidr" unless defined $name;
 		$subnets[$id]=$name;
 		push @managepg_options,"subnet:$id:$name";
 	}
-	db_close();
 	splice @managepg_selection;
-	$sth=db_dosql("SELECT tbl,item FROM pages WHERE page='$pgname'");
-	while((my $tbl,my $item) = db_getrow()){
+	query_page('page',$pgname);
+	while(my $r=sql_getrow()){
+		(my $tbl,my $item) = ($r->{tbl},$r->{item});
 		my $sname='';
 		if ($tbl eq 'subnet'){
 			$sname=$subnets[$item] if defined $subnets[$item];
@@ -273,7 +274,6 @@ sub manage_pages_change_action {
 		}
 		push @managepg_selection, "$tbl:$item:$sname";
 	}
-	db_close();
 	my $cbfunc=\&mgpg_selector_callback;
 	selector({
 		options		=> \@managepg_options,
@@ -287,9 +287,7 @@ sub manage_pages_change_action {
 sub manage_pages_del_action {
 	(my $pgname)=@_;
 	debug($DEB_SUB,"manage_pages_del_action");
-	db_dosql("DELETE FROM config WHERE item='$pgname'");
-	db_dosql("DELETE FROM pages  WHERE page='$pgname'");
-	db_close();
+	q_page_delete($pgname);
 	fill_pagelist();
 	make_pageselectframe( $button_frame);
 	manage_pages();
@@ -305,9 +303,7 @@ sub manage_pages_add_action {
 		if ($_ eq $pageadd) { $flag=1; }
 	}
 	if ($flag==0){
-        	my $sql = "INSERT INTO config (attribute,item,value) VALUES ('page:type','$pageadd','l3')";
-        	my $sth =  db_dosql($sql);
-		db_close();
+		query_set_config('page:type',$pageadd,'l3');
 	}
 	else {
 		$Message="Page $pageadd already exists";
@@ -326,13 +322,8 @@ sub repeat_selected_page {
 	if ($nDEBUG > 2){ $DEBUG=0;}
 	else {$nDEBUG++;}
 	debug($DEB_SUB,"repeat_selected_page");
-	db_dosql("SELECT value FROM config WHERE attribute='run:param' AND item='changed'");
-	(my $changed)=db_getrow();
-	while(db_getrow()){};
-	db_close();
+	my $changed=q_changed();
 	if ($changed eq 'yes'){
-		db_dosql("UPDATE config SET value='no' WHERE attribute='run:param' AND item='changed'");
-		db_close();
 		display_selected_page($selected_page);
 	}
 	$DEBUG=$OLDDEBUG;

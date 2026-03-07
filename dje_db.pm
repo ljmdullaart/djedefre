@@ -301,7 +301,7 @@ sub query_set_line_color {
 
 #-----------------------------------------------------------------------
 # Name        : query_set_pagetype
-# Purpose     : Sets the color for a specific purpose
+# Purpose     : Sets the type of a page
 # Arguments   : page
 #               type
 # Returns     : 
@@ -317,10 +317,45 @@ sub query_set_pagetype {
 	sql_query ("INSERT INTO config (attribute,item,value) VALUES ('page:type', ? , ? )",$page,$type);
 }
 
+#-----------------------------------------------------------------------
+# Name        : query_set_config
+# Purpose     : Sets a variable in the config-table
+# Arguments   : attribute
+#		item
+#               value
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub query_set_config {
+	my ($attr,$item,$val)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_set_config $package, $filename, line number $line");
+	sql_query ("DELETE FROM config WHERE attribute= ? AND item= ? ",$attr,$item);
+	sql_query ("INSERT INTO config (attribute,item,value) VALUES ( ? , ? , ? )",$attr,$item,$val);
+}
+#-----------------------------------------------------------------------
+# Name        : query_config
+# Purpose     : Select complete config table
+# Arguments   : 
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : retrieve rows with sql_getrow();
+#-----------------------------------------------------------------------
+sub query_config {
+	my ($attr,$item,$val)=@_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_config $package, $filename, line number $line");
+	sql_query ("SELECT * from config")
+}
+
 #
 # _ | _     _| 
 #(_ |(_)|_|(_| 
 #             
+#CLOUD
 
 #-----------------------------------------------------------------------
 # Name        : query_delete_cloud
@@ -386,6 +421,33 @@ sub query_cloud_update_type {
 	my ($package, $filename, $line) = caller;
 	debug($DEB_DB,"query_cloud_update_type $package, $filename, line number $line");
 	sql_query("UPDATE cloud SET type= ? WHERE id= ? ",$type,$id);
+}
+#-----------------------------------------------------------------------
+# Name        : q_cloud
+# Purpose     : get a column in the cloud table
+# Arguments   : id, column
+# Returns     : requested value
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub q_cloud{
+	my ($var,$id) = @_;
+        my  %allowed_column = (
+		id         => 1,
+		name       => 1,
+		xcoord     => 1,
+		ycoord     => 1,
+		type       => 1,
+		vendor     => 1,
+		service    => 1
+        );
+	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
+	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	return unless defined $id;
+	if ($allowed_column{$var}) {
+		return sql_qvalue("SELECT $var FROM cloud WHERE id= ? ", $id);
+	}
 }
 #-----------------------------------------------------------------------
 # Name        : q_cloud_update
@@ -500,6 +562,7 @@ sub query_dashboard_servers{
 #  |  |\ |  |  |_ |_) |_  /\  /  |_ (_  
 # _|_ | \|  |  |_ | \ |  /--\ \_ |_ __) 
 #
+#INTERFACES
 #-----------------------------------------------------------------------
 # Name        : query_if_from_host
 # Purpose     : Get all interfaces belonging to a host
@@ -590,6 +653,44 @@ sub query_if_names {
 }
 
 #-----------------------------------------------------------------------
+# Name        : q_if_update
+# Purpose     : Update an interface
+# Arguments   : id, var-value pairs
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+sub q_if_update {
+	my ($id,%updates) = @_;
+	(my $var, my $val)=@_;
+        my  %allowed_column = (
+		id         =>1,
+		macid      =>1,
+		ip         =>1,
+		hostname   =>1,
+		host       =>1,
+		subnet     =>1,
+		access     =>1,
+		connect_if =>1,
+		port       =>1,
+		ifname     =>1,
+		switch     =>1,
+                options    =>1
+        );
+	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
+	debug($DEB_DB,"$sbr $package, $filename, line number $line");
+	
+	while (my ($var, $val) = each %updates) {
+		if ($allowed_column{$var}) {
+			sql_qvalue("UPDATE interfaces SET $var = ? WHERE id= ?",$val, $id);
+		}
+		else {
+			debug($DEB_DB,"ILLEGAL COLUMN $var");
+		}
+	}
+}
+#-----------------------------------------------------------------------
 # Name        : query_if_id_by
 # Purpose     : Get all ID based on a column value
 # Arguments   : 
@@ -650,6 +751,21 @@ sub query_if_ip {
 		push @iplist,$ip;
 	}
 	return @iplist;
+}
+
+#-----------------------------------------------------------------------
+# Name        : query_interfaces_extra
+# Purpose     : Get all interfaces, with server data
+# Arguments   : 
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : Results must be obtained with sql_getrow
+#-----------------------------------------------------------------------
+sub query_interfaces_extra {
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_interfaces_extra $package, $filename, line number $line");
+	sql_query("SELECT interfaces.*,server.name,server.type,server.ostype,server.os FROM interfaces INNER JOIN server WHERE interfaces.host=server.id");
 }
 
 #-----------------------------------------------------------------------
@@ -722,7 +838,7 @@ sub q_if_delete {
 #     _   _  _          _  _ ___ 
 # |    ) /  / \|\ ||\ ||_ /   |  
 # |_  /_ \_ \_/| \|| \||_ \_  |  
-#                          
+#L2CONNECT
 
 
 #-----------------------------------------------------------------------
@@ -938,7 +1054,73 @@ sub query_nfs {
 #  _     __  _  _  
 # |_)/\ /__ |_ (_  
 # | /--\\_| |_  _) 
-# 
+# PAGES
+
+
+#-----------------------------------------------------------------------
+# Name        : q_page_delete
+# Purpose     : Delete a page
+# Arguments   : var,value pairs
+# Returns     : 
+# Globals     : 
+# Side‑effects: Also deletes from the config-table.
+# Notes       :  only id and page are valid vars. Default is page name.
+#		multiple pairs delet multiple pages.
+#-----------------------------------------------------------------------
+sub q_page_delete{
+	my (%updates) = @_;
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"q_page_delete $package, $filename, line number $line");
+	while (my ($var, $val) = each %updates) {
+		my $pgname=$val;
+		if ($var eq 'id'){
+			$pgname=sql_qvalue("SELECT page FROM pages WHERE id= ? ",$val);
+		}
+		sql_qvalue("DELETE FROM config WHERE item= ? ", $pgname);
+		sql_qvalue("DELETE FROM pages  WHERE page= ? ", $pgname);
+	}
+}
+		
+
+
+
+#-----------------------------------------------------------------------
+# Name        : query_page
+# Purpose     : Get page information
+# Arguments   : var,value pairs
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : var,value pairs are used in the where-clause. Retrieve 
+#		results with sql_getrow().
+#-----------------------------------------------------------------------
+sub query_page{
+	my (%updates) = @_;
+	my  %allowed_column = (
+		id	=> 1,
+		page	=> 1,
+		tbl	=> 1,
+		item	=> 1,
+		xcoord	=> 1,
+		ycoord	=> 1
+	);
+	my ($package, $filename, $line) = caller;
+	debug($DEB_DB,"query_page $package, $filename, line number $line");
+	my $where='';
+	my @vals;
+	my $retval=0;
+	while (my ($var, $val) = each %updates) {
+		$where="$where AND $var = ?";
+		push @vals,$val;
+	}
+	$where=~s/^ AND//;
+	if ($where ne ''){
+		sql_query("SELECT * FROM pages WHERE $where",@vals);
+	}
+	else {
+		sql_query("SELECT * FROM pages ");
+	}
+}
 
 #-----------------------------------------------------------------------
 # Name        : q_page_id
@@ -1093,7 +1275,7 @@ sub query_obj_on_page {
 # __  _  _      _  _  
 #(_  |_ |_)\  /|_ |_) 
 #__) |_ | \ \/ |_ | \ 
-#
+#SERVER
 
 #-----------------------------------------------------------------------
 # Name        : query_server
@@ -1335,7 +1517,7 @@ sub query_delete_server {
 # _     _     _ ___
 #(_ | ||_)|\||_  |  
 # _)|_||_)| ||_  |  
-#
+#SUBNET
 
 #-----------------------------------------------------------------------
 # Name        : query_subnet
@@ -1646,341 +1828,5 @@ sub q_switch_insert {
 		}
 	}
 }
-
-our $button_frame;
-our $buttonframe;
-our $l2_showpage;
-our $l3_showpage;
-our $locked;
-our $main_frame;
-our $main_window;
-our $main_window_height;
-our $main_window_width;
-our $mainframe;
-our $repeat_sub;
-our @pagelist;
-our @realpagelist;
-our $package;
-our $filename;
-our $line;
-
-our %nw_logos;
-our %pagetypes;
-our @colors;
-our @devicetypes;
-our @logolist;
-
-our @if_access;
-our @if_host;
-our @if_hostname;
-our @if_name;
-our @if_ifname;
-our @if_id;
-our @if_ip;
-our @if_macid;
-our @if_port;
-our @if_subnet;
-our @if_switch;
-our @if_connect_if;
-
-our @l2_id;
-our @l2_from_id;
-our @l2_from_port;
-our @l2_from_tbl;
-our @l2_to_id;
-our @l2_to_port;
-our @l2_to_tbl;
-our @l2_vlan;
-our @l2_source;
-
-our @net_access;
-our @net_cidr;
-our @net_name;
-our @net_nwaddress;
-our @net_options;
-our @net_xcoord;
-our @net_ycoord;
-
-our %srv_id;
-our @srv_devicetype;
-our @srv_interfaces;
-our @srv_last_up;
-our @srv_memory;
-our @srv_name;
-our @srv_options;
-our @srv_os;
-our @srv_ostype;
-our @srv_processor;
-our @srv_status;
-our @srv_type;
-our @srv_xcoord;
-our @srv_ycoord;
-
-our @sw_switch;
-our @sw_server;
-our @sw_name;
-our @sw_ports;
-our %sw_id;
-
-#      _       _	_
-#   __| | __ _| |_ __ _| |__   __ _ ___  ___
-#  / _` |/ _` | __/ _` | '_ \ / _` / __|/ _ \
-# | (_| | (_| | || (_| | |_) | (_| \__ \  __/
-#  \__,_|\__,_|\__\__,_|_.__/ \__,_|___/\___|
-#
-
-my $db;
-my $db_sth;
-my $db_error=0;
-
-my $database_open=0;
-
-sub connect_db {
-	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"executing connect_db $package, $filename, $line");
-	(my $dbfile)=@_;
-	# debug(2,"Opening database $package, $filename, line number $line");
-	
-	debug($DEB_SUB,"connect_db");
-	$db = DBI->connect("dbi:SQLite:dbname=".$dbfile)
-		or die $DBI::errstr;
-	$db_error=0;
-	$database_open=1;
-	return $db;
-}
-
-
-sub db_dosql{
-	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"executing db_dosql $package, $filename, $line");
-	(my $sql)=@_;
-	debug($DEB_SUB,"db_dosql \"$sql\"");
-	if ($database_open==0){
-		connect_db($config{'dbfile'});
-		$database_open=1;
-	}
-	else {
-		
-		debug($DEB_DB,"Someone left the database open before $package, $filename, line number $line");
-		db_close();
-		connect_db($config{'dbfile'});
-	}
-	
-	if ($db_sth = $db->prepare($sql)){
-		$db_sth->execute();
-		$db_error=0;
-		return 0;
-	}
-	else { 
-		debug($DEB_DB,"Prepare failed for $sql");
-		$db_error=1;
-		return 1;
-	}
-}
-
-my $NDB=0;
-sub db_getrow {
-	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"executing db_getrow $package, $filename, $line");
-	my @row;
-	if ($db_error==1){
-		return ();
-	}
-	elsif (@row = $db_sth->fetchrow()){
-		return @row;
-	}
-	else {
-		return ();
-	}
-}
-
-sub db_value {
-	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"executing db_value $package, $filename, $line");
-	(my $sql)=@_;
-	my @row;
-	if ($database_open==0){
-		connect_db($config{'dbfile'});
-		$database_open=1;
-	}
-	else {
-		debug($DEB_DB,"Someone left the database open before $package, $filename, line number $line");
-		db_close();
-		connect_db($config{'dbfile'});
-	}
-	debug($DEB_SUB,"db_value \"$sql\"");
-	if ($db_sth = $db->prepare($sql)){
-		$db_sth->execute();
-		if (@row = $db_sth->fetchrow()){
-			return $row[0];
-		}
-		else {
-			debug($DEB_DB,"Empty row for $sql");
-			return undef;
-		}
-		db_close();
-	}
-	else { 
-		debug($DEB_DB,"Prepare failed for $sql");
-		return undef;
-	}
-}
-
-sub db_close {
-	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"executing db_close $package, $filename, $line");
-	if (defined ($db_sth)){
-		if ($db_sth->{Active}){
-			debug($DEB_DB,"db_close called with open statement handler from $filename, line: $line");
-		}
-	}
-	if ($database_open==1){
-		$db->disconnect() if defined $db;
-		$database_open=0;
-	}
-}
-
-
-sub db_get_interfaces {
-	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"executing db_get_interfaces $package, $filename, $line");
-	debug($DEB_SUB,"db_get_interfaces");
-	splice @if_id;
-	splice @if_macid;
-	splice @if_ip;
-	splice @if_hostname;
-	splice @if_name;
-	splice @if_ifname;
-	splice @if_host;
-	splice @if_subnet;
-	splice @if_access;
-	splice @if_switch;
-	splice @if_port;
-	db_dosql("SELECT id,macid,ip,hostname,host,subnet,access,connect_if,port,ifname FROM interfaces");
-	while (( my $id,my $macid,my $ip,my $hostname,my $host,my $subnet,my $access,my $switch,my $port,my $ifname)=db_getrow()){
-		$if_id[$id]=$id;
-		$if_macid[$id]=$macid;
-		$if_ip[$id]=$ip;
-		$if_hostname[$id]=$hostname;
-		$if_host[$id]=$host;
-		$if_subnet[$id]=$subnet;
-		$if_access[$id]=$access;
-		$if_connect_if[$id]=$switch;
-		$if_port[$id]=$port;
-		$if_ifname[$id]=$ifname;
-		$if_name[$id]=$ifname;
-	}
-	db_close;
-}
-
-sub db_get_subnet {
-	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"executing db_get_subnet $package, $filename, $line");
-	splice @net_nwaddress;
-	splice @net_cidr;
-	splice @net_xcoord;
-	splice @net_ycoord;
-	splice @net_name;
-	splice @net_options;
-	splice @net_access;
-	db_dosql("SELECT id, nwaddress, cidr, xcoord, ycoord, name, options, access FROM subnet");
-	while ((my $id,my $nwaddress,my $cidr,my $xcoord,my $ycoord,my $name,my $options,my $access)=db_getrow()){
-		$net_nwaddress[$id]=$nwaddress;
-		$net_cidr[$id]=$cidr;
-		$net_xcoord[$id]=$xcoord;
-		$net_ycoord[$id]=$ycoord;
-		$net_name[$id]=$name;
-		$net_options[$id]=$options;
-		$net_access[$id]=$access;
-	}
-	db_close;
-}
-	
-
-sub db_get_server {
-	my ($package, $filename, $line) = caller;
-	debug(2,"executing db_get_server $package, $filename, $line");
-	debug($DEB_SUB,"db_get_server");
-	splice @srv_name;
-	splice @srv_xcoord;
-	splice @srv_ycoord;
-	splice @srv_type;
-	splice @srv_interfaces;
-	splice @srv_devicetype;
-	splice @srv_status;
-	splice @srv_last_up;
-	splice @srv_options;
-	splice @srv_ostype;
-	splice @srv_os;
-	splice @srv_processor;
-	splice @srv_memory;
-	db_dosql("SELECT id, name, xcoord, ycoord, type, interfaces, devicetype, status, last_up, options, ostype, os, processor, memory FROM server");
-
-	while ((my $id,my $name,my $xcoord,my $ycoord,my $type,my $interfaces,my $devicetype,my $status,my $last_up,my $options,my $ostype,my $os,my $processor,my $memory)=db_getrow()){
-		$srv_name[$id]=$name;
-		$srv_xcoord[$id]=$xcoord;
-		$srv_ycoord[$id]=$ycoord;
-		$srv_type[$id]=$type;
-		$srv_interfaces[$id]=$interfaces;
-		$srv_devicetype[$id]=$devicetype;
-		$srv_status[$id]=$status;
-		$srv_last_up[$id]=$last_up;
-		$srv_options[$id]=$options;
-		$srv_ostype[$id]=$ostype;
-		$srv_os[$id]=$os;
-		$srv_processor[$id]=$processor;
-		$srv_memory[$id]=$memory;
-		$srv_id{$name}=$id;
-	}
-	db_close;
-}
-
-
-sub db_get_l2 {
-	my ($package, $filename, $line) = caller;
-	debug(2,"executing db_get_l2 $package, $filename, $line");
-	debug($DEB_SUB,"db_get_l2");
-	splice @l2_id;
-	splice @l2_vlan;
-	splice @l2_from_tbl;
-	splice @l2_from_id;
-	splice @l2_from_port;
-	splice @l2_to_tbl;
-	splice @l2_to_id;
-	splice @l2_to_port;
-	db_dosql("SELECT id,vlan,from_tbl,from_id,from_port,to_tbl,to_id,to_port,source FROM l2connect");
-	while ((my $id,my $vlan,my $from_tbl,my $from_id,my $from_port,my $to_tbl,my $to_id,my $to_port,my $source)=db_getrow()){
-		$l2_id[$id]=$id;
-		$l2_vlan[$id]=$vlan;
-		$l2_from_tbl[$id]=$from_tbl;
-		$l2_from_id[$id]=$from_id;
-		$l2_from_port[$id]=$from_port;
-		$l2_to_tbl[$id]=$to_tbl;
-		$l2_to_id[$id]=$to_id;
-		$l2_to_port[$id]=$to_port;
-		$l2_source[$id]=$source;
-	}
-	db_close;
-}
-
-
-sub db_get_sw {
-	my ($package, $filename, $line) = caller;
-	debug(2,"executing db_get_sw $package, $filename, $line");
-	splice @sw_switch;
-	splice @sw_server;
-	splice @sw_name;
-	splice @sw_ports;
-	db_dosql("SELECT id,switch,server,name,ports FROM switch");
-	while ((my $id,my $switch,my $server,my $name,my $ports)=db_getrow()){
-		$sw_switch[$id]=$switch;
-		$sw_server[$id]=$server;
-		$sw_name[$id]=$name;
-		$sw_ports[$id]=$ports;
-		$sw_id{$name}=$id;
-	}
-	db_close;
-}
-		
-
-1;
+ 
+ 1;
