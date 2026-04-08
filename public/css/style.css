@@ -1,0 +1,135 @@
+body            { font-family: sans-serif; background: #eee; }
+a, h1, h2       { color: #377ba8; }
+h1, h2          { font-family: 'Georgia', serif; margin: 0; }
+h1              { border-bottom: 2px solid #eee; }
+h2              { font-size: 1.2em; }
+.page           { margin: 2em auto; width: 35em; border: 5px solid #ccc;
+                  padding: 0.8em; background: white; }
+.entries        { list-style: none; margin: 0; padding: 0; }
+.entries li     { margin: 0.8em 1.2em; }
+.entries li h2  { margin-left: -1em; }
+.add-entry      { font-size: 0.9em; border-bottom: 1px solid #ccc; }
+.add-entry dl   { font-weight: bold; }
+.metanav        { text-align: right; font-size: 0.8em; padding: 0.3em;
+                  margin-bottom: 0.5em; background: #fafafa; }
+.flash          { background: #cee5F5; padding: 0.5em;
+                  border: 1px solid #aacbe2; }
+.error          { background: #f0d6d6; padding: 0.5em; }
+table, th, td 	{
+	border: 1px solid black;
+	font-size: 12px;
+	margin: 1px 0;
+	line-height: 1;
+}
+.server-logo {
+    height: 16px;
+    width: auto;
+}
+.subtable {
+    border-collapse: collapse;
+    margin: 4px 0;
+    width: 100%;
+    background: #fafafa;
+}
+
+.subtable th {
+    width: 80px;
+    background: #eee;
+    padding: 3px;
+    font-size: 8px;
+}
+
+.subtable td {
+    padding: 3px;
+    font-size: 8px;
+    border-bottom: 1px solid #ddd;
+}
+#statusScrollWrapper {
+    max-height:  calc(100vh - 160px);
+    overflow-y: auto;      
+    overflow-x: hidden;   
+    border: 1px solid #ccc;
+    padding: 4px;
+    background: #fff;
+}
+#inetScrollWrapper {
+    max-height:  300px
+    overflow-y: auto;      
+    overflow-x: hidden;   
+    border: 1px solid #ccc;
+    padding: 4px;
+    background: #fff;
+}
+#nwsScrollWrapper {
+    max-height:  calc(100vh - 460px);
+    overflow-y: auto;      
+    overflow-x: hidden;   
+    border: 1px solid #ccc;
+    padding: 4px;
+    background: #fff;
+}
+
+.server-table {
+    width: 100%;
+    table-layout: fixed;   /* allows percentage-based column widths */
+}
+
+.server-table td:nth-child(1),
+.server-table th:nth-child(1) {
+    width: 15%;
+}
+
+.server-table td:nth-child(2),
+.server-table th:nth-child(2) {
+    width: 55%;
+}
+
+.server-table td:nth-child(3),
+.server-table th:nth-child(3) {
+    justify-content: space-between;
+    align-items: center;
+    width: 25%;
+}
+.server-table td:nth-child(4),
+.server-table th:nth-child(4) {
+    justify-content: space-between;
+    align-items: center;
+    width: 10%;
+}
+.status-text {
+    text-align: left;
+}
+
+
+.dashboard-bar {
+    width: 100%;
+    height: 18px;
+    background: #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+}
+
+.dashboard-bar-fill {
+    height: 100%;
+}
+
+.dashboard-table td, .dashboard-table th {
+    padding: 6px 10px;
+    border-bottom: 1px solid #ccc;
+}
+
+
+.toggle-status {
+    font-size: 8px;
+    padding: 2px 2px;
+    line-height: 1;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* Status text stays left */
+.status-text {
+    text-align: left;
+}
+

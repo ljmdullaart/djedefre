@@ -1,0 +1,3 @@
+[% IF session.logged_in %]
+  <a href=/tutorial>Tutorial</a></br>
+[% END %]

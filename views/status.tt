@@ -1,0 +1,38 @@
+[% IF session.logged_in %]
+
+
+<h2>Status</h2>
+<table style="table-layout: fixed; width: 100%;">
+	<tr>
+		<td>
+			<div id="statusScrollWrapper">
+				<table id="serverOverview" class="server-table"></table>
+			</div>
+		</td>
+		<td>
+			<div id="inetScrollWrapper">
+				<table id="pathOverview" class="server-table"></table>
+			</div>
+			<br>
+			<div id="nwScrollWrapper">
+				<table id="nwOverview" class="server-table"></table>
+			</div>
+
+
+		</td>
+		<td>
+			<table id="dashboardTable" class="dashboard-table"></table>
+		</td>
+		<td>
+			<div id="listings"></div>
+		</dt>
+	</tr>
+</table>
+
+<script src="/js/serverstatus.js"></script>
+<script src="/js/pathstatus.js"></script>
+<script src="/js/nwstatus.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/statuslisting,js"></script>
+
+[% END %]

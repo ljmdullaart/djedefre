@@ -1,0 +1,198 @@
+[% IF session.logged_in %]
+
+
+<button type="button" onclick="loadSrv()">servers</button>
+<button type="button" onclick="loadSnt()">subnets</button>
+<button type="button" onclick="plotNetwork()">plot</button>
+	
+<p id="debug"></p>
+<canvas id="ipv4network" width="1200" height="1100"> plop </canvas>
+
+<script>
+
+function delay(time) {
+	return new Promise(resolve => setTimeout(resolve, time));
+}
+//let debug='';
+//debug=debug+serverIdxN[idx]+'<br>'
+//document.getElementById("debug").innerHTML = debug
+
+const servers = [];
+const serverx = []; 
+const servery = []; 
+const servern = []; 
+const servert = []; 
+const serverIdxT = []; 
+const serverIdxX = []; 
+const serverIdxY = []; 
+const serverIdxN = []; 
+function loadSrv() {
+	const srvhttp = new XMLHttpRequest();
+	srvhttp.onload = function() {
+		const xmlDoc = this.responseXML;
+		const x = xmlDoc.getElementsByTagName("server");
+		for (let i = 0; i < x.length; i++) {
+			servers[i]=x[i].getElementsByTagName("id")[0].childNodes[0].nodeValue 
+			serverx[i]=x[i].getElementsByTagName("xcoord")[0].childNodes[0].nodeValue 
+			servery[i]=x[i].getElementsByTagName("ycoord")[0].childNodes[0].nodeValue 
+			servert[i]=x[i].getElementsByTagName("type")[0].childNodes[0].nodeValue 
+			servern[i]=x[i].getElementsByTagName("name")[0].childNodes[0].nodeValue 
+			serverIdxT[servers[i]]=x[i].getElementsByTagName("type")[0].childNodes[0].nodeValue
+			serverIdxX[servers[i]]=x[i].getElementsByTagName("xcoord")[0].childNodes[0].nodeValue
+			serverIdxY[servers[i]]=x[i].getElementsByTagName("ycoord")[0].childNodes[0].nodeValue
+			serverIdxN[servers[i]]=x[i].getElementsByTagName("name")[0].childNodes[0].nodeValue
+			
+		}
+	}
+	srvhttp.open("GET", "[% top_url %]api/servers");
+	srvhttp.send();
+}
+
+const subnets = [];
+const subnetx = []; 
+const subnety = []; 
+const subnetn = []; 
+const subnetIdxY = []; 
+const subnetIdxX = []; 
+function loadSnt() {
+	const snthttp = new XMLHttpRequest();
+	snthttp.onload = function() {
+		const xmlDoc = this.responseXML;
+		const x = xmlDoc.getElementsByTagName("subnet");
+		for (let i = 0; i < x.length; i++) {
+			let idx=x[i].getElementsByTagName("id")[0].childNodes[0].nodeValue 
+			subnets[i]=idx
+			subnetx[i]=x[i].getElementsByTagName("xcoord")[0].childNodes[0].nodeValue 
+			subnety[i]=x[i].getElementsByTagName("ycoord")[0].childNodes[0].nodeValue 
+			subnetn[i]=x[i].getElementsByTagName("name")[0].childNodes[0].nodeValue 
+			subnetIdxX[idx]=x[i].getElementsByTagName("xcoord")[0].childNodes[0].nodeValue
+			subnetIdxY[idx]=x[i].getElementsByTagName("ycoord")[0].childNodes[0].nodeValue
+			
+		}
+	}
+	snthttp.open("GET", "[% top_url %]api/subnets");
+	snthttp.send();
+}
+
+const intId = [];
+const intSrv = [];
+const intNet = [];
+
+function loadInt(){
+	const snthttp = new XMLHttpRequest();
+	snthttp.onload = function() {
+		const xmlDoc = this.responseXML;
+		const x = xmlDoc.getElementsByTagName("interface");
+		for (let i = 0; i < x.length; i++) {
+			//intId[i]=x[i].getElementsByTagName("id")[0].childNodes[0].nodeValue 
+			intSrv[i]=x[i].getElementsByTagName("host")[0].childNodes[0].nodeValue 
+			intNet[i]=x[i].getElementsByTagName("subnet")[0].childNodes[0].nodeValue 
+		}
+	}
+	snthttp.open("GET", "[% top_url %]api/interfaces");
+	snthttp.send();
+}
+	
+
+const serveri = [];
+const srvTxt = [];
+const lines = [];
+const EMPTY='EMPTY'
+
+function plotNetwork (){
+	var ipv4network = document.getElementById('ipv4network');
+	var ipv4networkCtx = ipv4network.getContext('2d');
+	var ipv4networkFabric = this.__canvas = new fabric.StaticCanvas('ipv4network',{
+		hoverCursor: 'pointer',
+		selection: false,
+		targetFindTolerance: 2
+		
+	});
+	ipv4networkFabric.on ({
+		'object:moving': function(e) {
+			e.target.opacity = 0.5;
+		},
+		'object:modified': function(e) {
+			e.target.opacity = 1;
+		}
+	});
+
+	for (let i=0; i< servert.length ; i++){
+		let idx=servers[i]
+		serveri[idx]=new Image();
+		serveri[idx].src='[% top_url %]pictures/logo_'+servert[i]+'.png';
+	}
+	let subnetImage=new Image();
+	subnetImage.src='[% top_url %]pictures/logo_subnet.png';
+
+	for (let i=0; i< intNet.length; i++){
+		let srvIdx=intSrv[i]
+		let netIdx=intNet[i]
+		if((srvIdx!='EMPTY') && (netIdx!='EMPTY')){
+			if (subnetIdxX[netIdx]==EMPTY){ subnetIdxX[netIdx]=50;}
+			if (subnetIdxY[netIdx]==EMPTY){ subnetIdxY[netIdx]=50;}
+			if (serverIdxX[netIdx]==EMPTY){ serverIdxX[netIdx]=50;}
+			if (serverIdxY[netIdx]==EMPTY){ serverIdxY[netIdx]=50;}
+			//lines[i]=new fabric.Line(subnetIdxX[netIdx],subnetIdxY[netIdx],serverIdxX[srvIdx],serverIdxY[srvIdx],{
+				//stroke: 'black'
+			//});
+			lines[i]=new fabric.Line(0,0,500,500,{
+				stroke: 'black'
+			});
+			ipv4networkFabric.add(lines[i])
+		}
+	}
+	for (let i=0; i< subnetx.length ; i++){
+		let idx=subnets[i]
+		fabric.Image.fromURL('[% top_url %]pictures/logo_subnet.png', function(img){
+			ipv4networkFabric.add(img.set({left: subnetIdxX[i]-16,top: subnetIdxY[i]-16 }).scale(.5));
+		});
+	}
+	for (let i=0; i< servers.length ; i++){
+		let idx=servers[i]
+		fabric.Image.fromURL('[% top_url %]pictures/logo_'+serverIdxT[idx]+'.png',
+			function(img){
+				ipv4networkFabric.add(img.set({
+					left: serverIdxX[idx]-16,
+					top: serverIdxY[idx]-16 
+				}).scale(0.5));
+				img.perPixelTargetFind = true;
+				img.hasControls = img.hasBorders = false;
+				
+			}
+		);
+		var txtArg = {
+			fontSize: 10,
+			strokeWidth: 2,
+		}
+		txtArg['left'] = serverIdxX[idx]-24
+		txtArg['top'] = serverIdxY[idx] -1;
+
+
+		srvTxt[idx] = new fabric.IText(serverIdxN[idx],txtArg)
+		ipv4networkFabric.add(srvTxt[idx]);
+
+
+	}
+
+	ipv4networkCtx.fill();
+		
+}
+
+qplot=1
+function doPlot (){
+	loadSrv(); loadSnt() ;loadInt();
+	plotNetwork ();
+	if (qplot>0){ 
+		qplot--;
+		setTimeout(doPlot,100);
+	}
+}
+
+doPlot();
+
+</script>
+
+
+
+[% END %]

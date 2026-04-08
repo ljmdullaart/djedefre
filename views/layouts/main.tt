@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+	<head>
+		<title>Djedefre</title>
+		<link rel=stylesheet type=text/css href="[% css_url %]">
+		<script src="https://unpkg.com/konva@9/konva.min.js"></script>
+		<script src="/js/dmz.js"></script>
+		<style>
+			table { width: 100%; border-collapse: collapse; font-family: sans-serif; }
+			th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+			th { background-color: #f4f4f4; cursor: pointer; user-select: none; }
+			th:hover { background-color: #e2e2e2; }
+			tr:nth-child(even) { background-color: #fafafa; }
+			
+			/* Indicators for sorting */
+			.sort-asc::after { content: " ▲"; color: #007bff; }
+			.sort-desc::after { content: " ▼"; color: #007bff; }
+		</style>
+	</head>
+	<body>
+		<h1>Djedefre</h1>
+		<div class=metanav>
+			[% IF not session.logged_in %]
+				<a href="[% login_url %]">log in</a>
+			[% ELSE %]
+				<form>
+					<select name="status" onchange="this.options[this.selectedIndex].value && (window.location = this.options[this.selectedIndex].value);">
+						<option value="none"> --- Status ---</option>
+						<option value="[% top_url %]status">Dashboard</option>
+					</select>
+					<span  id="maindrlist">
+						<select name="Drawings"  id="drawingSelect">
+							<option value="none"> --- Select Drawing ---</option>
+							<option value="[% top_url %]nwdrawing">top</option>
+						</select>
+					</span>
+					<select name="Lists" id="Lists" onchange="this.options[this.selectedIndex].value && (window.location = this.options[this.selectedIndex].value);">
+						<option value="none"> --- Select List ---</option>
+						<option value="[% top_url %]interfacelist">Interfaces</option>
+						<option value="[% top_url %]subnetlist">Subnets</option>
+						<option value="[% top_url %]serverlist">Servers</option>
+						<option value="[% top_url %]nfslist">NFS servers</option>
+					</select>
+					<span style="border-radius: 1px; border: 1px solid #0056b3;box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 1px 2px rgba(0,0,0,0.2)">
+						<a href="[% logout_url %]" >--- log out ---</a> </form>
+					</span>
+			[% END %]
+		</div>
+<script>
+	function handleDrawingChange(selectElement) {
+		const drawingName = selectElement.value;
+		if (!drawingName || drawingName === "none") return;
+
+		// Als we NIET op de nwdrawing pagina zijn, ga erheen met de naam in de query string
+		if (window.location.pathname !== '/nwdrawing') {
+			window.location.href = '/nwdrawing?name=' + encodeURIComponent(drawingName);
+		} else {
+			// De Konva-script luistert al naar het 'change' event op dit ID
+		}
+	}
+
+	const pgxhttp = new XMLHttpRequest();
+	pgxhttp.overrideMimeType('application/xml');
+	pgxhttp.onload = function() {
+		if (this.status === 200) {
+			const xmlDoc = this.responseXML;
+			const x = xmlDoc.getElementsByTagName("page");
+			
+			let option = '<select name="Drawings" id="drawingSelect" onchange="handleDrawingChange(this)">';
+			option += '<option value="none">--- Select Drawing ---</option>';
+			
+			for (let i = 0; i < x.length; i++) {
+				let pg = x[i].getElementsByTagName("name")[0].childNodes[0].nodeValue;
+				option += `<option value="${pg}">${pg}</option>`;
+			}
+			option += '</select>';
+			
+			document.getElementById("maindrlist").innerHTML = option;
+
+			// --- Automatische selectie logica ---
+			const select = document.getElementById("drawingSelect");
+			const urlParams = new URLSearchParams(window.location.search);
+			const nameFromUrl = urlParams.get('name');
+
+			if (nameFromUrl) {
+				// Als er een naam in de URL staat (bijv. na navigatie), selecteer die
+				select.value = nameFromUrl;
+			} else if (x.length > 0 && window.location.pathname === '/nwdrawing') {
+				// Anders: als we op de tekenpagina zijn, kies de eerste uit de lijst
+				select.selectedIndex = 1;
+			}
+
+			// Trigger de tekening als we op de juiste pagina zijn
+			if (window.location.pathname === '/nwdrawing' && select.value !== "none") {
+				select.dispatchEvent(new Event('change'));
+			}
+		}
+	};
+	pgxhttp.open("GET", "/api/pagelist");
+	pgxhttp.send();
+</script>
+
+
+
+		[% IF msg %]
+			<div class=flash> [% msg %] </div>
+		[% END %]
+		[% content %]
+	</body>
+</html>

@@ -1,0 +1,111 @@
+[% IF session.logged_in %]
+
+
+<h2>List all servers</h2>
+
+    <table id="deviceTable">
+        <thead>
+            <tr>
+                <th data-key="id">ID</th>
+                <th data-key="name">Name</th>
+                <th data-key="type">Type</th>
+                <th data-key="ostype">OStype</th>
+                <th data-key="os">OS</th>
+                <th data-key="memory">Memory</th>
+                <th data-key="processor">Processor</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td colspan="5">Loading data...</td></tr>
+        </tbody>
+    </table>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Replace '/api/devices' with your actual Dancer2 route path
+            const API_ENDPOINT = '/api/json/servers'; 
+            
+            fillTableFromAPI(API_ENDPOINT);
+        });
+
+        async function fillTableFromAPI(path) {
+            const table = document.getElementById('deviceTable');
+            const tbody = table.querySelector('tbody');
+            const headers = Array.from(table.querySelectorAll('thead th'));
+            let tableData = [];
+            let currentSort = { key: null, asc: true };
+
+            // 1. Fetch Data
+            try {
+                const response = await fetch(path);
+                if (!response.ok) throw new Error("Network response was not ok");
+                tableData = await response.json();
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="${headers.length}" style="color:red">Error loading data: ${error.message}</td></tr>`;
+                return;
+            }
+
+            // 2. Render Function
+            const renderTable = (data) => {
+                tbody.innerHTML = ''; 
+                data.forEach(item => {
+                    const row = document.createElement('tr');
+                    headers.forEach(th => {
+                        const key = th.getAttribute('data-key');
+                        const cell = document.createElement('td');
+                        // Handle nulls/undefined with empty string
+                        cell.textContent = item[key] ?? ''; 
+                        row.appendChild(cell);
+                    });
+                    tbody.appendChild(row);
+                });
+            };
+
+            // 3. Sort Function
+            const sortData = (key) => {
+                if (currentSort.key === key) {
+                    currentSort.asc = !currentSort.asc;
+                } else {
+                    currentSort.key = key;
+                    currentSort.asc = true;
+                }
+
+                tableData.sort((a, b) => {
+                    let valA = a[key] ?? '';
+                    let valB = b[key] ?? '';
+                    
+                    // Logic for numeric vs string sorting
+                    if (!isNaN(valA) && !isNaN(valB) && valA !== '' && valB !== '') {
+                        return currentSort.asc ? valA - valB : valB - valA;
+                    }
+                    
+                    valA = valA.toString().toLowerCase();
+                    valB = valB.toString().toLowerCase();
+                    
+                    if (valA < valB) return currentSort.asc ? -1 : 1;
+                    if (valA > valB) return currentSort.asc ? 1 : -1;
+                    return 0;
+                });
+
+                // Update UI Classes
+                headers.forEach(h => {
+                    h.classList.remove('sort-asc', 'sort-desc');
+                    if (h.getAttribute('data-key') === key) {
+                        h.classList.add(currentSort.asc ? 'sort-asc' : 'sort-desc');
+                    }
+                });
+
+                renderTable(tableData);
+            };
+
+            // 4. Attach Event Listeners to Headers
+            headers.forEach(header => {
+                header.addEventListener('click', () => sortData(header.getAttribute('data-key')));
+            });
+
+            // 5. Initial Display
+            renderTable(tableData);
+        }
+    </script>
+
+[% END %]

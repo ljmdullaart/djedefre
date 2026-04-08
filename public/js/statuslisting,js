@@ -1,0 +1,20 @@
+document.addEventListener("DOMContentLoaded", () => {
+    console.log("listings.js loaded");
+
+    loadListing();
+    setInterval(loadListing, 300000); // refresh every 5 minutes
+});
+
+function loadListing() {
+    fetch("api/listings")
+        .then(r => r.text())
+        .then(html => {
+            document.getElementById("listings").innerHTML = html;
+        })
+        .catch(err => {
+            console.error("Failed to load listing:", err);
+            document.getElementById("listings").innerHTML =
+                "<pre style='color:red;'>Error loading listing</pre>";
+        });
+}
+

@@ -1,0 +1,1053 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use Dancer2;
+use DBI;
+use Dancer2::Plugin::Database;
+use File::Spec;
+use File::Basename;
+use File::Spec;
+use File::Slurper qw/ read_text /;
+use Template;
+use FindBin;
+use lib $FindBin::Bin;
+use Data::Dumper;
+
+our %config;
+
+require "dje_db.pm";
+require "common_functions.pm";
+ 
+set 'dbfile'       => "database/djedefre.db";
+set 'database'     => File::Spec->catfile(File::Spec->tmpdir(), 'dancr.db');
+set 'session'      => 'Simple';
+set 'template'     => 'template_toolkit';
+set 'logger'       => 'console';
+set 'log'          => 'debug';
+set 'show_errors'  => 1;
+set 'startup_info' => 1;
+set 'username'     => 'admin';
+set 'password'     => 'password';
+set 'layout'       => 'main';
+set 'images'       => 'images';
+
+
+$config{'topdir'}='.';
+$config{'image_directory'}="$config{'topdir'}/images";                  # image-files. like logo's
+$config{'scan_directory'} ="$config{'topdir'}/scan_scripts";            # Scan scripts for networ discovery and status
+$config{'dbfile'}="$config{'topdir'}/database/djedefre.db";             # Database file where the network is stored
+ 
+sub set_flash {
+	my $message = shift;
+ 
+	session flash => $message;
+}
+ 
+sub get_flash {
+	my $msg = session('flash');
+	session->delete('flash');
+ 
+	return $msg;
+}
+ 
+hook before_template_render => sub {
+	my $tokens = shift;
+ 
+	$tokens->{'css_url'}    = request->base . '/css/style.css';
+	$tokens->{'login_url'}  = uri_for('/login');
+	$tokens->{'logout_url'} = uri_for('/logout');
+	$tokens->{'top_url'} = uri_for('/');
+};
+ 
+get '/' => sub {
+	set_flash('');
+	template 'show_entries.tt', {
+		msg           => get_flash(),
+		uri_top       => uri_for('/'),
+	};
+};
+
+get '/nfslist' => sub {
+	set_flash('');
+	template 'nfslist.tt', {
+		msg           => get_flash(),
+		uri_top       => uri_for('/'),
+	};
+};
+
+get '/interfacelist' => sub {
+	set_flash('');
+	template 'interfacelist.tt', {
+		msg           => get_flash(),
+		uri_top       => uri_for('/'),
+	};
+};
+get '/subnetlist' => sub {
+	set_flash('');
+	template 'subnetlist.tt', {
+		msg           => get_flash(),
+		uri_top       => uri_for('/'),
+	};
+};
+get '/serverlist' => sub {
+	set_flash('');
+	template 'serverlist.tt', {
+		msg           => get_flash(),
+		uri_top       => uri_for('/'),
+	};
+};
+get '/status' => sub {
+	set_flash('');
+	template 'status.tt', {
+		msg           => get_flash(),
+		uri_top       => uri_for('/'),
+	};
+};
+
+get '/tutorial' => sub {
+	set_flash('');
+	template 'tutorial.tt', {
+		msg           => get_flash(),
+		uri_top       => uri_for('/'),
+	};
+};
+
+get '/nwdrawing' => sub {
+	set_flash('');
+	template 'nwdrawing' => {
+		title => 'Netwerk Tekening',
+		msg           => get_flash(),
+		uri_top       => uri_for('/'),
+	};
+};
+
+
+
+get '/nwdrawing/:param' => sub {
+	set_flash('');
+	my $param=route_parameters->get('param');
+	set_flash($param);
+	template 'nwdrawing.tt', {
+		msg           => get_flash(),
+		uri_top       => uri_for('/'),
+		drawing       => $param,
+	};
+};
+
+get '/test' => sub {
+	set_flash('test');
+	template 'test.tt', {
+		msg           => get_flash(),
+		uri_top       => uri_for('/'),
+	};
+};
+
+
+######################################################################################
+#     API
+######################################################################################
+get '/api/json/servers' => sub {
+	my $ref=query_server();
+	send_as JSON =>  $ref;
+	
+};
+
+get '/api/json/config' => sub {
+	my $ref=query_config();
+	send_as JSON =>  $ref;
+	
+};
+
+get '/api/json/subnets' => sub {
+	my $ref=query_subnet();
+	send_as JSON =>  $ref;
+	
+};
+
+get '/api/json/interfaces' => sub {
+	my $ref=query_interfaces_extra();
+	send_as JSON =>  $ref;
+	
+};
+
+get '/api/json/nfs' => sub {
+	my $ref=query_nfs();
+	send_as JSON =>  $ref;
+	
+};
+
+get '/api/json/dashboard' => sub {
+	my $ref=query_dashboard();
+	send_as JSON =>  $ref;
+	
+};
+
+get '/api/listings' => sub {
+	my $file = '/tmp/djedefre.listing';
+	open my $fh, '<', $file or return send_error("Cannot open $file: $!", 500);
+	my $content = do { local $/; <$fh> };
+	close $fh;
+	return "<pre style='font-family: monospace;'>$content</pre>";
+};
+
+get '/api/json/page/:param' => sub {
+        my $param=scalar route_parameters->get('param');
+	my $seq=0;
+	my @drawing;
+	my @srvdraw;
+	my @subnets;
+	my @vboxes;
+	my $vboxcolor=q_config('line:color','vbox');
+	$vboxcolor='yellow' unless defined $vboxcolor;
+	my $ref=query_page('page',$param);
+	my @page_content=@$ref;
+	# Fill he drawing with the objects
+	for my $object (@page_content){
+		$seq++;
+		my $dr_obj=10*$seq;
+		my %item;
+		my $id=$object->{item};
+		$item{'page'}=$object->{page};
+		$item{'tbl'}=$object->{tbl};
+		$item{'item'}=$object->{item};
+		$item{'xcoord'}=$object->{xcoord};
+		$item{'ycoord'}=$object->{ycoord};
+		$item{'dr_obj'}=$dr_obj;
+		if ($object->{tbl} eq 'server'){
+			$dr_obj=$dr_obj+1;
+			$srvdraw[$id]=$dr_obj;
+			$item{'dr_obj'}=$dr_obj;
+			$item{'name'}=q_server('name',$id);
+			$item{'type'}=q_server('type',$id);
+			$item{'status'}=q_server('status',$id);
+			$item{'last_up'}=q_server('last_up',$id);
+			$item{'options'}=q_server('options',$id);
+			$item{'ostype'}=q_server('ostype',$id);
+			$item{'os'}=q_server('os',$id);
+			$item{'processor'}=q_server('processor',$id);
+			$item{'devicetype'}=q_server('devicetype',$id);
+			$item{'memory'}=q_server('memory',$id);
+			my $ref=query_if_from_host($id);
+			$item{'interfaces'}=[ @$ref ];
+			push @drawing,\%item;
+			$item{'options'}='' unless defined $item{'options'};
+			if ($item{'options'}=~/vboxhost:([0-9]*)/){
+				my %vbox;
+				$vbox{'server'}=$1;
+				$vbox{'client'}=$item{'item'};
+				$vbox{'dr_obj'}=$dr_obj;
+				push @vboxes,\%vbox;
+			}
+		}
+		elsif ($object->{tbl} eq 'subnet'){
+			$dr_obj=$dr_obj+2;
+			$item{'name'}=q_subnet('name',$id);
+			$item{'nwaddress'}=q_subnet('nwaddress',$id);
+			$item{'cidr'}=q_subnet('cidr',$id);
+			$item{'options'}=q_subnet('options',$id);
+			$item{'access'}=q_subnet('access',$id);
+			$item{'dr_obj'}=$dr_obj;
+			$item{'type'}='subnet';
+			if($item{'nwaddress'} eq 'Internet' ){ $item{'type'}='internet'; }
+			push @subnets,\%item;
+			push @drawing,\%item;
+			
+		}
+		elsif ($object->{tbl} eq 'cloud'){
+			$dr_obj=$dr_obj+3;
+			$item{'name'}=q_cloud('name',$id);
+			$item{'type'}=q_cloud('type',$id);
+			$item{'vendor'}=q_cloud('vendor',$id);
+			$item{'service'}=q_cloud('service',$id);
+			push @drawing,\%item;
+		}
+		elsif ($object->{tbl} eq 'switch'){
+			$dr_obj=$dr_obj+4;
+			$item{'name'}=q_switch('name',$id);
+			$item{'server'}=q_switch('server',$id);
+			$item{'switch'}=q_switch('switch',$id);
+			$item{'ports'}=q_switch('ports',$id);
+			push @drawing,\%item;
+		}
+	}
+	# Alter objects that may require database calls
+	for my $object (@drawing){
+		my @pglist;
+		my $item=$object->{item};
+		my $tbl=$object->{tbl};
+		query_pages_tbl_id($tbl,$item);
+		while (my $r=sql_getrow()){
+			push @pglist,$r->{'page'};
+		}
+		$object->{pagelist}=\@pglist;
+	}
+	# Add lines: L3 connections
+	# If you put a subnet on a page, it will always connect, regardless of the l2/l3 
+	# status of the drawing.
+	my @dr_cpy=@drawing;
+	for my $object (@dr_cpy){
+		my $id=$object->{item};
+		# connect servers to subnets
+		if ($object->{tbl} eq 'server'){
+			my $dr_obj=$object->{dr_obj};
+			my $serverid=$object->{item};
+			my $ifref=query_if_from_host($serverid);
+			for my $row (@$ifref){
+				for my $net (@subnets){
+					$seq++;
+					my %item;
+					$item{dr_obj}=10*$seq+9;
+					$item{tbl}='line';
+					$item{servername}=$object->{name};
+					$item{serverid}=$serverid;
+					$item{from}=$object->{dr_obj};
+					my $ip=$row->{ip};
+					my $net_obj=$net->{dr_obj};
+					my $nwaddress='0.0.0.0';
+					if($net->{nwaddress}=~/([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)/){
+						$nwaddress=$1;
+					}
+					my $cidr=$net->{cidr};
+					$item{'netname'}=$net->{name};
+					if (defined ($net->{options})){
+						if ($net->{options}=~/color=([A-Za-z0-9]+)/){
+							$item{'color'}=$1;
+						}
+						else {
+							$item{'color'}='black';
+						}
+					}
+					else {
+						$item{'color'}='black';
+					}
+					if (ip_in_subnet($ip,$nwaddress,$cidr)){
+						$item{'from'}=$dr_obj;
+						$item{'to'}=$net_obj;
+						$item{'thick'}=1;
+						push @drawing,\%item;
+					}
+				}
+			}
+			for my $vbox (@vboxes){
+				my %vboxline;
+				$vboxline{'thick'}=10;
+				$vboxline{'from'}=$dr_obj;
+				$vboxline{'color'}=$vboxcolor;
+				if ($vbox->{server}==$serverid){
+					$seq++;
+					$vboxline{'to'}=$vbox->{dr_obj};
+					$vboxline{'server'}=$serverid;
+					$vboxline{'client'}=$vbox->{client};
+					$vboxline{dr_obj}=10*$seq+9;
+					$vboxline{tbl}='line';
+					push @drawing,\%vboxline;
+				}
+			}
+		}
+		# connect the clouds to the Internet
+		elsif ($object->{tbl} eq 'cloud'){
+			my $dr_obj=$object->{dr_obj};
+			my $cloudid=$object->{item};
+			for my $net (@subnets){
+				$seq++;
+				my %item;
+				$item{dr_obj}=10*$seq+9;
+				$item{tbl}='line';
+				$item{cloudname}=$object->{name};
+				$item{cloudid}=$cloudid;
+				my $net_obj=$net->{dr_obj};
+				my $nwaddress=$net->{nwaddress};
+				if (($nwaddress=~/[Ii]nternet/) || ($nwaddress eq '0.0.0.0')){
+					$item{'netname'}=$net->{name};
+					$item{'color'}='black';
+					if (defined ($object->{options})){
+						if ($object->{options}=~/color=([A-Za-z0-9]+)/){
+							$item{'color'}=$1;
+						}
+					}
+					$item{'from'}=$dr_obj;
+					$item{'to'}=$net_obj;
+					push @drawing,\%item;
+				}
+			}
+		}
+	}
+	# Add lines: L2 connections
+	# based on interfaces only at the moment; no separate/unmanaged swittches
+	my $pgtype=q_config('page:type',$param);
+	if ($pgtype eq 'l2'){
+		query_l2();
+		while (my $r=sql_getrow()){
+			my %item;
+			my $add=1;
+			my $from_tbl=$r->{from_tbl};
+			my $to_tbl=$r->{to_tbl};
+			my $from_id=$r->{from_id};
+			my $to_id=$r->{to_id};
+			my $fromserver;
+			my $toserver;
+			if ($from_tbl eq 'interfaces'){
+				$fromserver=q_interfaces('host',$from_id);
+			}
+			if ($to_tbl eq 'interfaces'){
+				$toserver=q_interfaces('host',$to_id);
+			}
+			if ((defined ($fromserver))&&(defined ($toserver))){
+				my $fromdraw=$srvdraw[$fromserver];
+				my $todraw=$srvdraw[$toserver];
+				if ((defined ($fromdraw))&&(defined ($todraw))){
+					$item{'fromserver'}=$fromserver;
+					$item{'from'}=$fromdraw;
+					$item{'to'}=$todraw;
+					$seq++;
+					$item{dr_obj}=10*$seq+9;
+					$item{tbl}='line';
+					$item{'color'}='black';
+					push @drawing,\%item;
+				}
+			}
+		}
+	}
+	send_as JSON =>  \@drawing;
+};
+
+
+get '/api/pagelist' => sub {
+	my $outxml="<pages>\n";
+	my $ref  = query_pagelist();
+	while(my $r = sql_getrow()){
+		my $pg=$r->{item};
+		$outxml .= "<page>\n<name>$pg</name>\n</page>\n";
+	}
+	$outxml.="</pages>\n";
+	response_header('Content-Type' => 'text/xml');
+	response_header('Cache-Control' =>  'no-store, no-cache, must-revalidate');
+	$outxml;
+};
+
+get '/api/logolist' => sub {
+	my @files = glob('images/logo_*.png');
+	my $outxml="<logos>\n";
+	foreach my $file (@files) {
+		if ($file=~/logo_(.*)\.png/){
+			$outxml .= "<logo>\n<name>$1</name>\n</logo>\n";
+		}
+	}
+	$outxml.="</logos>\n";
+	response_header('Content-Type' => 'text/xml');
+	response_header('Cache-Control' =>  'no-store, no-cache, must-revalidate');
+	$outxml;
+};
+
+
+
+post '/api/moveobject' => sub {
+	my $data = from_json(request->body);
+
+	my $item   = $data->{item};
+	my $tbl    = $data->{tbl};
+	my $xcoord = int($data->{xcoord});
+	my $ycoord = int($data->{ycoord});
+	my $page   = $data->{page};
+	my $pageid = q_page_id('page',$page,'tbl',$tbl,'item',$item);
+
+	q_page_update($pageid,'xcoord',$xcoord);
+	q_page_update($pageid,'ycoord',$ycoord);
+
+
+	return to_json { status => "ok" };
+};
+
+post '/api/changeobject' => sub {
+	my $data = from_json(request->body);
+	my $item   = $data->{item};
+	my $id     = $data->{id};
+	my $tbl    = $data->{tbl};
+	my $var    = $data->{var};
+	my $val    = $data->{val};
+	$tbl='none' unless defined $tbl;
+print "'/api/changeobject' data=$data  id=$id item=$item tbl=$tbl var=$var val=$val\n";
+	if ($tbl eq 'server'){ q_server_update ($id,$var,$val); }
+	if ($tbl eq 'subnet'){ q_subnet_update ($id,$var,$val); }
+	return to_json { status => "ok" };
+};
+
+post '/api/setpagelist' => sub {
+	my $data   = from_json(request->body);
+	my $item   = $data->{item};
+	my $tbl    = $data->{tbl};
+	my $action = $data->{action};   # add | remove
+	my $page   = $data->{page};
+	if ($action eq 'remove'){ query_pages_del_obj($page,$tbl,$item); }
+	if ($action eq 'add'){ query_pages_add_obj($page,$tbl,$item,100,100); }
+	return to_json { status => "ok" };
+    
+};
+
+	
+######################################################################################
+#     old
+######################################################################################
+get '/api/servers' =>sub {
+	my $outxml="<servers>\n";
+	my $db  = connect_db();
+	my $sql = "SELECT id,name,xcoord,ycoord,type,interfaces,access,status,last_up,options FROM server";
+	my $sth = $db->prepare($sql) ;
+	$sth->execute  or die $sth->errstr;
+	my @id;
+	my @name;
+	my @xcoord;
+	my @ycoord;
+	my @type;
+	my @interfaces;
+	my @access;
+	my @status;
+	my @last_up;
+	my @options;
+	my $ip,
+	my $i=0;
+	while(($id[$i],$name[$i],$xcoord[$i],$ycoord[$i],$type[$i],$interfaces[$i],$access[$i],$status[$i],$last_up[$i],$options[$i]) = $sth->fetchrow()){
+		$id[$i]='EMPYT' unless defined $id[$i];
+		$name[$i]='EMPTY' unless defined $name[$i];
+		$xcoord[$i]='EMPTY' unless defined 	$xcoord[$i];
+		$ycoord[$i]='EMPTY' unless defined 	$ycoord[$i];
+		$type[$i]='EMPTY' unless defined	$type[$i];
+		$interfaces[$i]='EMPTY' unless defined	$interfaces[$i];
+		$access[$i]='EMPTY' unless defined 	$access[$i];
+		$status[$i]='EMPTY' unless defined 	$status[$i];
+		$last_up[$i]='EMPTY' unless defined $last_up[$i];
+		$options[$i]='EMPTY' unless defined $options[$i];
+		$i++;
+	}
+	for (my $j=0; $j<$i; $j++){
+		$outxml.= "<server>\n";
+		$outxml.= "<id>$id[$j]</id>\n";
+		$outxml.= "<name>$name[$j]</name>\n";
+		$outxml.= "<xcoord>$xcoord[$j]</xcoord>\n";
+		$outxml.= "<ycoord>$ycoord[$j]</ycoord>\n";
+		$outxml.= "<type>$type[$j]</type>\n";
+		$outxml.= "<interfaces>$interfaces[$j]</interfaces>\n";
+		$outxml.= "<access>$access[$j]</access>\n";
+		$outxml.= "<status>$status[$j]</status>\n";
+		$outxml.= "<lastup>$last_up[$j]</lastup>\n";
+		$outxml.= "<options>$options[$j]</options>\n";
+		$sql = "SELECT ip FROM interfaces WHERE host=$id[$j]";
+		$sth = $db->prepare($sql) ;
+		$sth->execute  or die $sth->errstr;
+		while (($ip)= $sth->fetchrow()){
+			$outxml.= "<ipaddress>$ip</ipaddress>\n";
+		}
+		$outxml.= "</server>\n";
+		
+	}
+	$outxml.= "</servers>\n";
+	response_header('Content-Type' => 'text/xml');
+	response_header('Cache-Control' =>  'no-store, no-cache, must-revalidate');
+	$outxml;
+};
+
+get '/api/nmap/id/:param' => sub {
+	my $id=0;
+	my $param=route_parameters->get('param');
+	if ($param=~/([0-9]+)/){
+		$id=$1;
+	}
+	my $txt="<nmap>";
+	my $db  = connect_db();
+	my $sql = "SELECT ip FROM interfaces WHERE host=$id";
+	my $sth = $db->prepare($sql) ;
+	$sth->execute  or die $sth->errstr;
+	my $iplist='';
+	while((my $ip) = $sth->fetchrow()){
+		$iplist="$iplist $ip";
+	}
+	if (open (my $NMAP,"/usr/bin/nmap $iplist  | sed 's/  */ /g'| sort -nu |")){
+		while (<$NMAP>){
+			if (/(\d+)\/(\w+) +(\w+) +(\w+)/){
+				$txt="$txt\n<port>";
+				$txt="$txt\n<number>$1</number>";
+				$txt="$txt\n<protocol>$2</protocol>";
+				$txt="$txt\n<status>$3</status>";
+				$txt="$txt\n<service>$4</service>";
+				$txt="$txt\n</port>";
+			}
+		}
+	}
+	
+
+	$txt="$txt\n</nmap>\n";
+	response_header('Content-Type' => 'text/xml');
+	response_header('Cache-Control' =>  'no-store, no-cache, must-revalidate');
+	$txt;
+			
+};
+get '/api/server/id/:param' => sub {
+	my $id=0;
+	my $param=route_parameters->get('param');
+	if ($param=~/([0-9]+)/){
+		$id=$1;
+	}
+	my $outxml="<servers>\n";
+	my $db  = connect_db();
+	my $sql = "SELECT id,name,xcoord,ycoord,type,interfaces,access,status,last_up,options FROM server WHERE id=$id";
+	my $sth = $db->prepare($sql) ;
+	$sth->execute  or die $sth->errstr;
+	my $name;
+	my $xcoord;
+	my $ycoord;
+	my $type;
+	my $interfaces;
+	my $access;
+	my $status;
+	my $last_up;
+	my $options;
+	while(($id,$name,$xcoord,$ycoord,$type,$interfaces,$access,$status,$last_up,$options) = $sth->fetchrow()){
+		$id='EMPYT' unless defined $id;
+		$name='EMPTY' unless defined $name;
+		$xcoord='EMPTY' unless defined 	$xcoord;
+		$ycoord='EMPTY' unless defined 	$ycoord;
+		$type='EMPTY' unless defined	$type;
+		$interfaces='EMPTY' unless defined	$interfaces;
+		$access='EMPTY' unless defined 	$access;
+		$status='EMPTY' unless defined 	$status;
+		$last_up='EMPTY' unless defined $last_up;
+		$options='EMPTY' unless defined $options;
+		$outxml.= "<server>\n";
+		$outxml.= "<id>$id</id>\n";
+		$outxml.= "<name>$name</name>\n";
+		$outxml.= "<xcoord>$xcoord</xcoord>\n";
+		$outxml.= "<ycoord>$ycoord</ycoord>\n";
+		$outxml.= "<type>$type</type>\n";
+		$outxml.= "<interfaces>$interfaces</interfaces>\n";
+		$outxml.= "<access>$access</access>\n";
+		$outxml.= "<status>$status</status>\n";
+		$outxml.= "<lastup>$last_up</lastup>\n";
+		$outxml.= "<options>$options</options>\n";
+		$outxml.= "</server>\n";
+	}
+	$outxml.= "</servers>\n";
+	response_header('Content-Type' => 'text/xml');
+	response_header('Cache-Control' =>  'no-store, no-cache, must-revalidate');
+	$outxml;
+};
+
+	
+
+get '/api/subnets' => sub {
+	my $outxml="<subnets>\n";
+	my $db  = connect_db();
+	my $sql = 'SELECT id,nwaddress,cidr,xcoord,ycoord,name,options,access FROM subnet';
+	my $sth = $db->prepare($sql) ;
+	$sth->execute  or die $sth->errstr;
+	my $id;
+	my $nwaddress;
+	my $cidr;
+	my $xcoord;
+	my $ycoord;
+	my $name;
+	my $options;
+	my $access;
+	while(($id,$nwaddress,$cidr,$xcoord,$ycoord,$name,$options,$access) = $sth->fetchrow()){
+		$id='EMPTY' unless defined $id;
+		$nwaddress='EMPTY' unless defined $nwaddress;
+		$cidr='EMPTY' unless defined $cidr;
+		$xcoord='EMPTY' unless defined $xcoord;
+		$ycoord='EMPTY' unless defined $ycoord;
+		$name='EMPTY' unless defined $name;
+		$options='EMPTY' unless defined $options;
+		$access='EMPTY' unless defined $access;
+		$outxml.= "<subnet>\n";
+		$outxml.= "<id>$id</id>\n";
+		$outxml.= "<nwaddress>$nwaddress</nwaddress>\n";
+		$outxml.= "<cidr>$cidr</cidr>\n";
+		$outxml.= "<xcoord>$xcoord</xcoord>\n";
+		$outxml.= "<ycoord>$ycoord</ycoord>\n";
+		$outxml.= "<name>$name</name>\n";
+		$outxml.= "<options>$options</options>\n";
+		$outxml.= "<access>$access</access>\n";
+		$outxml.= "</subnet>\n";
+	}
+	$outxml.="</subnets>\n";
+	response_header('Content-Type' => 'text/xml');
+	response_header('Cache-Control' =>  'no-store, no-cache, must-revalidate');
+	$outxml;
+};
+
+get '/api/subnet/id/:param' => sub {
+	my $id=0;
+	my $param=route_parameters->get('param');
+	if ($param=~/([0-9]+)/){
+		$id=$1;
+	}
+	my $outxml="<subnets>\n";
+	my $db  = connect_db();
+	my $sql = "SELECT id,nwaddress,cidr,xcoord,ycoord,name,options,access FROM subnet WHERE id=$id";
+	my $sth = $db->prepare($sql) ;
+	$sth->execute  or die $sth->errstr;
+	my $nwaddress;
+	my $cidr;
+	my $xcoord;
+	my $ycoord;
+	my $name;
+	my $options;
+	my $access;
+	while(($id,$nwaddress,$cidr,$xcoord,$ycoord,$name,$options,$access) = $sth->fetchrow()){
+		$id='EMPTY' unless defined $id;
+		$nwaddress='EMPTY' unless defined $nwaddress;
+		$cidr='EMPTY' unless defined $cidr;
+		$xcoord='EMPTY' unless defined $xcoord;
+		$ycoord='EMPTY' unless defined $ycoord;
+		$name='EMPTY' unless defined $name;
+		$options='EMPTY' unless defined $options;
+		$access='EMPTY' unless defined $access;
+		$outxml.= "<subnet>\n";
+		$outxml.= "<id>$id</id>\n";
+		$outxml.= "<nwaddress>$nwaddress</nwaddress>\n";
+		$outxml.= "<cidr>$cidr</cidr>\n";
+		$outxml.= "<xcoord>$xcoord</xcoord>\n";
+		$outxml.= "<ycoord>$ycoord</ycoord>\n";
+		$outxml.= "<name>$name</name>\n";
+		$outxml.= "<options>$options</options>\n";
+		$outxml.= "<access>$access</access>\n";
+		$outxml.= "</subnet>\n";
+	}
+	$outxml.="</subnets>\n";
+	response_header('Content-Type' => 'text/xml');
+	response_header('Cache-Control' =>  'no-store, no-cache, must-revalidate');
+	$outxml;
+};
+
+get '/api/interfaces' => sub {
+	my $outxml="<interfaces>\n";
+	my $db  = connect_db();
+	my $sql = 'SELECT id,macid,ip,hostname,host,subnet,access FROM interfaces';
+	my $sth = $db->prepare($sql) ;
+	$sth->execute  or die $sth->errstr;
+	my $id='';my $macid='';my $ip='';my $hostname='';my $host='';my $subnet='';my $access='';
+	while(($id,$macid,$ip,$hostname,$host,$subnet,$access) = $sth->fetchrow()){
+		$id='EMPTY' unless defined $id;
+		$macid='EMPTY' unless defined $macid;
+		$hostname='EMPTY' unless defined $hostname;
+		$host='EMPTY' unless defined $host;
+		$subnet='EMPTY' unless defined $subnet;
+		$access='EMPTY' unless defined $access;
+		$ip='EMPTY' unless defined $ip;
+		if ($hostname eq ''){ $hostname='EMPTY'}
+		$outxml.= "<interface>\n";
+		$outxml.= "<id>$id</id>\n";
+		$outxml.= "<macid>$macid</macid>\n";
+		$outxml.= "<ip>$ip</ip>\n";
+		$outxml.= "<name>$hostname</name>\n";
+		$outxml.= "<host>$host</host>\n";
+		$outxml.= "<subnet>$subnet</subnet>\n";
+		$outxml.= "<access>$access</access>\n";
+		$outxml.= "</interface>\n";
+		$id='';$macid='';$ip='';$hostname='';$host='';$subnet='';$access='';
+	}
+	$outxml.="</interfaces>\n";
+	response_header('Content-Type' => 'text/xml');
+	response_header('Cache-Control' =>  'no-store, no-cache, must-revalidate');
+	$outxml;
+};
+
+get '/api/interface/id/:param[Int]' => sub {
+	my $param=route_parameters->get('param');
+	my $id=0; my $macid='';my $ip='';my $hostname='';my $host='';my $subnet='';my $access='';
+	if ($param=~/([0-9]+)/){
+		$id=$1;
+	}
+	my $outxml="<interfaces>\n";
+	my $db  = connect_db();
+	my $sql = "SELECT id,macid,ip,hostname,host,subnet,access FROM interfaces WHERE id=$id";
+	my $sth = $db->prepare($sql) ;
+	$sth->execute  or print $sth->errstr;
+	while(($id,$macid,$ip,$hostname,$host,$subnet,$access) = $sth->fetchrow()){
+		$id='EMPTY' unless defined $id;
+		$macid='EMPTY' unless defined $macid;
+		$hostname='EMPTY' unless defined $hostname;
+		$host='EMPTY' unless defined $host;
+		$subnet='EMPTY' unless defined $subnet;
+		$access='EMPTY' unless defined $access;
+		$ip='EMPTY' unless defined $ip;
+		if ($hostname eq ''){ $hostname='EMPTY'}
+		$outxml.= "<interface>\n";
+		$outxml.= "<id>$id</id>\n";
+		$outxml.= "<macid>$macid</macid>\n";
+		$outxml.= "<ip>$ip</ip>\n";
+		$outxml.= "<name>$hostname</name>\n";
+		$outxml.= "<host>$host</host>\n";
+		$outxml.= "<subnet>$subnet</subnet>\n";
+		$outxml.= "<access>$access</access>\n";
+		$outxml.= "</interface>\n";
+		$id='';$macid='';$ip='';$hostname='';$host='';$subnet='';$access='';
+	}
+	$outxml.="</interfaces>\n";
+	response_header('Content-Type' => 'text/xml');
+	response_header('Cache-Control' =>  'no-store, no-cache, must-revalidate');
+	$outxml; 
+};
+get '/api/interface/host/:param[Int]' => sub {
+	my $param=route_parameters->get('param');
+	my $id=0; my $macid='';my $ip='';my $hostname='';my $host='';my $subnet='';my $access='';
+	if ($param=~/([0-9]+)/){
+		$host=$1;
+	}
+	my $outxml="<interfaces>\n";
+	my $db  = connect_db();
+	my $sql = "SELECT id,macid,ip,hostname,host,subnet,access FROM interfaces WHERE host=$host";
+	my $sth = $db->prepare($sql) ;
+	$sth->execute  or print $sth->errstr;
+	while(($id,$macid,$ip,$hostname,$host,$subnet,$access) = $sth->fetchrow()){
+		$id='EMPTY' unless defined $id;
+		$macid='EMPTY' unless defined $macid;
+		$hostname='EMPTY' unless defined $hostname;
+		$host='EMPTY' unless defined $host;
+		$subnet='EMPTY' unless defined $subnet;
+		$access='EMPTY' unless defined $access;
+		$ip='EMPTY' unless defined $ip;
+		if ($hostname eq ''){ $hostname='EMPTY'}
+		$outxml.= "<interface>\n";
+		$outxml.= "<id>$id</id>\n";
+		$outxml.= "<macid>$macid</macid>\n";
+		$outxml.= "<ip>$ip</ip>\n";
+		$outxml.= "<name>$hostname</name>\n";
+		$outxml.= "<host>$host</host>\n";
+		$outxml.= "<subnet>$subnet</subnet>\n";
+		$outxml.= "<access>$access</access>\n";
+		$outxml.= "</interface>\n";
+		$id='';$macid='';$ip='';$hostname='';$host='';$subnet='';$access='';
+	}
+	$outxml.="</interfaces>\n";
+	response_header('Content-Type' => 'text/xml');
+	response_header('Cache-Control' =>  'no-store, no-cache, must-revalidate');
+	$outxml; 
+};
+get '/api/interface/hostname/:param[Str]' => sub {
+	my $param=route_parameters->get('param');
+	my $id=0; my $macid='';my $ip='';my $hostname='';my $host='';my $subnet='';my $access='';
+	if ($param=~/([a-z0-9\.]+)/){
+		$hostname=$1;
+	}
+	my $outxml="<interfaces>\n";
+	my $db  = connect_db();
+	my $sql = "SELECT id,macid,ip,hostname,host,subnet,access FROM interfaces WHERE hostname='$hostname'";
+	my $sth = $db->prepare($sql) ;
+	$sth->execute  or print $sth->errstr;
+	while(($id,$macid,$ip,$hostname,$host,$subnet,$access) = $sth->fetchrow()){
+		$id='EMPTY' unless defined $id;
+		$macid='EMPTY' unless defined $macid;
+		$hostname='EMPTY' unless defined $hostname;
+		$host='EMPTY' unless defined $host;
+		$subnet='EMPTY' unless defined $subnet;
+		$access='EMPTY' unless defined $access;
+		$ip='EMPTY' unless defined $ip;
+		if ($hostname eq ''){ $hostname='EMPTY'}
+		$outxml.= "<interface>\n";
+		$outxml.= "<id>$id</id>\n";
+		$outxml.= "<macid>$macid</macid>\n";
+		$outxml.= "<ip>$ip</ip>\n";
+		$outxml.= "<name>$hostname</name>\n";
+		$outxml.= "<host>$host</host>\n";
+		$outxml.= "<subnet>$subnet</subnet>\n";
+		$outxml.= "<access>$access</access>\n";
+		$outxml.= "</interface>\n";
+		$id='';$macid='';$ip='';$hostname='';$host='';$subnet='';$access='';
+	}
+	$outxml.="</interfaces>\n";
+	response_header('Content-Type' => 'text/xml');
+	response_header('Cache-Control' =>  'no-store, no-cache, must-revalidate');
+	$outxml;
+		
+};
+
+get '/api/drawing/:param' => sub {
+	my $param=route_parameters->get('param');
+	$param='top' unless defined $param;
+	my @serverx;
+	my @servery;
+	my @subnetx;
+	my @subnety;
+	my $outxml="<drawing>\n";
+	my $db  = connect_db();
+	my $sql = "SELECT id,name,type,xcoord,ycoord FROM server";
+	my $sth = $db->prepare($sql) ;
+	$sth->execute  or print $sth->errstr;
+	while((my $id,my $name,my $type ,my $x,my $y) = $sth->fetchrow()){
+		if ((defined $id)&&(defined $x)&&(defined $y)) {
+			$type='server' unless defined $type;
+			$outxml .= "<item>\n";
+			$outxml .= "<source>server</source>\n";
+			$outxml .= "<id>$id</id>\n";
+			$outxml .= "<draw>logo</draw>\n";
+			$outxml .= "<type>$type</type>\n";
+			$outxml .= "<name>$name</name>\n";
+			$outxml .= "<x>$x</x>\n";
+			$outxml .= "<y>$y</y>\n";
+			$outxml .= "</item>\n";
+			$serverx[$id]=$x;
+			$servery[$id]=$y;
+		}
+	}
+	$sql = "SELECT id,name,nwaddress,xcoord,ycoord FROM subnet";
+	$sth = $db->prepare($sql) ;
+	$sth->execute  or print $sth->errstr;
+	my $type='subnet';
+	while((my $id,my $name,my $nwaddress,my $x,my $y) = $sth->fetchrow()){
+		$name=$nwaddress unless defined $name;
+		if ((defined $id)&&(defined $type)&&(defined $x)&&(defined $y)) {
+			$outxml .= "<item>\n";
+			$outxml .= "<source>subnet</source>\n";
+			$outxml .= "<id>$id</id>\n";
+			$outxml .= "<type>$type</type>\n";
+			$outxml .= "<name>$name</name>\n";
+			$outxml .= "<draw>logo</draw>\n";
+			$outxml .= "<x>$x</x>\n";
+			$outxml .= "<y>$y</y>\n";
+			$outxml .= "</item>\n";
+			$subnetx[$id]=$x;
+			$subnety[$id]=$y;
+		}
+	}
+	$sql = "SELECT id,host,subnet FROM interfaces";
+	$sth = $db->prepare($sql) ;
+	$sth->execute  or print $sth->errstr;
+	$type='interface';
+	while((my $id,my $host,my $subnet) = $sth->fetchrow()){
+		if ((defined $id)&&(defined $host)&&(defined $subnet)) {
+			if ((defined $serverx[$host]) &&(defined $servery[$host]) && (defined $subnetx[$subnet]) &&($subnety[$subnet])){
+				$outxml .= "<item>\n";
+				$outxml .= "<source>interfaces</source>\n";
+				$outxml .= "<id>$id</id>\n";
+				$outxml .= "<draw>line</draw>\n";
+				$outxml .= "<type>$type</type>\n";
+				$outxml .= "<host>$host</host>\n";
+				$outxml .= "<subnet>$subnet</subnet>\n";
+				$outxml .= "<x1>$serverx[$host]</x1>\n";
+				$outxml .= "<y1>$servery[$host]</y1>\n";
+				$outxml .= "<x2>$subnetx[$subnet]</x2>\n";
+				$outxml .= "<y2>$subnety[$subnet]</y2>\n";
+				$outxml .= "</item>\n";
+			}
+		}
+	}
+	$outxml.="</drawing>\n";
+	response_header('Content-Type' => 'text/xml');
+	response_header('Cache-Control' =>  'no-store, no-cache, must-revalidate');
+		
+
+	$outxml;
+};
+
+######################################################################################
+#	Serve specific file-types from the ./public directory
+######################################################################################
+# pictures/images
+get '/**.gif' => sub {
+	my $file='images'.request->path ;
+	if ( -f $file ) {
+		send_file $file;
+	}
+	else {
+		set_flash("Can't open $file");
+		redirect '/';
+
+	}
+};
+get '/**.png' => sub {
+	my $file='images'.request->path ;
+	if ( -f $file ) {
+		send_file $file;
+	}
+	else {
+		set_flash("Can't open $file");
+		redirect '/';
+
+	}
+};
+# stylesheets
+get '/**.css' => sub {
+	my $file='css'.request->path ;
+	if ( -f $file ) {
+		send_file $file;
+	}
+	else {
+		set_flash("Can't open $file");
+		redirect '/';
+
+	}
+};
+# javascripts
+get '/**.js' => sub {
+	my $file='js'.request->path ;
+	if ( -f $file ) {
+		send_file $file;
+	}
+	else {
+		set_flash("Can't open $file");
+		redirect '/';
+
+	}
+};
+	
+######################################################################################
+	
+ 
+post '/add' => sub {
+	if ( not session('logged_in') ) {
+		send_error("Not logged in", 401);
+	}
+ 
+	my $db  = connect_db();
+	my $sql = 'insert into entries (title, text) values (?, ?)';
+ 
+	my $sth = $db->prepare($sql)
+		or die $db->errstr;
+ 
+	$sth->execute(
+		body_parameters->get('title'),
+		body_parameters->get('text')
+	) or die $sth->errstr;
+ 
+	redirect '/';
+};
+ 
+#######################################################################
+# Login only looks if the username is present in /etc/passwd
+# This is not something to run in multi-user production environments.
+any ['get', 'post'] => '/login' => sub {
+	my $err;
+ 
+	if ( request->method() eq "POST" ) {
+		# process form input
+		my $tusername=body_parameters->get('username');
+		my $username;
+		if ($tusername=~/(\w+)/){
+			$username=$1;
+			if ( 0 == system ("/usr/bin/grep '$username:' /etc/passwd")){
+				session 'logged_in' => true;
+				set_flash('You are logged in.');
+				return redirect '/';
+			}
+			else {
+				$err = "Unknown user";
+			}
+		}
+		else {
+			$err = "Invalid username";
+		}
+	}
+	# display login form
+	template 'login.tt', {
+		err => $err,
+	};
+ 
+};
+ 
+get '/logout' => sub {
+	app->destroy_session;
+	set_flash('You are logged out.');
+	redirect '/';
+};
+ 
+start;
+
