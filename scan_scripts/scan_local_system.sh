@@ -56,11 +56,13 @@ ip addr |
 	sed -n 's/.*inet \(.*\)\/\(.*\) brd.*/\1 \2/p' | 
 	while read ip mycidr ; do
 		echo "serverid=$serverid ip=$ip cidr=$mycidr"
-		add_if $ip $serverid
-		echo "   serverid=$serverid ip=$ip cidr=$mycidr"
-		nwaddr=$(ipcalc $ip/$mycidr | sed -n 's/\/.*//;s/^Network:\s*//p')
-		echo "   serverid=$serverid ip=$ip nnaddr=$nwaddr cidr=$mycidr"
-		add_subnet $nwaddr $mycidr
-		mycidr=24
-		sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
+		if [ "$mycidr" != '' ] ; then
+			add_if $ip $serverid
+			echo "   serverid=$serverid ip=$ip cidr=$mycidr"
+			nwaddr=$(ipcalc $ip/$mycidr | sed -n 's/\/.*//;s/^Network:\s*//p')
+			echo "   serverid=$serverid ip=$ip nnaddr=$nwaddr cidr=$mycidr"
+			add_subnet $nwaddr $mycidr
+			sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
+		fi
+		mycidr=''
 	done
