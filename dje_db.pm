@@ -5,7 +5,7 @@
 use DBI;
 use strict;
 use warnings;
-
+use Data::Dumper;
 
 #
 # Prefixes:
@@ -22,16 +22,21 @@ use warnings;
 # | (_| | (_| | || (_| | |_) | (_| \__ \  __/ | | | |  __/\ V  V / 
 #  \__,_|\__,_|\__\__,_|_.__/ \__,_|___/\___| |_| |_|\___| \_/\_/  
 #    
-our $DEBUG;
+our $DEBUG=0;
 our $DEB_DB;
 our $DEB_FRAME;
 our $DEB_SUB;
-
 our $Message;
-
 our %config;
-
 my @lastresult;
+
+sub db_log {
+	(my $line)=@_;
+	open my $fh, ">>", "log/database" or die "Cannot open log: $!";
+	print $fh "$line\n";
+	close $fh;
+}
+	
 
 #-----------------------------------------------------------------------
 # Name        : sql_query
@@ -51,7 +56,10 @@ sub sql_query {
 	my ($query, @bind_values) = @_;
 	my $dbfile=$config{'dbfile'};
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"sql_query  $package, $filename, line number $line using $dbfile");
+	#debug($DEB_DB,"sql_query  $package, $filename, line number $line using $dbfile");
+	my $logline="sql_query $query";
+	for my $bv (@bind_values){ $logline="$logline, $bv"; }
+	db_log ($logline);
 	my $db = DBI->connect(
 		"dbi:SQLite:dbname=$dbfile",
 		"",
@@ -81,7 +89,10 @@ sub sql_qvalue{
 	my ($query, @bind) = @_;
 	my $dbfile=$config{'dbfile'};
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"sql_query  $package, $filename, line number $line using $dbfile");
+	#debug($DEB_DB,"sql_query  $package, $filename, line number $line using $dbfile");
+	my $logline="sql_qvalue $query";
+	for my $bv (@bind){ $logline="$logline, $bv"; }
+	db_log ($logline);
 	my $db = DBI->connect(
 		"dbi:SQLite:dbname=$dbfile",
 		"",
@@ -105,7 +116,7 @@ sub sql_qvalue{
 #-----------------------------------------------------------------------
 sub sql_getrow {
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"sql_getrow $package, $filename, line number $line");
+	#debug($DEB_DB,"sql_getrow $package, $filename, line number $line");
 	return undef unless @lastresult;
 	my $row = shift @lastresult;
 	return $row;
@@ -123,7 +134,7 @@ sub sql_getrow {
 
 sub sql_getvalue {
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"sql_getvalue  $package, $filename, line number $line");
+	#debug($DEB_DB,"sql_getvalue  $package, $filename, line number $line");
 	return undef unless @lastresult;
 	my $row = shift @lastresult;
 	return undef unless $row && %$row;
@@ -165,7 +176,7 @@ sub query_coordinates {
 	);
 	my @retval=();
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_coordinates $package, $filename, line number $line page=$page tbl=$tbl");
+	#debug($DEB_DB,"query_coordinates $package, $filename, line number $line page=$page tbl=$tbl");
 	if ($allowed_tables{$tbl}) {
 		if ($page eq 'top'){
 			$retval[0]=sql_qvalue("SELECT xcoord FROM $tbl WHERE id=$id");
@@ -184,7 +195,7 @@ sub query_coordinates {
 # _ _  __|_. _  _|_ _ |_ | _  
 #(_(_)| || |(_|  |_(_||_)|(/_ 
 #            _|               
-#
+#CONFIG
 
 #-----------------------------------------------------------------------
 # Name        : q_config
@@ -199,7 +210,7 @@ sub query_coordinates {
 sub q_config {
 	(my $attr,my $item)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"q_config $package, $filename, line number $line");
+	#debug($DEB_DB,"q_config $package, $filename, line number $line");
 	my $retval=sql_qvalue ("SELECT value FROM config WHERE attribute= ? AND item= ? ",$attr,$item);
 	return $retval;
 }
@@ -216,7 +227,7 @@ sub q_config {
 
 sub q_changed {
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"q_changed$package, $filename, line number $line");
+	#debug($DEB_DB,"q_changed$package, $filename, line number $line");
 	my $retval=sql_qvalue ("SELECT value FROM config WHERE attribute='run:param' AND item='changed'");
 	sql_qvalue ("UPDATE config SET value='no' WHERE attribute='run:param' AND item='changed'");
 	return $retval;
@@ -233,7 +244,7 @@ sub q_changed {
 
 sub query_changed_no {
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_changed_no $package, $filename, line number $line");
+	#debug($DEB_DB,"query_changed_no $package, $filename, line number $line");
 	sql_query ("SELECT value FROM config WHERE attribute='run:param' AND item='changed'");
 	if (sql_getvalue()){
 		sql_query ("UPDATE config SET value='no' WHERE attribute='run:param' AND item='changed'");
@@ -256,8 +267,8 @@ sub query_changed_no {
 #-----------------------------------------------------------------------
 sub query_pagelist {
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_pagelist $package, $filename, line number $line");
-	sql_query ("SELECT DISTINCT item,value FROM config WHERE attribute LIKE 'page:%'");
+	#debug($DEB_DB,"query_pagelist $package, $filename, line number $line");
+	return sql_query ("SELECT DISTINCT item,value FROM config WHERE attribute LIKE 'page:%'");
 }
 
 #-----------------------------------------------------------------------
@@ -271,7 +282,7 @@ sub query_pagelist {
 #-----------------------------------------------------------------------
 sub query_line_color {
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_line_color $package, $filename, line number $line");
+	#debug($DEB_DB,"query_line_color $package, $filename, line number $line");
 	sql_query ("SELECT item,value FROM config WHERE attribute='line:color'");
 	while (my $row = sql_getrow()) {
 		my $item=$row->{item};
@@ -294,7 +305,7 @@ sub query_line_color {
 sub query_set_line_color {
 	(my $colorname, my $colorvalue)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_set_line_color $package, $filename, line number $line");
+	#debug($DEB_DB,"query_set_line_color $package, $filename, line number $line");
 	sql_query ("DELETE FROM config WHERE attribute='line:color' AND item= ? ",$colorname);
 	sql_query ("INSERT INTO config (attribute,item,value) VALUES ('line:color', ? , ? )",$colorname,$colorvalue);
 }
@@ -312,7 +323,7 @@ sub query_set_line_color {
 sub query_set_pagetype {
 	(my $page, my $type)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_set_pagetype $package, $filename, line number $line");
+	#debug($DEB_DB,"query_set_pagetype $package, $filename, line number $line");
 	sql_query ("DELETE FROM config WHERE attribute='page:type' AND item= ? ",$page);
 	sql_query ("INSERT INTO config (attribute,item,value) VALUES ('page:type', ? , ? )",$page,$type);
 }
@@ -331,7 +342,7 @@ sub query_set_pagetype {
 sub query_set_config {
 	my ($attr,$item,$val)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_set_config $package, $filename, line number $line");
+	#debug($DEB_DB,"query_set_config $package, $filename, line number $line");
 	sql_query ("DELETE FROM config WHERE attribute= ? AND item= ? ",$attr,$item);
 	sql_query ("INSERT INTO config (attribute,item,value) VALUES ( ? , ? , ? )",$attr,$item,$val);
 }
@@ -347,8 +358,8 @@ sub query_set_config {
 sub query_config {
 	my ($attr,$item,$val)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_config $package, $filename, line number $line");
-	sql_query ("SELECT * from config")
+	#debug($DEB_DB,"query_config $package, $filename, line number $line");
+	return sql_query ("SELECT * from config")
 }
 
 #
@@ -369,7 +380,7 @@ sub query_config {
 sub query_delete_cloud {
 	(my $id)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_cloud_delete $package, $filename, line number $line");
+	#debug($DEB_DB,"query_cloud_delete $package, $filename, line number $line");
 	sql_query("DELETE FROM cloud WHERE id= ? ",$id);
 }
 #-----------------------------------------------------------------------
@@ -384,7 +395,7 @@ sub query_delete_cloud {
 sub query_cloud_del_name {
 	(my $name)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_cloud_del_name $package, $filename, line number $line");
+	#debug($DEB_DB,"query_cloud_del_name $package, $filename, line number $line");
 	sql_query("DELETE FROM cloud WHERE name= ? ",$name);
 }
 
@@ -402,7 +413,7 @@ sub query_cloud_del_name {
 #-----------------------------------------------------------------------
 sub query_cloud_add_a_cloud {
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_cloud_add_a_cloud $package, $filename, line number $line");
+	#debug($DEB_DB,"query_cloud_add_a_cloud $package, $filename, line number $line");
 	sql_query("INSERT INTO cloud (name,vendor,type,service) VALUES ( ? . ? , ? , ? )",@_);
 }
 
@@ -419,7 +430,7 @@ sub query_cloud_add_a_cloud {
 sub query_cloud_update_type {
 	(my $id, my $type)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_cloud_update_type $package, $filename, line number $line");
+	#debug($DEB_DB,"query_cloud_update_type $package, $filename, line number $line");
 	sql_query("UPDATE cloud SET type= ? WHERE id= ? ",$type,$id);
 }
 #-----------------------------------------------------------------------
@@ -443,7 +454,7 @@ sub q_cloud{
 		service    => 1
         );
 	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
-	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	#debug($DEB_DB,"$subr $package, $filename, line number $line");
 	return unless defined $id;
 	if ($allowed_column{$var}) {
 		return sql_qvalue("SELECT $var FROM cloud WHERE id= ? ", $id);
@@ -470,7 +481,7 @@ sub q_cloud_update {
 		service    => 1
         );
 	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
-	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	#debug($DEB_DB,"$subr $package, $filename, line number $line");
 	return unless defined $id;
 	while (my ($var, $val) = each %updates) {
 		if ($allowed_column{$var}) {
@@ -491,8 +502,8 @@ sub q_cloud_update {
 sub query_cloud_from_id {
 	(my $id)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_cloud_from_id $package, $filename, line number $line");
-	sql_query("SELECT * FROM cloud WHERE id = ? ",$id);
+	#debug($DEB_DB,"query_cloud_from_id $package, $filename, line number $line");
+	return sql_query("SELECT * FROM cloud WHERE id = ? ",$id);
 }
 
 #-----------------------------------------------------------------------
@@ -507,8 +518,8 @@ sub query_cloud_from_id {
 sub query_cloud_from_name {
 	(my $name)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_cloud_from_name $package, $filename, line number $line");
-	sql_query("SELECT * FROM cloud WHERE name = ? ",$name);
+	#debug($DEB_DB,"query_cloud_from_name $package, $filename, line number $line");
+	return sql_query("SELECT * FROM cloud WHERE name = ? ",$name);
 }
 
 #-----------------------------------------------------------------------
@@ -522,8 +533,8 @@ sub query_cloud_from_name {
 #-----------------------------------------------------------------------
 sub query_cloud{
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_cloud $package, $filename, line number $line");
-	sql_query("SELECT * FROM cloud");
+	#debug($DEB_DB,"query_cloud $package, $filename, line number $line");
+	return sql_query("SELECT * FROM cloud");
 }
 #  _        __      _   _        _   _  
 # | \  /\  (_  |_| |_) / \  /\  |_) | \ 
@@ -540,8 +551,8 @@ sub query_cloud{
 #-----------------------------------------------------------------------
 sub query_dashboard{
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_dashboard $package, $filename, line number $line");
-	sql_query("SELECT * FROM dashboard");
+	#debug($DEB_DB,"query_dashboard $package, $filename, line number $line");
+	return sql_query("SELECT * FROM dashboard");
 }
 #-----------------------------------------------------------------------
 # Name        : query_dashboard_servers
@@ -554,8 +565,8 @@ sub query_dashboard{
 #-----------------------------------------------------------------------
 sub query_dashboard_servers{
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_dashboard_servers $package, $filename, line number $line");
-	sql_query("SELECT DISTINCT server FROM dashboard");
+	#debug($DEB_DB,"query_dashboard_servers $package, $filename, line number $line");
+	return sql_query("SELECT DISTINCT server FROM dashboard");
 }
 
 # ___      ___  _  _   _       _  _  __ 
@@ -575,8 +586,8 @@ sub query_dashboard_servers{
 sub query_if_from_host {
 	(my $hostid)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_if_from_host $package, $filename, line number $line");
-	sql_query("SELECT * FROM interfaces WHERE host= ? ",$hostid);
+	#debug($DEB_DB,"query_if_from_host $package, $filename, line number $line");
+	return sql_query("SELECT * FROM interfaces WHERE host= ? ",$hostid);
 }
 #-----------------------------------------------------------------------
 # Name        : query_if_ip_by_host
@@ -590,7 +601,7 @@ sub query_if_from_host {
 sub query_if_ip_by_host{
 	(my $host_id)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_if_by_host_ifname $package, $filename, line number $line");
+	#debug($DEB_DB,"query_if_by_host_ifname $package, $filename, line number $line");
 	my @retvals;
 	sql_query("SELECT ip FROM interfaces WHERE host= ? ",$host_id);
 	my $ip=sql_getvalue();
@@ -612,7 +623,7 @@ sub query_if_ip_by_host{
 sub query_if_by_host_ifname {
 	(my $host_id,my $ifname)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_if_by_host_ifname $package, $filename, line number $line");
+	#debug($DEB_DB,"query_if_by_host_ifname $package, $filename, line number $line");
 	return sql_qvalue("SELECT id FROM interfaces WHERE host= ?  AND ifname= ? ",$host_id,$ifname);
 }
 #-----------------------------------------------------------------------
@@ -627,8 +638,8 @@ sub query_if_by_host_ifname {
 sub query_if_by_id {
 	(my $id)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_if_by_id $package, $filename, line number $line");
-	sql_query("SELECT * FROM interfaces WHERE id = ? ",$id);
+	#debug($DEB_DB,"query_if_by_id $package, $filename, line number $line");
+	return sql_query("SELECT * FROM interfaces WHERE id = ? ",$id);
 }
 #-----------------------------------------------------------------------
 # Name        : query_if_names
@@ -642,7 +653,7 @@ sub query_if_by_id {
 sub query_if_names {
 	my @retval;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_if_names $package, $filename, line number $line");
+	#debug($DEB_DB,"query_if_names $package, $filename, line number $line");
 	sql_query("SELECT DISTINCT ifname FROM interfaces ORDER BY ifname");
 	my $val=sql_getvalue();
 	while (defined $val){
@@ -679,14 +690,14 @@ sub q_if_update {
                 options    =>1
         );
 	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
-	debug($DEB_DB,"$sbr $package, $filename, line number $line");
+	#debug($DEB_DB,"$sbr $package, $filename, line number $line");
 	
 	while (my ($var, $val) = each %updates) {
 		if ($allowed_column{$var}) {
 			sql_qvalue("UPDATE interfaces SET $var = ? WHERE id= ?",$val, $id);
 		}
 		else {
-			debug($DEB_DB,"ILLEGAL COLUMN $var");
+			#debug($DEB_DB,"ILLEGAL COLUMN $var");
 		}
 	}
 }
@@ -717,7 +728,7 @@ sub query_if_id_by {
                 options    =>1
         );
 	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
-	debug($DEB_DB,"$sbr $package, $filename, line number $line");
+	#debug($DEB_DB,"$sbr $package, $filename, line number $line");
 	my $where='';
 	my @args;
 	while (my ($var, $val) = each %updates) {
@@ -726,7 +737,7 @@ sub query_if_id_by {
 			push @args,$val;
 		}
 		else {
-			debug($DEB_DB,"ILLEGAL COLUMN $var");
+			#debug($DEB_DB,"ILLEGAL COLUMN $var");
 		}
 	}
 	$where=~s/^ AND//;
@@ -744,7 +755,7 @@ sub query_if_id_by {
 #-----------------------------------------------------------------------
 sub query_if_ip {
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_if_ip $package, $filename, line number $line");
+	#debug($DEB_DB,"query_if_ip $package, $filename, line number $line");
 	my @iplist;
 	sql_query("SELECT DISTINCT ip FROM interfaces ORDER BY ip");
 	while (my $ip=sql_getvalue()){
@@ -764,8 +775,22 @@ sub query_if_ip {
 #-----------------------------------------------------------------------
 sub query_interfaces_extra {
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_interfaces_extra $package, $filename, line number $line");
-	sql_query("SELECT interfaces.*,server.name,server.type,server.ostype,server.os FROM interfaces INNER JOIN server WHERE interfaces.host=server.id");
+	#debug($DEB_DB,"query_interfaces_extra $package, $filename, line number $line");
+	return sql_query("SELECT
+			interfaces.*,
+			server.name,
+			server.type,
+			server.ostype,
+			server.os,
+		CASE 
+			WHEN instr(interfaces.hostname, '.') > 0 
+			THEN substr(interfaces.hostname, 1, instr(interfaces.hostname, '.') - 1)
+			ELSE interfaces.hostname 
+		END AS shorthostname
+		FROM interfaces 
+		INNER JOIN server 
+		WHERE interfaces.host=server.id
+	");
 }
 
 #-----------------------------------------------------------------------
@@ -779,8 +804,8 @@ sub query_interfaces_extra {
 #-----------------------------------------------------------------------
 sub query_interfaces {
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_interfaces $package, $filename, line number $line");
-	sql_query("SELECT * FROM interfaces ");
+	#debug($DEB_DB,"query_interfaces $package, $filename, line number $line");
+	return sql_query("SELECT * FROM interfaces ");
 }
 #-----------------------------------------------------------------------
 # Name        : q_interfaces
@@ -809,12 +834,12 @@ sub q_interfaces {
                 options    =>1
         );
 	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
-	debug($DEB_DB,"$sbr $package, $filename, line number $line");
+	#debug($DEB_DB,"$sbr $package, $filename, line number $line");
 	if ($allowed_column{$var}) {
 		return sql_qvalue("SELECT $var FROM interfaces WHERE id= ? ", $id);
 	}
 	else {
-		debug($DEB_DB,"ILLEGAL COLUMN $var");
+		#debug($DEB_DB,"ILLEGAL COLUMN $var");
 		return sql_qvalue("SELECT id FROM interfaces WHERE id= ? ", $id);
 	}
 }
@@ -831,7 +856,7 @@ sub q_interfaces {
 sub q_if_delete {
 	(my $id)=@_;
 	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
-	debug($DEB_DB,"$sbr $package, $filename, line number $line");
+	#debug($DEB_DB,"$sbr $package, $filename, line number $line");
 	sql_qvalue("DELETE FROM interfaces WHERE id= ? ", $id);
 }
 
@@ -852,7 +877,7 @@ sub q_if_delete {
 #-----------------------------------------------------------------------
 sub query_l2_sources {
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_l2_sources $package, $filename, line number $line");
+	#debug($DEB_DB,"query_l2_sources $package, $filename, line number $line");
 	sql_query("SELECT DISTINCT source FROM l2connect ORDER BY source");
 	my @sources;
 	my $source = sql_getvalue();
@@ -873,7 +898,7 @@ sub query_l2_sources {
 #-----------------------------------------------------------------------
 sub query_l2_ids {
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_l2_ids $package, $filename, line number $line");
+	#debug($DEB_DB,"query_l2_ids $package, $filename, line number $line");
 	sql_query("SELECT DISTINCT id FROM l2connect ORDER BY id");
 	my @ids;
 	my $id=sql_getvalue();
@@ -894,7 +919,7 @@ sub query_l2_ids {
 #-----------------------------------------------------------------------
 sub query_l2_getvlans {
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_l2_getvlans $package, $filename, line number $line");
+	#debug($DEB_DB,"query_l2_getvlans $package, $filename, line number $line");
 	sql_query("SELECT DISTINCT vlan FROM l2connect ORDER BY vlan");
 	my @vlans;
 	my $vlan=sql_getvalue();
@@ -914,9 +939,8 @@ sub query_l2_getvlans {
 # Notes       : get the row with sql_getrow();
 #-----------------------------------------------------------------------
 sub query_l2{
-	(my $id)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_l2$package, $filename, line number $line");
+	#debug($DEB_DB,"query_l2$package, $filename, line number $line");
 	my $rows = sql_query("SELECT * FROM l2connect");
 }
 #-----------------------------------------------------------------------
@@ -931,7 +955,7 @@ sub query_l2{
 sub query_l2_by_id {
 	(my $id)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_l2_by_id $package, $filename, line number $line");
+	#debug($DEB_DB,"query_l2_by_id $package, $filename, line number $line");
 	my $rows = sql_query("SELECT * FROM l2connect WHERE id= ? ", $id);
 }
 #-----------------------------------------------------------------------
@@ -958,7 +982,7 @@ sub q_l2connect {
 		source     => 1
         );
 	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
-	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	#debug($DEB_DB,"$subr $package, $filename, line number $line");
 	if ($allowed_column{$var}) {
 		return sql_qvalue("SELECT $var FROM l2connect WHERE id= ? ", $id);
 	}
@@ -979,7 +1003,7 @@ sub q_l2connect {
 sub query_l2_insert {
 	(my $from_tbl,my $from_id,my $from_port,my $to_tbl,my $to_id,my $to_port,my $vlan,my $source)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_l2_delete $package, $filename, line number $line");
+	#debug($DEB_DB,"query_l2_delete $package, $filename, line number $line");
 	sql_query("INSERT INTO l2connect (from_tbl,from_id,from_port,to_tbl,to_id,to_port,vlan,source) VALUES ( ? , ? , ? , ? , ? , ? , ? , ? )",
 	          $from_tbl,$from_id,$from_port,$to_tbl,$to_id,$to_port,$vlan,$source) ;
 }
@@ -995,7 +1019,7 @@ sub query_l2_insert {
 sub query_l2_delete {
 	(my $id)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_l2_delete $package, $filename, line number $line");
+	#debug($DEB_DB,"query_l2_delete $package, $filename, line number $line");
 	sql_query("DELETE FROM l2connect WHERE id= ? ",$id);
 }
 #-----------------------------------------------------------------------
@@ -1010,7 +1034,7 @@ sub query_l2_delete {
 sub query_l2_delete_to {
 	(my $to_tbl,my $to_id)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_l2_delete_to $package, $filename, line number $line");
+	#debug($DEB_DB,"query_l2_delete_to $package, $filename, line number $line");
 	sql_query("DELETE FROM l2connect WHERE to_tbl= ? AND to_id= ? ",$to_tbl,$to_id);
 }
 #-----------------------------------------------------------------------
@@ -1025,7 +1049,7 @@ sub query_l2_delete_to {
 sub query_l2_delete_to_by_host {
 	(my $to_tbl,my $to_host)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_l2_delete_to_by_host $package, $filename, line number $line");
+	#debug($DEB_DB,"query_l2_delete_to_by_host $package, $filename, line number $line");
 	sql_query("DELETE FROM l2connect WHERE to_tbl= ? AND to_id= ? ",$to_tbl,$to_host);
 }
 
@@ -1047,8 +1071,8 @@ sub query_l2_delete_to_by_host {
 #-----------------------------------------------------------------------
 sub query_nfs {
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_nfs $package, $filename, line number $line");
-	sql_query("SELECT * FROM nfs");
+	#debug($DEB_DB,"query_nfs $package, $filename, line number $line");
+	return sql_query("SELECT * FROM nfs");
 }
 
 #  _     __  _  _  
@@ -1070,7 +1094,7 @@ sub query_nfs {
 sub q_page_delete{
 	my (%updates) = @_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"q_page_delete $package, $filename, line number $line");
+	#debug($DEB_DB,"q_page_delete $package, $filename, line number $line");
 	while (my ($var, $val) = each %updates) {
 		my $pgname=$val;
 		if ($var eq 'id'){
@@ -1105,7 +1129,7 @@ sub query_page{
 		ycoord	=> 1
 	);
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_page $package, $filename, line number $line");
+	#debug($DEB_DB,"query_page $package, $filename, line number $line");
 	my $where='';
 	my @vals;
 	my $retval=0;
@@ -1113,13 +1137,14 @@ sub query_page{
 		$where="$where AND $var = ?";
 		push @vals,$val;
 	}
-	$where=~s/^ AND//;
+	$where=~s/^ *AND *//;
 	if ($where ne ''){
-		sql_query("SELECT * FROM pages WHERE $where",@vals);
+		$retval= sql_query("SELECT * FROM pages WHERE $where",@vals);
 	}
 	else {
-		sql_query("SELECT * FROM pages ");
+		$retval= sql_query("SELECT * FROM pages ");
 	}
+	return $retval;
 }
 
 #-----------------------------------------------------------------------
@@ -1142,7 +1167,7 @@ sub q_page_id {
 		ycoord	=> 1
 	);
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"q_page_id $package, $filename, line number $line");
+	#debug($DEB_DB,"q_page_id $package, $filename, line number $line");
 	my $where='';
 	my @vals;
 	my $retval=0;
@@ -1150,7 +1175,7 @@ sub q_page_id {
 		$where="$where AND $var = ?";
 		push @vals,$val;
 	}
-	$where=~s/^ AND//;
+	$where=~s/^ *AND *//;
 	if ($where ne ''){
 		$retval=sql_qvalue("SELECT id FROM pages WHERE $where",@vals);
 	}
@@ -1176,7 +1201,7 @@ sub q_page_update {
 		ycoord	=> 1
 	);
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"q_page_update $package, $filename, line number $line");
+	#debug($DEB_DB,"q_page_update $package, $filename, line number $line");
 	my $where='';
 	my @vals;
 	my $retval=0;
@@ -1198,8 +1223,8 @@ sub q_page_update {
 sub query_pages_tbl_id {
 	(my $table,my $id)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_pages_tbl_id $package, $filename, line number $line");
-	sql_query("SELECT page FROM pages WHERE tbl= ? AND item= ?",$table,$id);
+	#debug($DEB_DB,"query_pages_tbl_id $package, $filename, line number $line");
+	return sql_query("SELECT page FROM pages WHERE tbl= ? AND item= ?",$table,$id);
 }
 
 #-----------------------------------------------------------------------
@@ -1216,7 +1241,7 @@ sub query_pages_tbl_id {
 sub query_pages_del_obj {
 	(my $page,my $table,my $item)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_pages_del_obj $package, $filename, line number $line");
+	#debug($DEB_DB,"query_pages_del_obj $package, $filename, line number $line");
 	sql_query("DELETE FROM pages WHERE page= ? AND tbl= ? AND item= ? ",$page,$table,$item);
 }
 #-----------------------------------------------------------------------
@@ -1234,7 +1259,7 @@ sub query_pages_del_obj {
 sub query_pages_add_obj {
 	(my $page,my $table,my $item,my $x,my $y)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_pages_add_obj $package, $filename, line number $line");
+	#debug($DEB_DB,"query_pages_add_obj $package, $filename, line number $line");
 	sql_query("INSERT INTO pages (page,tbl,item,xcoord,ycoord) VALUES ( ? ,? ,? ,? ,? )",$page,$table,$item,$x,$y);
 }
 #-----------------------------------------------------------------------
@@ -1255,13 +1280,13 @@ sub query_obj_on_page {
 		switch	=> 1
 	);
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_obj_on_page $package, $filename, line number $line page=$page tbl=$tbl");
+	#debug($DEB_DB,"query_obj_on_page $package, $filename, line number $line page=$page tbl=$tbl");
 	if ($allowed_tables{$tbl}) {
 		if ($page eq 'top'){
-			sql_query("SELECT * FROM $tbl");
+			return sql_query("SELECT * FROM $tbl");
 		}
 		else {
-			sql_query ("	SELECT  $tbl.*,pages.xcoord AS pagex, pages.ycoord as pagey
+			return sql_query ("	SELECT  $tbl.*,pages.xcoord AS pagex, pages.ycoord as pagey
 					FROM   $tbl
 					INNER JOIN pages ON pages.item = $tbl.id
 					WHERE  pages.page= ? AND pages.tbl='$tbl'
@@ -1289,8 +1314,8 @@ sub query_obj_on_page {
 #-----------------------------------------------------------------------
 sub query_server{
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_server $package, $filename, line number $line");
-	sql_query("SELECT * FROM server ORDER BY name");
+	#debug($DEB_DB,"query_server $package, $filename, line number $line");
+	return sql_query("SELECT * FROM server ORDER BY name");
 }
 #-----------------------------------------------------------------------
 # Name        : query_server_names
@@ -1304,7 +1329,7 @@ sub query_server{
 sub query_server_names{
 	(my $id)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_server_names $package, $filename, line number $line");
+	#debug($DEB_DB,"query_server_names $package, $filename, line number $line");
 	my @srvnames;
 	sql_query("SELECT name FROM server ORDER BY name");
 	while (my $name=sql_getvalue()){
@@ -1341,7 +1366,7 @@ sub q_server_by_name {
 		interfaces => 1
         );
 	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
-	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	#debug($DEB_DB,"$subr $package, $filename, line number $line");
 	if ($allowed_column{$var}) {
 		return sql_qvalue("SELECT $var FROM server WHERE name= ? ", $name);
 	}
@@ -1379,7 +1404,7 @@ sub q_server {
 		interfaces => 1
         );
 	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
-	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	#debug($DEB_DB,"$subr $package, $filename, line number $line");
 	if ($allowed_column{$var}) {
 		return sql_qvalue("SELECT $var FROM server WHERE id= ? ", $id);
 	}
@@ -1416,7 +1441,7 @@ sub q_server_id_by {
 		interfaces => 1
         );
 	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
-	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	#debug($DEB_DB,"$subr $package, $filename, line number $line");
 	my $where='';
 	my @args;
 	while (my ($var, $val) = each %updates) {
@@ -1457,7 +1482,7 @@ sub q_server_update {
 		interfaces => 1
         );
 	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
-	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	#debug($DEB_DB,"$subr $package, $filename, line number $line");
 	return unless defined $id;
 	while (my ($var, $val) = each %updates) {
 		if ($allowed_column{$var}) {
@@ -1480,7 +1505,7 @@ sub q_server_update {
 sub query_server_update_type {
 	(my $id, my $type)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_server_update_type $package, $filename, line number $line");
+	#debug($DEB_DB,"query_server_update_type $package, $filename, line number $line");
 	sql_query("UPDATE server SET type= ? WHERE id= ? ",$type,$id);
 }
 
@@ -1497,7 +1522,7 @@ sub query_server_update_type {
 sub query_delete_server {
 	(my $id)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_delete_server $package, $filename, line number $line");
+	#debug($DEB_DB,"query_delete_server $package, $filename, line number $line");
 	my @iflist;
 	sql_query("DELETE FROM pages WHERE tbl='server' AND item = ? ",$id);
 	sql_query("SELECT id FROM interfaces WHERE host= ? ",$id);
@@ -1531,8 +1556,8 @@ sub query_delete_server {
 #-----------------------------------------------------------------------
 sub query_subnet{
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_subnet $package, $filename, line number $line");
-	sql_query("SELECT * FROM subnet ORDER BY nwaddress");
+	#debug($DEB_DB,"query_subnet $package, $filename, line number $line");
+	return sql_query("SELECT * FROM subnet ORDER BY nwaddress");
 }
 
 #-----------------------------------------------------------------------
@@ -1548,7 +1573,7 @@ sub query_subnet{
 sub query_delete_subnet{
 	(my $id)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_delete_subnet $package, $filename, line number $line");
+	#debug($DEB_DB,"query_delete_subnet $package, $filename, line number $line");
 	sql_query("DELETE FROM subnet WHERE id= ?", $id);
 }
 
@@ -1575,19 +1600,19 @@ sub q_subnet_id_by {
 		access     =>1
         );
 	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
-	debug($DEB_DB,"$sbr $package, $filename, line number $line");
+	#debug($DEB_DB,"$sbr $package, $filename, line number $line");
 	if ($allowed_column{$var}) {
 		return sql_qvalue("SELECT id FROM subnet WHERE $var= ? LIMIT 1", $val);
 	}
 	else {
-		debug($DEB_DB,"ILLEGAL COLUMN $var");
+		#debug($DEB_DB,"ILLEGAL COLUMN $var");
 		return $val;
 	}
 }
 
 #-----------------------------------------------------------------------
 # Name        : q_subnet
-# Purpose     : Get a a value based on a column value
+# Purpose     : Get a a value based on a id
 # Arguments   : 
 # Returns     : column name, id
 # Globals     : 
@@ -1607,12 +1632,12 @@ sub q_subnet {
 		access     =>1
         );
 	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
-	debug($DEB_DB,"$sbr $package, $filename, line number $line");
+	#debug($DEB_DB,"$sbr $package, $filename, line number $line");
 	if ($allowed_column{$var}) {
 		return sql_qvalue("SELECT $var FROM subnet WHERE id= ? LIMIT 1", $id);
 	}
 	else {
-		debug($DEB_DB,"ILLEGAL COLUMN $var");
+		#debug($DEB_DB,"ILLEGAL COLUMN $var");
 		return $id;
 	}
 }
@@ -1638,14 +1663,14 @@ sub q_subnet_update {
 		access     =>1
         );
 	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
-	debug($DEB_DB,"$sbr $package, $filename, line number $line");
+	#debug($DEB_DB,"$sbr $package, $filename, line number $line");
 	return unless defined $id;
 	while (my ($var, $val) = each %updates) {
 		if ($allowed_column{$var}) {
 			sql_qvalue("UPDATE subnet SET $var = ? WHERE id = ? ", $val,$id);
 		}
 		else {
-			debug($DEB_DB,"ILLEGAL COLUMN $var");
+			#debug($DEB_DB,"ILLEGAL COLUMN $var");
 		}
 	}
 }
@@ -1667,8 +1692,8 @@ sub q_subnet_update {
 sub query_switch{
 	(my $name)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_switch $package, $filename, line number $line");
-	sql_query("SELECT * FROM switch ORDER BY name");
+	#debug($DEB_DB,"query_switch $package, $filename, line number $line");
+	return sql_query("SELECT * FROM switch ORDER BY name");
 }
 
 #-----------------------------------------------------------------------
@@ -1683,7 +1708,7 @@ sub query_switch{
 sub query_delete_switch {
 	(my $id)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_delete_switch $package, $filename, line number $line");
+	#debug($DEB_DB,"query_delete_switch $package, $filename, line number $line");
 	sql_query("DELETE FROM switch WHERE id = ? ", $id);
 }
 #-----------------------------------------------------------------------
@@ -1698,7 +1723,7 @@ sub query_delete_switch {
 sub query_switch_names{
 	(my $id)=@_;
 	my ($package, $filename, $line) = caller;
-	debug($DEB_DB,"query_switch_names $package, $filename, line number $line");
+	#debug($DEB_DB,"query_switch_names $package, $filename, line number $line");
 	my @swnames;
 	sql_query("SELECT name FROM switch");
 	while (my $name=sql_getvalue()){
@@ -1727,9 +1752,9 @@ sub q_switch {
 		port       => 1
         );
 	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
-	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	#debug($DEB_DB,"$subr $package, $filename, line number $line");
 	if ($allowed_column{$var}) {
-		return sql_qvalue("SELECT $var  FROM server WHERE id= ? ", $id);
+		return sql_qvalue("SELECT $var  FROM switch WHERE id= ? ", $id);
 	}
 	else {
 		return $id;
@@ -1754,7 +1779,7 @@ sub q_switch_id_by {
 		port       => 1
         );
 	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
-	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	#debug($DEB_DB,"$subr $package, $filename, line number $line");
 	if ($allowed_column{$var}) {
 		return sql_qvalue("SELECT id  FROM switch WHERE $var= ? ", $val);
 	}
@@ -1781,14 +1806,14 @@ sub q_switch_update {
 		port       => 1
         );
 	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
-	debug($DEB_DB,"$sbr $package, $filename, line number $line");
+	#debug($DEB_DB,"$sbr $package, $filename, line number $line");
 	return unless defined $id;
 	while (my ($var, $val) = each %updates) {
 		if ($allowed_column{$var}) {
 			sql_qvalue("UPDATE switch SET $var = ? WHERE id = ? ", $val,$id);
 		}
 		else {
-			debug($DEB_DB,"ILLEGAL COLUMN $var");
+			#debug($DEB_DB,"ILLEGAL COLUMN $var");
 		}
 	}
 }
@@ -1811,7 +1836,7 @@ sub q_switch_insert {
 		port       => 1
         );
 	my ($package, $filename, $line) = caller; my $subr=(caller(0))[3];
-	debug($DEB_DB,"$subr $package, $filename, line number $line");
+	#debug($DEB_DB,"$subr $package, $filename, line number $line");
 	my %values;
 	while (my ($var, $val) = each %updates) {
 		if ($allowed_column{$var}) {
