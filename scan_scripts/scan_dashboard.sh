@@ -54,9 +54,6 @@ for dash_script in $SCRIPTPATH/dashboard_*sh ; do
 					sqlite3 -cmd ".timeout 1000" $database "UPDATE dashboard SET value='$value' WHERE type='$tpe' AND  server='$server' AND variable='$variable'"
 					sqlite3 -cmd ".timeout 1000" $database "UPDATE dashboard SET color1='$color1' WHERE type='$tpe' AND  server='$server' AND variable='$variable'"
 					sqlite3 -cmd ".timeout 1000" $database "UPDATE dashboard SET color2='$color2' WHERE type='$tpe' AND  server='$server' AND variable='$variable'"
-					if [ "$value" != "$ovalue" ] ; then
-						sqlite3 -cmd ".timeout 1000" $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
-					fi
 				fi
 			fi
 				
@@ -64,6 +61,11 @@ for dash_script in $SCRIPTPATH/dashboard_*sh ; do
 	done
 done
 rm -f $tmp1 $tmp2
+
+for listscript in $SCRIPTPATH/listing_*sh ; do
+	bash $listscript
+done > /tmp/djedefre.listing
+sqlite3 -cmd ".timeout 1000" $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 
 exit
 				
