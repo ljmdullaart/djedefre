@@ -22,12 +22,12 @@ elif [ "$1" != '' ] ; then
 	fi
 fi
 
-# clean-up interfaces for good measure
+echo  clean-up interfaces for good measure
 sqlite3  -separator ' ' "$database" "DELETE FROM interfaces WHERE ip like '255.255%'"
 sqlite3  -separator ' ' "$database" "DELETE FROM interfaces WHERE ip like '127.%'"
 
-# remove hosts that are more than 3 months down
-sqlite3  -separator ' ' "$database" "SELECT id FROM SERVER WHERE last_up IS NULL OR last_up = '' OR last_up < DATE('now', '-3 months');" > $tmp
+echo  remove hosts that are more than 3 months down
+sqlite3  -separator ' ' "$database" "SELECT id FROM SERVER WHERE last_up IS NULL OR last_up = '' OR last_up < DATE('now', '-2 months');" > $tmp
 sqlite3  -separator ' ' "$database" "SELECT server.id FROM server LEFT JOIN interfaces ON server.id = interfaces.host WHERE interfaces.host IS NULL;" >> $tmp
 while read id ; do
 	sqlite3  -separator ' ' "$database" "DELETE FROM interfaces WHERE host=$id"
@@ -35,7 +35,24 @@ while read id ; do
 
 done <$tmp
 
+echo  remove servers without interfaces
 
+while read id ; do
+	sqlite3  -separator ' ' "$database" "SELECT * FROM interfaces WHERE host = $id" > $tmp1
+	if [ "$(wc -c < $tmp1)" -le 5 ]; then
+		sqlite3  -separator ' ' "$database" "DELETE FROM server WHERE id=$id"
+	fi
+done <$tmp
+
+echo remove non-existing servers from pages
+
+sqlite3  -separator ' ' "$database" "SELECT item FROM pages WHERE tbl='server'" > $tmp1
+while read item ; do
+	sqlite3  -separator ' ' "$database" "SELECT * FROM server WHERE id=$item" > $tmp2
+	if [ "$(wc -c < $tmp2)" -le 5 ]; then
+		sqlite3  -separator ' ' "$database" "DELETE FROM pages WHERE tbl='server' AND item=$item"
+	fi
+done <$tmp1
 
 rm -f $tmp
 rm -f $tmp1
