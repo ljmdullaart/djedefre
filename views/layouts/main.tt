@@ -4,7 +4,6 @@
 		<title>Djedefre</title>
 		<link rel=stylesheet type=text/css href="[% css_url %]">
 		<script src="https://unpkg.com/konva@9/konva.min.js"></script>
-		<script src="/js/dmz.js"></script>
 		<style>
 			table { width: 100%; border-collapse: collapse; font-family: sans-serif; }
 			th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }

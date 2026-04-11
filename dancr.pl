@@ -466,9 +466,9 @@ post '/api/changeobject' => sub {
 	my $var    = $data->{var};
 	my $val    = $data->{val};
 	$tbl='none' unless defined $tbl;
-print "'/api/changeobject' data=$data  id=$id item=$item tbl=$tbl var=$var val=$val\n";
-	if ($tbl eq 'server'){ q_server_update ($id,$var,$val); }
-	if ($tbl eq 'subnet'){ q_subnet_update ($id,$var,$val); }
+print "--------------------item=$item id=$id tbl=$tbl var=$var val=$val\n";
+	if ($tbl eq 'server'){ q_server_update ($item,$var,$val); }
+	if ($tbl eq 'subnet'){ q_subnet_update ($item,$var,$val); }
 	return to_json { status => "ok" };
 };
 
@@ -483,6 +483,17 @@ post '/api/setpagelist' => sub {
 	return to_json { status => "ok" };
     
 };
+
+post '/api/deleteobject' => sub {
+	my $data   = from_json(request->body);
+	my $data = from_json(request->body);
+	my $item   = $data->{item};
+	my $tbl    = $data->{tbl};
+	if ($tbl eq 'server'){ query_delete_server ($item); }
+	if ($tbl eq 'subnet'){ query_delete_subnet ($item); }
+	return to_json { status => "ok" };
+};
+	
 
 	
 ######################################################################################
@@ -951,6 +962,12 @@ get '/**.gif' => sub {
 		set_flash("Can't open $file");
 		redirect '/';
 
+	}
+};
+get '/**.ico' => sub {
+	my $file='images'.request->path ;
+	if ( -f $file ) {
+		send_file $file;
 	}
 };
 get '/**.png' => sub {

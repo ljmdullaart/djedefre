@@ -1,26 +1,34 @@
+// Globale variabelen
+window.stage = null;
+window.nodeById = new Map();   // key = dr_obj
+window.lines = [];             // { line, fromId, toId }
+window.loadDrawing = null;
+window.redrawNetwork = null;
+
 document.addEventListener("DOMContentLoaded", () => {
-    // 1. Initialiseer Konva Stage
-    const stage = new Konva.Stage({
+
+    // 1. Stage initialiseren
+    window.stage = new Konva.Stage({
         container: "container",
-        width: window.innerWidth-360 ,
+        width: window.innerWidth - 360,
         height: window.innerHeight - 200
     });
-    stage.scale({ x: 1/1.5, y: 1/1.5 });
+
+    stage.scale({ x: 1 / 1.5, y: 1 / 1.5 });
 
     const lineLayer = new Konva.Layer();
     const nodeLayer = new Konva.Layer();
     stage.add(lineLayer, nodeLayer);
 
-    const nodeById = new Map();
-    const lines = [];
+    window.nodeById = new Map();
+    window.lines = [];
 
-    // 2. Functie om de data te laden en te tekenen
-    function loadDrawing(drawingName) {
+    // 2. Tekening laden en tekenen
+    window.loadDrawing = function (drawingName) {
         if (!drawingName || drawingName === "none") return;
 
-        // Reset lagen
+        // Reset layers en mappings
         lineLayer.destroyChildren();
-        nodeLayer.add(new Konva.Group()); // Forceer refresh
         nodeLayer.destroyChildren();
         nodeById.clear();
         lines.length = 0;
@@ -30,13 +38,14 @@ document.addEventListener("DOMContentLoaded", () => {
             .then(objects => {
                 const imageLoads = [];
 
-                // Eerste pass: Teken de Nodes (PNG's)
+                // --- Nodes tekenen (alles behalve tbl === "line") ---
                 objects.filter(o => o.tbl !== "line").forEach(obj => {
                     const img = new Image();
                     img.src = `/logo_${obj.type}.png`;
 
                     const p = new Promise(resolve => {
                         img.onload = () => {
+
                             const group = new Konva.Group({
                                 x: parseInt(obj.xcoord) || 100,
                                 y: parseInt(obj.ycoord) || 100,
@@ -61,87 +70,154 @@ document.addEventListener("DOMContentLoaded", () => {
 
                             group.add(icon, label);
 
+                            // Konva referenties opslaan op het object
                             obj.konvaGroup = group;
                             obj.konvaIcon  = icon;
                             obj.konvaLabel = label;
 
+                            // Node verplaatsen → lijnen updaten
+                            group.on("dragmove", () => updateLinesForNode());
 
-                            group.on("dragmove", () => updateLinesForNode(group));
-
-                            // Save new position when drag ends
+                            // Node verplaatsen → positie opslaan
                             group.on("dragend", () => {
-                                const newX = group.x();
-                                const newY = group.y();
-                    
-                                                    fetch("/api/moveobject", {
+                                fetch("/api/moveobject", {
                                     method: "POST",
                                     headers: { "Content-Type": "application/json" },
                                     body: JSON.stringify({
                                         tbl: obj.tbl,
                                         item: obj.item,
-					page: obj.page,
-                                        xcoord: newX,
-                                        ycoord: newY
+                                        page: obj.page,
+                                        xcoord: group.x(),
+                                        ycoord: group.y()
                                     })
                                 }).catch(err => console.error("Move failed:", err));
                             });
-                            group.on("mousedown", () => { fillObjectTable(obj); });
-                            group.on("dragstart", () => { fillObjectTable(obj); });
 
+                            // Node selecteren → object info tonen
+                            group.on("mousedown", () => fillObjectTable(obj));
+                            group.on("dragstart", () => fillObjectTable(obj));
 
                             nodeLayer.add(group);
+
+                            // BELANGRIJK: dr_obj is uniek in de tekening
                             nodeById.set(obj.dr_obj, group);
+
                             resolve();
                         };
-                        img.onerror = resolve; // Ga door, ook als plaatje mist
+
+                        img.onerror = resolve;
                     });
+
                     imageLoads.push(p);
                 });
 
-                // Tweede pass: Teken de lijnen zodra de nodes er zijn
+                // --- Lijnen tekenen ---
                 Promise.all(imageLoads).then(() => {
                     objects.filter(o => o.tbl === "line").forEach(obj => {
-                        const fromNode = nodeById.get(obj.from);
-                        const toNode = nodeById.get(obj.to);
+                        const fromNode = nodeById.get(obj.from); // from/to verwijzen naar dr_obj
+                        const toNode   = nodeById.get(obj.to);
+
                         if (fromNode && toNode) {
                             const line = new Konva.Line({
                                 points: [fromNode.x(), fromNode.y(), toNode.x(), toNode.y()],
-                                stroke: obj.color ||"black",
-                                strokeWidth: obj.thick ||1
+                                stroke: obj.color || "black",
+                                strokeWidth: obj.thick || 1
                             });
+
                             lineLayer.add(line);
-                            lines.push({ line, from: fromNode, to: toNode });
+
+                            // Lijn opslaan op basis van dr_obj
+                            lines.push({
+                                line,
+                                fromId: obj.from, // dr_obj van bron
+                                toId:   obj.to    // dr_obj van doel
+                            });
                         }
                     });
+
                     lineLayer.draw();
                     nodeLayer.draw();
                 });
             })
             .catch(err => console.error("Fout bij ophalen tekening:", err));
-    }
+    };
 
-    function updateLinesForNode(node) {
+    // 3. Lijnen updaten (bij drag)
+    function updateLinesForNode() {
         lines.forEach(entry => {
-            if (entry.from === node || entry.to === node) {
-                entry.line.points([entry.from.x(), entry.from.y(), entry.to.x(), entry.to.y()]);
+            const fromNode = nodeById.get(entry.fromId);
+            const toNode   = nodeById.get(entry.toId);
+
+            if (fromNode && toNode) {
+                entry.line.points([
+                    fromNode.x(), fromNode.y(),
+                    toNode.x(),   toNode.y()
+                ]);
             }
         });
+
         lineLayer.batchDraw();
     }
 
-    // 3. Luister naar veranderingen in de dropdown
-    // We gebruiken 'change' op het document omdat de dropdown dynamisch wordt gemaakt
+    // 4. Dropdown change
     document.addEventListener("change", (event) => {
         if (event.target && event.target.id === "drawingSelect") {
             loadDrawing(event.target.value);
         }
     });
 
-    // 4. Wacht heel even tot main.tt de lijst heeft gevuld en laad dan de eerste selectie
+    // 5. Eerste tekening laden
     setTimeout(() => {
         const select = document.getElementById("drawingSelect");
         if (select && select.value !== "none") {
             loadDrawing(select.value);
         }
-    }, 300); 
+    }, 300);
+
+    // 6. Stage resizing
+    function fitStageToContainer() {
+        const container = stage.container();
+        stage.width(container.offsetWidth);
+        stage.height(container.offsetHeight);
+        stage.draw();
+    }
+
+    window.addEventListener("resize", fitStageToContainer);
+    fitStageToContainer();
+
+    // 7. Zoom & pan
+    stage.draggable(true);
+
+    stage.on("wheel", (e) => {
+        e.evt.preventDefault();
+
+        const scaleBy = 1.05;
+        const oldScale = stage.scaleX();
+        const pointer = stage.getPointerPosition();
+
+        const mousePointTo = {
+            x: (pointer.x - stage.x()) / oldScale,
+            y: (pointer.y - stage.y()) / oldScale
+        };
+
+        const direction = e.evt.deltaY > 0 ? 1 : -1;
+        const newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
+
+        stage.scale({ x: newScale, y: newScale });
+
+        stage.position({
+            x: pointer.x - mousePointTo.x * newScale,
+            y: pointer.y - mousePointTo.y * newScale
+        });
+
+        stage.batchDraw();
+    });
 });
+
+// 8. Globale redraw-functie (voor delete)
+window.redrawNetwork = function () {
+    const select = document.getElementById("drawingSelect");
+    if (select && select.value !== "none") {
+        window.loadDrawing(select.value);
+    }
+};

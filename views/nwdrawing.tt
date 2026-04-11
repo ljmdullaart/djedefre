@@ -1,7 +1,7 @@
 <table>
 	<tr>
 		<td>
-			<div id="container" style="background-color: #f0f0f0;"></div>
+			<div id="container" style="background-color: #f0f0f0; width: 100%; height: 100%;"></div>
 		</td>
 		<td style="width: 350px;">
 			<table id="objectInfo" class="info-table"></table>

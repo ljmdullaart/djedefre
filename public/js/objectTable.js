@@ -28,6 +28,7 @@ function fillObjectTable(obj) {
     }
     addPageListRow(table, obj); 
 
+    addDeleteRow(table, obj);
 }
 
 function addRow(table, label, value) {
@@ -256,6 +257,59 @@ function addPageListRow(table, obj) {
     table.appendChild(tr);
 }
 
+function addDeleteRow(table, obj) {
+    const tr = document.createElement("tr");
+    const th = document.createElement("th");
+    th.textContent = "Delete";
+    const td = document.createElement("td");
+    const btn = document.createElement("button");
+    btn.textContent = "Delete object";
+    btn.className = "delete-button";
+    btn.addEventListener("click", () => {
+const payload = {
+        tbl: obj.tbl,
+        item: obj.item
+    };
+
+    fetch("/api/deleteobject", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        console.log("Deleted:", data);
+
+        // 1. verwijder alle lijnen die aan dit object hangen
+        lines = lines.filter(entry => {
+    if (entry.fromItem === obj.item || entry.toItem === obj.item) {
+        entry.line.destroy();
+        return false;
+    }
+
+            return true;
+        });
+
+        // 2. verwijder het object zelf
+        if (obj.konvaGroup) {
+            obj.konvaGroup.destroy();
+            //obj.konvaGroup.getLayer().draw();
+        }
+
+        // 3. leeg de tabel
+        document.getElementById("objectInfo").innerHTML = "";
+	// Hele tekening opnieuw laden
+        window.redrawNetwork();
+    })
+        .catch(err => console.error("Delete failed:", err));
+    });
+    td.appendChild(btn);
+    tr.appendChild(th);
+    tr.appendChild(td);
+    table.appendChild(tr);
+}
+
+
 function loadPageList() {
     return fetch("/api/pagelist")
         .then(r => r.text())
@@ -295,7 +349,8 @@ function updatePageList(obj, action, page) {
         fillObjectTable(obj);
 
         // Optional: update Konva visibility if page affects it
-        updateKonvaVisibility(obj);
+        //updateKonvaVisibility(obj);
+	 window.redrawNetwork();
     })
     .catch(err => console.error("Pagelist update failed:", err));
 }

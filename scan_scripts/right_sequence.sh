@@ -24,16 +24,19 @@ SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
 for script in local_system subnet arp access type server dhcp  remote_system cisco dns dhcp arp  vbox  local_system internet  clean_if l2top l2unifi l2vbox ifconnect
 do
-	bash $SCRIPTPATH/scan_$script.sh $dbfile | sed "s/^/$script: /" 2>&1
-	echo "$script done"
+	echo "-----STARTING $script"
+	timeout 300 bash $SCRIPTPATH/scan_$script.sh $dbfile | sed "s/^/$script: /" 2>&1
+	echo "-----$script DONE"
 	if [ $enter = yes ] ; then
 		read line
 	fi
 done
 
-if [ -f webserver/database/djedefre.db ] ; then
-	cp $dbfile webserver/database/djedefre.db
-fi
-
-
-exit 0
+for script in Cloud all_servers clean complete l2top  ; do
+	echo "-----STARTING $script"
+	timeout 300 bash $SCRIPTPATH/page_$script.sh $dbfile | sed "s/^/$script: /" 2>&1
+	echo "-----$script DONE"
+	if [ $enter = yes ] ; then
+		read line
+	fi
+done

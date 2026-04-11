@@ -1575,6 +1575,7 @@ sub query_delete_subnet{
 	my ($package, $filename, $line) = caller;
 	#debug($DEB_DB,"query_delete_subnet $package, $filename, line number $line");
 	sql_query("DELETE FROM subnet WHERE id= ?", $id);
+	sql_query("DELETE FROM pages WHERE item= ? AND tbl='subnet'", $id);
 }
 
 
