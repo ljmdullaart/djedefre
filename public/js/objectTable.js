@@ -9,10 +9,10 @@ function fillObjectTable(obj) {
 
     // SERVER
     if (obj.tbl === "server") {
-        addRow(table, "OS Type", obj.ostype);
-        addRow(table, "OS", obj.os);
-        addRow(table, "Processor", obj.processor);
-        addRow(table, "Memory", obj.memory);
+        addEditableRow(table, "OS Type", obj,"ostype");
+        addEditableRow(table, "OS", obj,"os");
+        addEditableRow(table, "Processor", obj,"processor");
+        addEditableRow(table, "Memory", obj,"memory");
 
         // One row containing a sub-table for all interfaces
         if (Array.isArray(obj.interfaces) && obj.interfaces.length > 0) {
