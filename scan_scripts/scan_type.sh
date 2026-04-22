@@ -22,32 +22,41 @@ elif [ "$1" != '' ] ; then
 	fi
 fi
 
-sqlite3  -separator ' ' "$database" "SELECT id,ip,access FROM interfaces" > $tmp
+SQL(){
+	sqlite3  -separator ' ' -cmd ".timeout 1000" "$database" "$*" 
+}
+
+SQL "SELECT id,ip,access FROM interfaces" > $tmp
 
 cat $tmp |
 	while read id ip access ; do
-		echo "Get type from $ip"
+		echo "Get type from $ip ($id)"
 		if [[ "$access" == *"root"* ]] ; then
 			sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=1 root@'
 		elif [[ "$access" == *"admin"* ]] ; then
 			sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=1 admin@'
 		elif [[ "$access" == *"ssh"* ]] ; then
 			sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=1 '
+		elif [[ "$access" == *"telnet"* ]] ; then
+			sshcmd='dotelnet '
 		else
 			sshcmd='true '
 		fi
-		host=$(sqlite3 "$database" "SELECT host FROM interfaces WHERE id=$id")
+		echo "    Accessing via $sshcmd$ip"
+		host=$(SQL "SELECT host FROM interfaces WHERE id=$id")
+		echo "    host=$host"
 		if [ "$host" != "" ] ; then
-			oldtype=$(sqlite3 "$database" "SELECT type FROM server WHERE id=$host")
+			oldtype=$(SQL "SELECT type FROM server WHERE id=$host")
 			if [ "$oldtype" = "server" ] ; then oldtype='' ; fi
 			if [ "$oldtype" = "EMPTY" ] ; then oldtype='' ; fi
 			if [ "$oldtype" = "NULL" ] ; then oldtype='' ; fi
 			echo "    oldtype='$oldtype'"
 
-			olddevtype=$(sqlite3 "$database" "SELECT devicetype FROM server WHERE id=$host")
+			olddevtype=$(SQL "SELECT devicetype FROM server WHERE id=$host")
 			if [ "$olddevtype" = "EMPTY" ] ; then olddevtype='' ; fi
 			if [ "$olddevtype" = "NULL" ] ; then olddevtype='' ; fi
 			echo "    olddevtype='$olddevtype'"
+			
 
 			if [ "$oldtype" = "" ] || [ "$olddevtype" = "" ]  ; then 
 				ntype=server
@@ -101,9 +110,9 @@ cat $tmp |
 					sed 's/^/    /' $tmp1
 				fi
 				if [ "$ntype" != "" ] ; then
-					sqlite3 "$database" "UPDATE server SET type='$ntype' WHERE id=$host"
-					sqlite3 "$database" "UPDATE server SET devicetype='$ndevtype' WHERE id=$host"
-					sqlite3 "$database" "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
+					SQL "UPDATE server SET type='$ntype' WHERE id=$host"
+					SQL "UPDATE server SET devicetype='$ndevtype' WHERE id=$host"
+					SQL "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 				fi
 	
 			fi
