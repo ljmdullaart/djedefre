@@ -11,7 +11,14 @@ fi
 if [ "$1" = "-h" ] ; then
 	echo 'HELP!!'
 	exit 0
-elif [ "$1" != '' ] ; then
+fi
+clean=0
+if [ "$1" = "-c" ] ; then
+	clean=1
+	shift
+fi
+
+if [ "$1" != '' ] ; then
 	if [ -f "$1" ] ; then
 		database="$1"
 	else
@@ -32,6 +39,11 @@ sqlite3 -separator ' ' $database 'SELECT id,ip,access FROM interfaces'  > $tmp
 sort -u $tmp |  while read id ip oldaccess ; do
 	echo "Access for $ip"
 	access=none
+	if [ "$oldaccess" = "none" ] ; then
+		if [ $clean = 1 ] ; then
+			oldaccess=''
+		fi
+	fi
 	if [ "$oldaccess" = "" ] ; then
 		if nmap -p 22 $ip | grep -q 22.tcp ; then
 			echo -n '.'
@@ -51,9 +63,16 @@ sort -u $tmp |  while read id ip oldaccess ; do
 				echo hop |timeout 2  ssh  -o PasswordAuthentication=no -o ConnectTimeout=2  $ip 'sh ip int br' 2>&1 >>$tmp2
 				if  grep -q Addr  $tmp2; then
 					access=ssh
+				elif [ -f /usr/local/bin/dotelnet ] ; then
+					timeout 4  dotelnet $ip 'sh ip int br' | sed 's/^/OUTPUT/' >$tmp2
+					if grep -q OUTPUT $tmp2 ; then
+						access=dotelnet
+					fi
+					
 				fi
 			fi
 		fi
+		echo "$ip $access"
 		sqlite3 $database "UPDATE interfaces SET access='$access' WHERE id=$id"
 	fi
 	echo "    $oldaccess $access"
