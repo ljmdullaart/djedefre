@@ -60,8 +60,8 @@ table, th, td 	{
     padding: 4px;
     background: #fff;
 }
-#nwsScrollWrapper {
-    max-height:  calc(100vh - 460px);
+#nwScrollWrapper {
+    max-height:  calc(100vh - 360px);
     overflow-y: auto;      
     overflow-x: hidden;   
     border: 1px solid #ccc;
