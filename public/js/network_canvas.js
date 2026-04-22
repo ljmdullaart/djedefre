@@ -16,9 +16,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     stage.scale({ x: 1 / 1.5, y: 1 / 1.5 });
 
+    const backgroundLayer = new Konva.Layer();
     const lineLayer = new Konva.Layer();
     const nodeLayer = new Konva.Layer();
-    stage.add(lineLayer, nodeLayer);
+    stage.add(backgroundLayer, lineLayer, nodeLayer);
+
 
     window.nodeById = new Map();
     window.lines = [];
@@ -26,8 +28,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // 2. Tekening laden en tekenen
     window.loadDrawing = function (drawingName) {
         if (!drawingName || drawingName === "none") return;
-
         // Reset layers en mappings
+	backgroundLayer.destroyChildren();
+        loadBackgroundImage(drawingName, backgroundLayer);
         lineLayer.destroyChildren();
         nodeLayer.destroyChildren();
         nodeById.clear();
@@ -49,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             const group = new Konva.Group({
                                 x: parseInt(obj.xcoord) || 100,
                                 y: parseInt(obj.ycoord) || 100,
-                                draggable: true
+                                draggable: !(obj.fixed === true || obj.fixed === "true")
                             });
 
                             const icon = new Konva.Image({
@@ -137,6 +140,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     lineLayer.draw();
                     nodeLayer.draw();
+if (isMobile()) {
+    fitToScreen();
+}
+
                 });
             })
             .catch(err => console.error("Fout bij ophalen tekening:", err));
@@ -221,3 +228,78 @@ window.redrawNetwork = function () {
         window.loadDrawing(select.value);
     }
 };
+
+function getDrawingBounds() {
+    let minX = Infinity, minY = Infinity;
+    let maxX = -Infinity, maxY = -Infinity;
+
+    nodeById.forEach(group => {
+        const x = group.x();
+        const y = group.y();
+
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+    });
+
+    return { minX, minY, maxX, maxY };
+}
+
+function fitToScreen() {
+    const { minX, minY, maxX, maxY } = getDrawingBounds();
+
+    const drawingWidth  = maxX - minX;
+    const drawingHeight = maxY - minY;
+
+    const container = stage.container();
+    const viewWidth  = container.offsetWidth;
+    const viewHeight = container.offsetHeight;
+
+    // Bepaal schaalfactor
+    const scale = Math.min(
+        viewWidth  / drawingWidth,
+        viewHeight / drawingHeight
+    ) * 0.9; // iets marge
+
+    stage.scale({ x: scale, y: scale });
+
+    // Centreer
+    const offsetX = (viewWidth  - drawingWidth  * scale) / 2;
+    const offsetY = (viewHeight - drawingHeight * scale) / 2;
+
+    stage.position({
+        x: offsetX - minX * scale,
+        y: offsetY - minY * scale
+    });
+
+    stage.batchDraw();
+}
+
+function isMobile() {
+    return window.innerWidth < 900; // of gebruik userAgent
+}
+
+
+function loadBackgroundImage(pageName, layer) {
+    const img = new Image();
+    img.src = `/images/${pageName}.png`;   // or jpg, or whatever your API returns
+
+    img.onload = () => {
+        const bg = new Konva.Image({
+            image: img,
+            x: 0,
+            y: 0,
+            listening: false   // background should not block clicks
+        });
+
+        // Put background at the bottom
+        layer.add(bg);
+        layer.draw();
+    };
+
+    img.onerror = () => {
+        console.log("No background image for", pageName);
+    };
+}
+
