@@ -18,6 +18,7 @@ my %pagetypes;
 my @realpagelist;
 our $l3_showpage;
 our $l2_showpage;
+our $drawingname;
 our $repeat_sub;
 
 our $DEB_FRAME;
@@ -111,6 +112,7 @@ sub display_other_page {
 	}
 	elsif ($pagetypes{$l3_showpage} eq 'l2'){
 		$l2_showpage=$l3_showpage;
+		$drawingname=$l3_showpage;
 		make_l2_plot($main_frame);
 	}
 }
