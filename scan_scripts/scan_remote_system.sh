@@ -54,7 +54,7 @@ for interface in $(cat $tmp) ; do
 						nwaddr=$(ipcalc $ip/$rcidr | sed -n 's/\/.*//;s/^Network:\s*//p')
 						sqlite3   -cmd ".timeout 1000" $database "UPDATE interfaces SET ifname='$ifname' WHERE ip='$interface'"
 						echo "    add subnet $nwaddr $rcidr"
-						add_subnet $nwaddr $rcidr
+						add_subnet $nwaddr $rcidr "scan_remotesystem1$interface"
 						echo "     $nwaddr $rcidr"
 						sqlite3  -cmd ".timeout 1000"  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 					fi
@@ -82,7 +82,7 @@ for interface in $(cat $tmp) ; do
 			sqlite3  -cmd ".timeout 1000"  $database "UPDATE interfaces SET ifname='${ifname%:}' WHERE ip='$interface'"
 			sqlite3  -cmd ".timeout 1000"  $database "UPDATE interfaces SET macid='$mac' WHERE ip='$interface'"
 			echo "    add subnet $nwaddr $rcidr"
-			add_subnet $nwaddr $rcidr
+			add_subnet $nwaddr $rcidr "scan_remotesystem2$interface"
 			echo "     $nwaddr $rcidr"
 			sqlite3  -cmd ".timeout 1000"  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 		done
