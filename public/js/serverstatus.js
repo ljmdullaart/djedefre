@@ -67,9 +67,9 @@ function toggleServerStatus(server) {
     const newStatus = server.status === "excluded" ? "up" : "excluded";
 
     const payload = {
-        item: server.item,
+        item: server.id,
         id: server.id,
-        tbl: server.tbl,
+        tbl: "server",
         var: "status",
         val: newStatus
     };
