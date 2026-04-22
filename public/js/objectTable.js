@@ -9,10 +9,11 @@ function fillObjectTable(obj) {
 
     // SERVER
     if (obj.tbl === "server") {
-        addEditableRow(table, "OS Type", obj,"ostype");
-        addEditableRow(table, "OS", obj,"os");
+        addDevtypeRow (table, obj);
+        addEditableRow(table, "OS Type",   obj,"ostype");
+        addEditableRow(table, "OS",        obj,"os");
         addEditableRow(table, "Processor", obj,"processor");
-        addEditableRow(table, "Memory", obj,"memory");
+        addEditableRow(table, "Memory",    obj,"memory");
 
         // One row containing a sub-table for all interfaces
         if (Array.isArray(obj.interfaces) && obj.interfaces.length > 0) {
@@ -26,8 +27,13 @@ function fillObjectTable(obj) {
         addRow(table, "Network Address", obj.nwaddress);
         addRow(table, "CIDR", obj.cidr);
     }
-    addPageListRow(table, obj); 
+    // CLOUD
+    if (obj.tbl === "cloud") {
+        addEditableRow(table, "Vendor", obj,"vendor");
+        addEditableRow(table, "Service", obj,"service");
+    }
 
+    addPageListRow(table, obj); 
     addDeleteRow(table, obj);
 }
 
@@ -73,10 +79,8 @@ function addEditableRow(table, label, obj, fieldName) {
 
 function addFullRow(table, contentNode) {
     const tr = document.createElement("tr");
-
     const td = document.createElement("td");
     td.colSpan = 2;
-
     td.appendChild(contentNode);
     tr.appendChild(td);
     table.appendChild(tr);
@@ -85,7 +89,6 @@ function addFullRow(table, contentNode) {
 function createInterfacesTable(interfaces) {
     const sub = document.createElement("table");
     sub.className = "subtable";
-
     // Header row
     const header = document.createElement("tr");
     ["Name", "MAC", "IP"].forEach(h => {
@@ -94,20 +97,16 @@ function createInterfacesTable(interfaces) {
         header.appendChild(th);
     });
     sub.appendChild(header);
-
     // Data rows
     interfaces.forEach(intf => {
         const tr = document.createElement("tr");
-
         [intf.ifname, intf.macid, intf.ip].forEach(val => {
             const td = document.createElement("td");
             td.textContent = val ?? "";
             tr.appendChild(td);
         });
-
         sub.appendChild(tr);
     });
-
     return sub;
 }
 
@@ -118,7 +117,6 @@ function sendUpdate(obj, fieldName, newValue) {
         var: fieldName,
         val: newValue
     };
-
     fetch("/api/changeobject", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -147,16 +145,11 @@ function sendUpdate(obj, fieldName, newValue) {
 
 function addTypeRow(table, obj) {
     const tr = document.createElement("tr");
-
     const th = document.createElement("th");
     th.textContent = "Type";
-
     const td = document.createElement("td");
-
     const select = document.createElement("select");
     select.className = "edit-field";
-
-    // Load options from API
     loadLogoList().then(options => {
         options.forEach(name => {
             const opt = document.createElement("option");
@@ -166,8 +159,6 @@ function addTypeRow(table, obj) {
             select.appendChild(opt);
         });
     });
-
-    // When user changes selection → update
     select.addEventListener("change", () => {
         const newType = select.value;
         sendUpdate(obj, "type", newType);
@@ -178,6 +169,33 @@ function addTypeRow(table, obj) {
     tr.appendChild(td);
     table.appendChild(tr);
 }
+
+function addDevtypeRow(table, obj) {
+    const tr = document.createElement("tr");
+    const th = document.createElement("th");
+    th.textContent = "Device Type";
+    const td = document.createElement("td");
+    const select = document.createElement("select");
+    select.className = "edit-field";
+    loadDevTypeList().then(options => {
+        options.forEach(name => {
+            const opt = document.createElement("option");
+            opt.value = name;
+            opt.textContent = name;
+            if (name === obj.devicetype) opt.selected = true;
+            select.appendChild(opt);
+        });
+    });
+    select.addEventListener("change", () => {
+        const newDevtype = select.value;
+        sendUpdate(obj, "devicetype", newDevtype);
+    });
+    td.appendChild(select);
+    tr.appendChild(th);
+    tr.appendChild(td);
+    table.appendChild(tr);
+}
+
 function loadLogoList() {
     return fetch("/api/logolist")
         .then(r => r.text())
@@ -309,6 +327,17 @@ const payload = {
     table.appendChild(tr);
 }
 
+
+function loadDevTypeList() {
+    return fetch("/api/devtypelist")
+        .then(r => r.text())
+        .then(xmlText => {
+            const parser = new DOMParser();
+            const xml = parser.parseFromString(xmlText, "application/xml");
+            const names = [...xml.getElementsByTagName("name")];
+            return names.map(n => n.textContent.trim());
+        });
+}
 
 function loadPageList() {
     return fetch("/api/pagelist")
