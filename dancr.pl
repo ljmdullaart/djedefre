@@ -17,6 +17,8 @@ our %config;
 
 require "dje_db.pm";
 require "common_functions.pm";
+require "drawing.pm";
+
  
 set 'dbfile'       => "database/djedefre.db";
 set 'database'     => File::Spec->catfile(File::Spec->tmpdir(), 'dancr.db');
@@ -62,6 +64,14 @@ hook before_template_render => sub {
 get '/' => sub {
 	set_flash('');
 	template 'show_entries.tt', {
+		msg           => get_flash(),
+		uri_top       => uri_for('/'),
+	};
+};
+
+get '/cloudlist' => sub {
+	set_flash('');
+	template 'cloudlist.tt', {
 		msg           => get_flash(),
 		uri_top       => uri_for('/'),
 	};
@@ -164,6 +174,12 @@ get '/api/json/subnets' => sub {
 	
 };
 
+get '/api/json/clouds' => sub {
+	my $ref=query_cloud();
+	send_as JSON =>  $ref;
+	
+};
+
 get '/api/json/interfaces' => sub {
 	my $ref=query_interfaces_extra();
 	send_as JSON =>  $ref;
@@ -191,224 +207,15 @@ get '/api/listings' => sub {
 };
 
 get '/api/json/page/:param' => sub {
-        my $param=scalar route_parameters->get('param');
-	my $seq=0;
-	my @drawing;
-	my @srvdraw;
-	my @subnets;
-	my @vboxes;
-	my $vboxcolor=q_config('line:color','vbox');
-	$vboxcolor='yellow' unless defined $vboxcolor;
-	my $ref=query_page('page',$param);
-	my @page_content=@$ref;
-	# Fill he drawing with the objects
-	for my $object (@page_content){
-		$seq++;
-		my $dr_obj=10*$seq;
-		my %item;
-		my $id=$object->{item};
-		$item{'page'}=$object->{page};
-		$item{'tbl'}=$object->{tbl};
-		$item{'item'}=$object->{item};
-		$item{'xcoord'}=$object->{xcoord};
-		$item{'ycoord'}=$object->{ycoord};
-		$item{'dr_obj'}=$dr_obj;
-		if ($object->{tbl} eq 'server'){
-			$dr_obj=$dr_obj+1;
-			$srvdraw[$id]=$dr_obj;
-			$item{'dr_obj'}=$dr_obj;
-			$item{'name'}=q_server('name',$id);
-			$item{'type'}=q_server('type',$id);
-			$item{'status'}=q_server('status',$id);
-			$item{'last_up'}=q_server('last_up',$id);
-			$item{'options'}=q_server('options',$id);
-			$item{'ostype'}=q_server('ostype',$id);
-			$item{'os'}=q_server('os',$id);
-			$item{'processor'}=q_server('processor',$id);
-			$item{'devicetype'}=q_server('devicetype',$id);
-			$item{'memory'}=q_server('memory',$id);
-			my $ref=query_if_from_host($id);
-			$item{'interfaces'}=[ @$ref ];
-			push @drawing,\%item;
-			$item{'options'}='' unless defined $item{'options'};
-			if ($item{'options'}=~/vboxhost:([0-9]*)/){
-				my %vbox;
-				$vbox{'server'}=$1;
-				$vbox{'client'}=$item{'item'};
-				$vbox{'dr_obj'}=$dr_obj;
-				push @vboxes,\%vbox;
-			}
-		}
-		elsif ($object->{tbl} eq 'subnet'){
-			$dr_obj=$dr_obj+2;
-			$item{'name'}=q_subnet('name',$id);
-			$item{'nwaddress'}=q_subnet('nwaddress',$id);
-			$item{'cidr'}=q_subnet('cidr',$id);
-			$item{'options'}=q_subnet('options',$id);
-			$item{'access'}=q_subnet('access',$id);
-			$item{'dr_obj'}=$dr_obj;
-			$item{'type'}='subnet';
-			if($item{'nwaddress'} eq 'Internet' ){ $item{'type'}='internet'; }
-			push @subnets,\%item;
-			push @drawing,\%item;
-			
-		}
-		elsif ($object->{tbl} eq 'cloud'){
-			$dr_obj=$dr_obj+3;
-			$item{'name'}=q_cloud('name',$id);
-			$item{'type'}=q_cloud('type',$id);
-			$item{'vendor'}=q_cloud('vendor',$id);
-			$item{'service'}=q_cloud('service',$id);
-			push @drawing,\%item;
-		}
-		elsif ($object->{tbl} eq 'switch'){
-			$dr_obj=$dr_obj+4;
-			$item{'name'}=q_switch('name',$id);
-			$item{'server'}=q_switch('server',$id);
-			$item{'switch'}=q_switch('switch',$id);
-			$item{'ports'}=q_switch('ports',$id);
-			push @drawing,\%item;
-		}
-	}
-	# Alter objects that may require database calls
-	for my $object (@drawing){
-		my @pglist;
-		my $item=$object->{item};
-		my $tbl=$object->{tbl};
-		query_pages_tbl_id($tbl,$item);
-		while (my $r=sql_getrow()){
-			push @pglist,$r->{'page'};
-		}
-		$object->{pagelist}=\@pglist;
-	}
-	# Add lines: L3 connections
-	# If you put a subnet on a page, it will always connect, regardless of the l2/l3 
-	# status of the drawing.
-	my @dr_cpy=@drawing;
-	for my $object (@dr_cpy){
-		my $id=$object->{item};
-		# connect servers to subnets
-		if ($object->{tbl} eq 'server'){
-			my $dr_obj=$object->{dr_obj};
-			my $serverid=$object->{item};
-			my $ifref=query_if_from_host($serverid);
-			for my $row (@$ifref){
-				for my $net (@subnets){
-					$seq++;
-					my %item;
-					$item{dr_obj}=10*$seq+9;
-					$item{tbl}='line';
-					$item{servername}=$object->{name};
-					$item{serverid}=$serverid;
-					$item{from}=$object->{dr_obj};
-					my $ip=$row->{ip};
-					my $net_obj=$net->{dr_obj};
-					my $nwaddress='0.0.0.0';
-					if($net->{nwaddress}=~/([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)/){
-						$nwaddress=$1;
-					}
-					my $cidr=$net->{cidr};
-					$item{'netname'}=$net->{name};
-					if (defined ($net->{options})){
-						if ($net->{options}=~/color=([A-Za-z0-9]+)/){
-							$item{'color'}=$1;
-						}
-						else {
-							$item{'color'}='black';
-						}
-					}
-					else {
-						$item{'color'}='black';
-					}
-					if (ip_in_subnet($ip,$nwaddress,$cidr)){
-						$item{'from'}=$dr_obj;
-						$item{'to'}=$net_obj;
-						$item{'thick'}=1;
-						push @drawing,\%item;
-					}
-				}
-			}
-			for my $vbox (@vboxes){
-				my %vboxline;
-				$vboxline{'thick'}=10;
-				$vboxline{'from'}=$dr_obj;
-				$vboxline{'color'}=$vboxcolor;
-				if ($vbox->{server}==$serverid){
-					$seq++;
-					$vboxline{'to'}=$vbox->{dr_obj};
-					$vboxline{'server'}=$serverid;
-					$vboxline{'client'}=$vbox->{client};
-					$vboxline{dr_obj}=10*$seq+9;
-					$vboxline{tbl}='line';
-					push @drawing,\%vboxline;
-				}
-			}
-		}
-		# connect the clouds to the Internet
-		elsif ($object->{tbl} eq 'cloud'){
-			my $dr_obj=$object->{dr_obj};
-			my $cloudid=$object->{item};
-			for my $net (@subnets){
-				$seq++;
-				my %item;
-				$item{dr_obj}=10*$seq+9;
-				$item{tbl}='line';
-				$item{cloudname}=$object->{name};
-				$item{cloudid}=$cloudid;
-				my $net_obj=$net->{dr_obj};
-				my $nwaddress=$net->{nwaddress};
-				if (($nwaddress=~/[Ii]nternet/) || ($nwaddress eq '0.0.0.0')){
-					$item{'netname'}=$net->{name};
-					$item{'color'}='black';
-					if (defined ($object->{options})){
-						if ($object->{options}=~/color=([A-Za-z0-9]+)/){
-							$item{'color'}=$1;
-						}
-					}
-					$item{'from'}=$dr_obj;
-					$item{'to'}=$net_obj;
-					push @drawing,\%item;
-				}
-			}
-		}
-	}
-	# Add lines: L2 connections
-	# based on interfaces only at the moment; no separate/unmanaged swittches
-	my $pgtype=q_config('page:type',$param);
-	if ($pgtype eq 'l2'){
-		query_l2();
-		while (my $r=sql_getrow()){
-			my %item;
-			my $add=1;
-			my $from_tbl=$r->{from_tbl};
-			my $to_tbl=$r->{to_tbl};
-			my $from_id=$r->{from_id};
-			my $to_id=$r->{to_id};
-			my $fromserver;
-			my $toserver;
-			if ($from_tbl eq 'interfaces'){
-				$fromserver=q_interfaces('host',$from_id);
-			}
-			if ($to_tbl eq 'interfaces'){
-				$toserver=q_interfaces('host',$to_id);
-			}
-			if ((defined ($fromserver))&&(defined ($toserver))){
-				my $fromdraw=$srvdraw[$fromserver];
-				my $todraw=$srvdraw[$toserver];
-				if ((defined ($fromdraw))&&(defined ($todraw))){
-					$item{'fromserver'}=$fromserver;
-					$item{'from'}=$fromdraw;
-					$item{'to'}=$todraw;
-					$seq++;
-					$item{dr_obj}=10*$seq+9;
-					$item{tbl}='line';
-					$item{'color'}='black';
-					push @drawing,\%item;
-				}
-			}
-		}
-	}
-	send_as JSON =>  \@drawing;
+    my $page = route_parameters->get('param');
+
+    my ($drawing, $subnets, $srvdraw, $vboxes) = load_page_objects($page);
+
+    add_pagelist_to_objects($drawing);
+    add_l3_lines($drawing, $subnets, $vboxes);
+    add_l2_lines($drawing, $srvdraw, $page);
+
+    send_as JSON => $drawing;
 };
 
 
@@ -438,6 +245,18 @@ get '/api/logolist' => sub {
 	response_header('Cache-Control' =>  'no-store, no-cache, must-revalidate');
 	$outxml;
 };
+get '/api/devtypelist' => sub {
+	my @devtypes=qw/pc network server printer virtual nas appliance tablet smartphone voip iot security_camera av ups/;
+	my $outxml="<devtypes>\n";
+	foreach my $devtype (@devtypes) {
+		$outxml .= "<devtype>\n<name>$devtype</name>\n</devtype>\n";
+	}
+	$outxml.="</devtypes>\n";
+	response_header('Content-Type' => 'text/xml');
+	response_header('Cache-Control' =>  'no-store, no-cache, must-revalidate');
+	$outxml;
+
+};
 
 
 
@@ -450,11 +269,8 @@ post '/api/moveobject' => sub {
 	my $ycoord = int($data->{ycoord});
 	my $page   = $data->{page};
 	my $pageid = q_page_id('page',$page,'tbl',$tbl,'item',$item);
-
 	q_page_update($pageid,'xcoord',$xcoord);
 	q_page_update($pageid,'ycoord',$ycoord);
-
-
 	return to_json { status => "ok" };
 };
 
@@ -466,9 +282,9 @@ post '/api/changeobject' => sub {
 	my $var    = $data->{var};
 	my $val    = $data->{val};
 	$tbl='none' unless defined $tbl;
-print "--------------------item=$item id=$id tbl=$tbl var=$var val=$val\n";
 	if ($tbl eq 'server'){ q_server_update ($item,$var,$val); }
 	if ($tbl eq 'subnet'){ q_subnet_update ($item,$var,$val); }
+	if ($tbl eq 'cloud') { q_cloud_update  ($item,$var,$val); }
 	return to_json { status => "ok" };
 };
 
@@ -486,11 +302,11 @@ post '/api/setpagelist' => sub {
 
 post '/api/deleteobject' => sub {
 	my $data   = from_json(request->body);
-	my $data = from_json(request->body);
 	my $item   = $data->{item};
 	my $tbl    = $data->{tbl};
 	if ($tbl eq 'server'){ query_delete_server ($item); }
 	if ($tbl eq 'subnet'){ query_delete_subnet ($item); }
+	if ($tbl eq 'cloud' ){ query_delete_cloud  ($item); }
 	return to_json { status => "ok" };
 };
 	
