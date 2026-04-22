@@ -25,17 +25,27 @@ SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 for script in local_system subnet arp access type server dhcp  remote_system cisco dns dhcp arp  vbox  local_system internet  clean_if l2top l2unifi l2vbox ifconnect
 do
 	echo "-----STARTING $script"
-	timeout 300 bash $SCRIPTPATH/scan_$script.sh $dbfile | sed "s/^/$script: /" 2>&1
-	echo "-----$script DONE"
+	date
+	timeout 300 bash $SCRIPTPATH/scan_$script.sh $dbfile 2>&1 | sed "s/^/$script: /" 2>&1
+	if [ $? = 124 ] ; then
+		echo "-----$script killed"
+	else
+		echo "-----$script DONE"
+	fi
 	if [ $enter = yes ] ; then
 		read line
 	fi
 done
 
-for script in Cloud all_servers clean complete l2top  ; do
+for script in page_*.sh ; do
 	echo "-----STARTING $script"
-	timeout 300 bash $SCRIPTPATH/page_$script.sh $dbfile | sed "s/^/$script: /" 2>&1
-	echo "-----$script DONE"
+	date
+	timeout 300 bash $SCRIPTPATH/$script $dbfile | sed "s/^/$script: /" 2>&1
+	if [ $? = 124 ] ; then
+		echo "-----$script killed"
+	else
+		echo "-----$script DONE"
+	fi
 	if [ $enter = yes ] ; then
 		read line
 	fi
