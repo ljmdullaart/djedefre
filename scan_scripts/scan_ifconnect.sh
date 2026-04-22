@@ -35,7 +35,7 @@ done
 	
 
 sqlite3 -cmd ".timeout 1000"  -separator '/'  "$database" "SELECT nwaddress,cidr FROM subnet" | while read toping ; do
-	fping -c1 -q -t100 -g "$toping"  &
+	timeout 60 fping -c1 -q -t100 -g "$toping"  2>&1 &
 done
 
 wait
