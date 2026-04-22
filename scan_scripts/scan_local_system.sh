@@ -61,7 +61,7 @@ ip addr |
 			echo "   serverid=$serverid ip=$ip cidr=$mycidr"
 			nwaddr=$(ipcalc $ip/$mycidr | sed -n 's/\/.*//;s/^Network:\s*//p')
 			echo "   serverid=$serverid ip=$ip nnaddr=$nwaddr cidr=$mycidr"
-			add_subnet $nwaddr $mycidr
+			add_subnet $nwaddr $mycidr scan_localsystem
 			sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 		fi
 		mycidr=''
