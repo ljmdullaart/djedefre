@@ -22,7 +22,10 @@ elif [ "$1" != '' ] ; then
 	fi
 fi
 
-sqlite3  -separator ' ' -cmd ".timeout 1000" "$database" "SELECT id,ip,access FROM interfaces" > $tmp
+SQL(){
+	sqlite3  -separator ' ' -cmd ".timeout 1000" "$database" "$*"
+}
+SQL "SELECT id,ip,access FROM interfaces" > $tmp
 
 grep ssh $tmp |
 	while read id ip access ; do
@@ -44,7 +47,7 @@ grep ssh $tmp |
 		for ifip in $(grep -v 127.0.0.1  $tmp2 | sed 's/ .*//') ; do
 			nslookup $ifip 2>&1 | grep -v NXDOMAIN | sed -n "s/.$//;s/.*= /$ifip /p" >> $tmp1
 			newhost=$(nslookup $ifip 2>&1 | grep -v NXDOMAIN | sed -n "s/.$//;s/.*= //p")
-			newsrvid=$(sqlite3 -cmd ".timeout 1000" "$database" "SELECT host FROM interfaces WHERE ip='$ifip'")
+			newsrvid=$(SQL "SELECT host FROM interfaces WHERE ip='$ifip'")
 			if [[ "$srvname" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] ; then
 				if [ "$newhost" != "" ] ; then
 					srvname="$newhost"
@@ -64,14 +67,14 @@ grep ssh $tmp |
 		if [ "$srvid" = "" ] ; then
 			if [ "$srvname" != "" ] ; then
 				add_server $srvname
-				sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
+				SQL "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 				srvid=$db_retval
 			fi
 		fi
 		if [ "$srvid" != "" ] ; then
 			for interface in $(cat $tmp2) ; do
 				add_if $interface $srvid
-				sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
+				SQL "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 			done
 		fi
 
@@ -79,7 +82,7 @@ grep ssh $tmp |
 
 # all not-assigned interfaces become server as well
 
-sqlite3 -cmd ".timeout 1000" "$database" "SELECT ip FROM interfaces WHERE host IS NULL" > $tmp
+SQL "SELECT ip FROM interfaces WHERE host IS NULL" > $tmp
 
 cat $tmp | while read ifip ; do
 	newhost=$(nslookup $ifip 2>&1 | grep -v NXDOMAIN | sed -n "s/.$//;s/.*= //p")
@@ -89,28 +92,28 @@ cat $tmp | while read ifip ; do
 	add_server $newhost
 	srvid=$db_retval
 	add_if $ifip $srvid
-	sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
+SQL "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 done
 
 # Try to name the hosts
-sqlite3 -cmd ".timeout 1000" "$database" "SELECT name FROM server" > $tmp
+SQL "SELECT name FROM server" > $tmp
 cat $tmp | while read srvname ; do 
 	if [[ "$srvname" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] ; then
 		newname=$(host $srvname |  sed 's/.* //;s/\..*//;s/.*NXDOMAIN.*//')
 		if [ "$newname" != "" ] ; then
-			sqlite3 -cmd ".timeout 1000" "$database" "UPDATE server SET name='$newname' WHERE name='$srvname'"
-			sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
+			SQL "UPDATE server SET name='$newname' WHERE name='$srvname'"
+			SQL "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 		fi
 	fi
 done
 
 # clean the hosts table
-sqlite3 -cmd ".timeout 1000" "$database" "SELECT id from server " > $tmp
+SQL "SELECT id from server " > $tmp
 cat $tmp | while read srvid ; do 
-	ifs=$(sqlite3 -cmd ".timeout 1000" "$database" "SELECT ip FROM interfaces WHERE host=$srvid")
+	ifs=$(SQL "SELECT ip FROM interfaces WHERE host=$srvid")
 	if [ "$ifs" = "" ] ; then
-		sqlite3 -cmd ".timeout 1000" "$database" "DELETE FROM server WHERE id=$srvid"
-		sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
+		SQL "DELETE FROM server WHERE id=$srvid"
+		SQL "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 	fi
 done
 
