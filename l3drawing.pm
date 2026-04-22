@@ -150,7 +150,7 @@ sub l3_renew_content {
 our $drawingname;
 sub make_l3_plot {
 	(my $parent)=@_;
-	$drawingname='ipv4plot';
+	$drawingname='ipv4plot' unless defined $drawingname;
 	debug($DEB_SUB,"make_l3_plot");
 	$l3_plot_frame->destroy if Tk::Exists($l3_plot_frame);
 	debug ($DEB_FRAME,"1 Create l3_plot_frame");
