@@ -22,6 +22,7 @@ our %config;
 our @colors;
 our @devicetypes;
 our $locked;
+our $main_window;
 
 require selector;
 
@@ -215,6 +216,7 @@ sub nw_frame_canvas_destroy {
 	$lnw_canvas_frame->destroy if Tk::Exists($nw_canvas_frame);
 }
 
+our $drawingname;
 sub nw_frame_canvas_create {
 	(my $parent)=@_;
 	$lnw_canvas_frame->destroy if Tk::Exists($lnw_canvas_frame);
@@ -230,13 +232,18 @@ sub nw_frame_canvas_create {
 		-width      => $canvas_xsize,
 		-height     => $canvas_ysize,
 	)->pack(-side=>'bottom');
+	print "DRAWING /$drawingname\n";
+	if ( -e "images/$drawingname.png"){
+		my $bg_image = $main_window->Photo(-file => "images/$drawingname.png");
+		my $bg_item = $nw_canvas->createImage(0, 0, -image  => $bg_image, -anchor => 'nw');
+	}
+		
 	$nw_canvas->bind( 'draggable', '<1>'                   => sub{ nw_drag_start();$locked=0;});
 	$nw_canvas->bind( 'draggable', '<3>'                   => sub{ nw_drag_start();});
 	$nw_canvas->bind( 'draggable', '<B1-Motion>'           => sub{ nw_drag_during ();});
 	$nw_canvas->bind( 'draggable', '<Any-ButtonRelease-1>' => sub{ nw_drag_end ();$locked=0;});
 }
 
-our $drawingname;
 
 sub nw_frame_canvas_export(){
 	if (defined $nw_canvas){
