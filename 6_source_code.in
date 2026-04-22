@@ -18,6 +18,29 @@ because sometimes, destroying and re-creating the
 .fixed main_frame
 causes resizing of the main window and/or flickering.
 
+.block pic
+# Sizes
+outer_w = 3
+outer_h = 3
+inner_w = 1.4
+inner_h = 0.9
+
+# --- Outer box ---
+outer: box width outer_w height outer_h
+"outer" at outer.n above
+
+# --- Inner top box ---
+top: box width inner_w height inner_h at outer.c + (0, 0.6)
+"inner top" at top.n above
+
+# --- Inner bottom box ---
+bottom: box width inner_w height inner_h at outer.c + (0, -0.6)
+"inner bottom" at bottom.n above
+
+.block
+
+
+
 - main_window
 	- button_frame
 		- unnamed button "List netork"
