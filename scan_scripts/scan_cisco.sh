@@ -34,10 +34,10 @@ for host in $(cat $tmp) ; do
 	echo "CISCO host $host"
 	SQL "SELECT id FROM interfaces WHERE host=$host" > $tmp1
 	for interface in $(cat $tmp1) ; do
-		cmd_on $interface show arp
+		cmd_on $interface show arp> $tmp3
 		mv $tmp3 $tmp2
 		sed "s/^/$interface arp: /" $tmp2
-		cmd_on $interface show ip interface brief
+		cmd_on $interface show ip interface brief> $tmp3
 		awk '/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/{print $2}' $tmp3 | sed "s/^/$interface: /" 
 		for ip in $(awk '/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/{print $2}' $tmp3) ; do
 			#Internet  10.128.64.1             -   ca02.2987.0006  ARPA   FastEthernet0/1
@@ -62,8 +62,7 @@ for host in $(cat $tmp) ; do
 				SQL "UPDATE interfaces SET host=$host WHERE id=$existid"
 			fi
 		done
-		echo cmd_on $interface sh ip route con 
-		cmd_on $interface sh ip route con 
+		cmd_on $interface sh ip route con > $tmp3
 		sed "s/^/   $interface: /" $tmp3
 		awk '/^C.*directly connected/{print $2}' $tmp3 | while IFS=/ read ip cidr ; do
 			echo "    $ip / $cidr"
