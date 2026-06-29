@@ -30,7 +30,7 @@ typeset -i y
 
 tmp=/tmp/place_on_grid.$$
 
-sqlite3 -separator ' '  $database "SELECT id,xcoord,ycoord  FROM server " >$tmp
+SQL "SELECT id,xcoord,ycoord  FROM server " >$tmp
 
 cat $tmp |
 	while read id x y ; do
@@ -40,11 +40,11 @@ cat $tmp |
 		y=$y/$grid
 		x=$x*$grid
 		y=$y*$grid
-		sqlite3 $database "UPDATE server SET xcoord=$x WHERE id=$id"
-		sqlite3 $database "UPDATE server SET ycoord=$y WHERE id=$id"
+		SQL "UPDATE server SET xcoord=$x WHERE id=$id"
+		SQL "UPDATE server SET ycoord=$y WHERE id=$id"
 	done
 
-sqlite3 -separator ' '  $database "SELECT id,xcoord,ycoord  FROM subnet " >$tmp
+SQL "SELECT id,xcoord,ycoord  FROM subnet " >$tmp
 
 cat $tmp |
 	while read id x y ; do
@@ -54,11 +54,11 @@ cat $tmp |
 		y=$y/$grid
 		x=$x*$grid
 		y=$y*$grid
-		sqlite3 $database "UPDATE subnet SET xcoord=$x WHERE id=$id"
-		sqlite3 $database "UPDATE subnet SET ycoord=$y WHERE id=$id"
+		SQL "UPDATE subnet SET xcoord=$x WHERE id=$id"
+		SQL "UPDATE subnet SET ycoord=$y WHERE id=$id"
 	done
 
-sqlite3 -separator ' '  $database "SELECT id,xcoord,ycoord FROM pages" >$tmp
+SQL "SELECT id,xcoord,ycoord FROM pages" >$tmp
 cat $tmp |
 	while read id x y ; do
 		x=$x+$halfgrid
@@ -67,11 +67,10 @@ cat $tmp |
 		y=$y/$grid
 		x=$x*$grid
 		y=$y*$grid
-		sqlite3 $database "UPDATE pages SET xcoord=$x WHERE id=$id"
-		echo $database "UPDATE pages SET xcoord=$x WHERE id=$id"
-		sqlite3 $database "UPDATE pages SET ycoord=$y WHERE id=$id"
+		SQL "UPDATE pages SET xcoord=$x WHERE id=$id"
+		SQL "UPDATE pages SET ycoord=$y WHERE id=$id"
 	done
 
-sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
+SQL "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 
 rm -f $tmp

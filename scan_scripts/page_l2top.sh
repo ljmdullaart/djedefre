@@ -29,17 +29,17 @@ fi
 
 
 
-pgtype=$(sqlite3 -separator ' '  $database "SELECT value FROM config WHERE attribute='page:type' AND item='l2-top'")
+pgtype=$(SQL "SELECT value FROM config WHERE attribute='page:type' AND item='l2-top'")
 if [ "$pgtype" = "" ] ; then
-	sqlite3 -separator ' '  $database "INSERT INTO config (attribute,item,value) VALUES ('page:type','l2-top','l2')"
+	SQL "INSERT INTO config (attribute,item,value) VALUES ('page:type','l2-top','l2')"
 else
-	sqlite3 -separator ' '  $database "UPDATE config SET value='l2' WHERE attribute='page:type' AND item='l2-top'"
+	SQL "UPDATE config SET value='l2' WHERE attribute='page:type' AND item='l2-top'"
 fi
 
 
-sqlite3 -separator ' '  $database "SELECT tbl,item FROM pages WHERE page='l2-top'" >$tmp1
+SQL "SELECT tbl,item FROM pages WHERE page='l2-top'" >$tmp1
 
-sqlite3 -separator ' '  $database "SELECT id,xcoord,ycoord FROM server" > $tmp2
+SQL "SELECT id,xcoord,ycoord FROM server" > $tmp2
 cat $tmp2 | while read id x y ; do
 	if [ "$id" != "" ] ; then
 		if [ "$x" = "" ] ; then x=100; fi
@@ -48,18 +48,18 @@ cat $tmp2 | while read id x y ; do
 			:
 		else
 			echo -n '.'
-			sqlite3 $database "INSERT INTO pages (page,tbl,item,xcoord,ycoord) VALUES ('l2-top','server',$id,$x,$y)"
+			SQL "INSERT INTO pages (page,tbl,item,xcoord,ycoord) VALUES ('l2-top','server',$id,$x,$y)"
 		fi
 	fi
 done
 
-sqlite3 -separator ' '  $database "SELECT id FROM switch" > $tmp2
+SQL "SELECT id FROM switch" > $tmp2
 cat $tmp2 | while read id ; do
 	if  grep -q "switch $id$" $tmp1  ; then
 		:
 	else
 		echo -n ','
-		sqlite3 $database "INSERT INTO pages (page,tbl,item,xcoord,ycoord) VALUES ('l2-top','switch',$id,100,100)"
+		SQL "INSERT INTO pages (page,tbl,item,xcoord,ycoord) VALUES ('l2-top','switch',$id,100,100)"
 	fi
 done
 

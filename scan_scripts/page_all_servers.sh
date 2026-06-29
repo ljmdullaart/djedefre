@@ -23,13 +23,7 @@ fi
 
 pagename=all_servers
 
-confid=$(sqlite3 -separator ' '  $database "SELECT id FROM config WHERE attribute='page:type' AND item='$pagename'";)
-
-if [ "$confid" = "" ] ; then
-	sqlite3 -separator ' '  $database "INSERT INTO config (attribute,item,value) VALUES ('page:type','$pagename','l3')"
-else
-	echo "Config exists"
-fi
+set_dbconfig 'page:type' "$pagename" 'l3'
 
 incr=100
 xcntr=$incr
@@ -46,34 +40,46 @@ nextpos(){
 	
 
 
-sqlite3 -separator ' '  $database "SELECT tbl,item FROM pages WHERE page='$pagename'" >$tmp1
+SQL "SELECT tbl,item FROM pages WHERE page='$pagename'" >$tmp1
 
 for tbl in server ; do
-	sqlite3 -separator ' '  $database "SELECT id,xcoord,ycoord FROM $tbl ORDER BY options,name" > $tmp2
+	list_server | while read srv_id ; do
+		xcoord=$(valfromid $tbl $srv_id xcoord)
+		ycoord=$(valfromid $tbl $srv_id ycoord)
+		echo "$srv_id $xcoord $ycoord" >>$tmp2
+	done
 	cat $tmp2 | while read id x y ; do
 		if [ "$id" != "" ] ; then
 			x=$xcntr; y=$ycntr; nextpos
 			if  grep -q "$tbl $id$" $tmp1  ; then
 				echo -n '.'
-				sqlite3 $database "UPDATE pages SET xcoord=$x WHERE page='$pagename' AND tbl='$tbl' and item=$id"
-				sqlite3 $database "UPDATE pages SET ycoord=$y WHERE page='$pagename' AND tbl='$tbl' and item=$id"
+				pg_id=$(idfromval pages page "$pagename" tbl "$tbl" item "$id")
+				setfromid pages $pg_id xcoord $x
+				setfromid pages $pg_id ycoord $y
 			else
 				echo -n '+'
-				sqlite3 $database "INSERT INTO pages (page,tbl,item,xcoord,ycoord) VALUES ('$pagename','$tbl',$id,$x,$y)"
+				pages_insert "$pagename" "$tbl" $id $x $y
 			fi
 		fi
 	done
 
 done
 
-sqlite3 -separator ' '  $database "SELECT item,tbl FROM pages WHERE page='$pagename'" >$tmp1
-cat  $tmp1 | while read item tbl ; do
-	is=$(sqlite3 -separator ' '  $database "SELECT id FROM $tbl WHERE id=$item");
-	if [ "$is" = "" ] ; then
-		sqlite3 $database "DELETE FROM pages WHERE page='$pagename' AND tbl='$tbl' and item=$item"
-	fi
-done
-
+rm -f $tmp1
+#list_pages | while read pg_id ; do
+#	item=$(valfromid pages $pg_id item)
+#	tbl=$(valfromid pages $pg_id tbl)
+#	echo "$item $tbl" >>$tmp1
+#done
+#
+#cat  $tmp1 | while read item tbl ; do
+#	srv_name=$(idfromval $tbl $item name)
+#	if [ "$srv_name" = "" ] ; then
+#		pg_id=$(idfromval pages tbl "$tbl" item "$item")
+#		delfromid pages $pg_id
+#	fi
+#done
+#
 echo
 
 
