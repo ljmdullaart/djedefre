@@ -7,7 +7,8 @@
         <thead>
             <tr>
                 <th data-key="id">ID</th>
-                <th data-key="shorthostname">Host</th>
+                <th data-key="host">Host</th>
+                <th data-key="subnet">Subnet</th>
                 <th data-key="name">Server</th>
                 <th data-key="ifname">Interface</th>
                 <th data-key="ip">IP address</th>

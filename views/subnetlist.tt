@@ -8,9 +8,10 @@
             <tr>
                 <th data-key="id">ID</th>
                 <th data-key="name">Name</th>
-                <th data-key="nwaddress">nwaddress</th>
+                <th data-key="nwaddress">Network address</th>
                 <th data-key="cidr">cidr</th>
-                <th data-key="options">options</th>
+                <th data-key="scope">Scope</th>
+                <th data-key="options">Options</th>
             </tr>
         </thead>
         <tbody>

@@ -9,6 +9,7 @@
                 <th data-key="id">ID</th>
                 <th data-key="name">Name</th>
                 <th data-key="type">Type</th>
+                <th data-key="last_up">Last up</th>
                 <th data-key="ostype">OStype</th>
                 <th data-key="os">OS</th>
                 <th data-key="memory">Memory</th>
