@@ -1,6 +1,7 @@
 #!/bin/bash
 
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+database="$SCRIPTPATH/../database/djedefre.db"
 tmp=/tmp/scan_status.$$
 NOW=$(date -Iseconds | sed 's/+.*//')
 LOG=/tmp/status.check.log
@@ -57,13 +58,12 @@ for server_id in $(cat $tmp) ; do
 	stat=$(sqlite3 "$database"  -cmd ".timeout 1000"   "SELECT status FROM server WHERE id=$server_id")
 	
 echo "$name($server_id)=$stat" >> $LOG
-	if [ "$stat" = "excluded" ] ; then
-		:
-echo "	excluded"
-	elif [ -f "$SCRIPTPATH/status_$name.sh" ] ; then
+	if [ -f "$SCRIPTPATH/status_$name.sh" ] ; then
 		echo "Script for $name" >> $LOG
 		if bash "$SCRIPTPATH/status_$name.sh" ; then
-			sqlite3 "$database"  -cmd ".timeout 1000"   "UPDATE server SET status='up' WHERE id=$server_id"
+			if [ "$stat" != "excluded" ] ; then
+				sqlite3 "$database"  -cmd ".timeout 1000"   "UPDATE server SET status='up' WHERE id=$server_id"
+			fi
 			sqlite3 "$database"  -cmd ".timeout 1000"   "UPDATE server SET last_up='$NOW' WHERE id=$server_id"
 			echo "    $name up" >> $LOG
 		else
@@ -97,14 +97,18 @@ echo "	excluded"
 			fi
 		done
 		if [ $up = 1 ] ; then
-			sqlite3 "$database"  -cmd ".timeout 1000"   "UPDATE server SET status='up' WHERE id=$server_id"
+			if [ "$stat" != "excluded" ] ; then
+				sqlite3 "$database"  -cmd ".timeout 1000"   "UPDATE server SET status='up' WHERE id=$server_id"
+			fi
 			sqlite3 "$database"  -cmd ".timeout 1000"   "UPDATE server SET last_up='$NOW' WHERE id=$server_id"
 			echo "    $name up" >> $LOG
 			if [ "$stat" != "up" ] ; then
 				sqlite3 "$database"  -cmd ".timeout 1000"   "UPDATE config SET value='yes' WHERE  attribute='run:param' AND item='changed'"
 			fi
 		else
-			sqlite3 "$database"  -cmd ".timeout 1000"   "UPDATE server SET status='down' WHERE id=$server_id"
+			if [ "$stat" != "excluded" ] ; then
+				sqlite3 "$database"  -cmd ".timeout 1000"   "UPDATE server SET status='down' WHERE id=$server_id"
+			fi
 			echo "    $name down" >> $LOG
 			if [ "$stat" = "up" ] ; then
 				sqlite3 "$database"  -cmd ".timeout 1000"   "UPDATE config SET value='yes' WHERE  attribute='run:param' AND item='changed'"
