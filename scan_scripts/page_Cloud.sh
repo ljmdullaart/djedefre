@@ -24,10 +24,10 @@ fi
 pagename=Cloud
 
 
-confid=$(sqlite3 -separator ' '  $database "SELECT id FROM config WHERE attribute='page:type' AND item='$pagename'";)
+confid=$(SQL "SELECT id FROM config WHERE attribute='page:type' AND item='$pagename'";)
 
 if [ "$confid" = "" ] ; then
-	sqlite3 -separator ' '  $database "INSERT INTO config (attribute,item,value) VALUES ('page:type','$pagename','l3')"
+	SQL "INSERT INTO config (attribute,item,value) VALUES ('page:type','$pagename','l3')"
 else
 	echo "Config exists"
 fi
@@ -47,10 +47,10 @@ nextpos(){
 	
 
 
-sqlite3 -separator ' '  $database "SELECT tbl,item FROM pages WHERE page='$pagename'" >$tmp1
+SQL "SELECT tbl,item FROM pages WHERE page='$pagename'" >$tmp1
 
 for tbl in cloud ; do
-	sqlite3 -separator ' '  $database "SELECT id,xcoord,ycoord FROM $tbl" > $tmp2
+	SQL "SELECT id,xcoord,ycoord FROM $tbl" > $tmp2
 	cat $tmp2 | while read id x y ; do
 		if [ "$id" != "" ] ; then
 			if   [ "$x" = "" ] ; then x=$xcntr; y=$ycntr; nextpos
@@ -58,22 +58,22 @@ for tbl in cloud ; do
 			fi
 			if  grep -q "$tbl $id$" $tmp1  ; then
 				echo -n '.'
-				sqlite3 $database "UPDATE pages SET xcoord=$x WHERE page='$pagename' AND tbl='$tbl' and item=$id"
-				sqlite3 $database "UPDATE pages SET ycoord=$y WHERE page='$pagename' AND tbl='$tbl' and item=$id"
+				SQL "UPDATE pages SET xcoord=$x WHERE page='$pagename' AND tbl='$tbl' and item=$id"
+				SQL "UPDATE pages SET ycoord=$y WHERE page='$pagename' AND tbl='$tbl' and item=$id"
 			else
 				echo -n '+'
-				sqlite3 $database "INSERT INTO pages (page,tbl,item,xcoord,ycoord) VALUES ('$pagename','$tbl',$id,$x,$y)"
+				SQL "INSERT INTO pages (page,tbl,item,xcoord,ycoord) VALUES ('$pagename','$tbl',$id,$x,$y)"
 			fi
 		fi
 	done
 
 done
 
-sqlite3 -separator ' '  $database "SELECT item,tbl FROM pages WHERE page='$pagename'" >$tmp1
+SQL "SELECT item,tbl FROM pages WHERE page='$pagename'" >$tmp1
 cat  $tmp1 | while read item tbl ; do
-	is=$(sqlite3 -separator ' '  $database "SELECT id FROM $tbl WHERE id=$item");
+	is=$(SQL "SELECT id FROM $tbl WHERE id=$item");
 	if [ "$is" = "" ] ; then
-		sqlite3 $database "DELETE FROM pages WHERE page='$pagename' AND tbl='$tbl' and item=$item"
+		SQL "DELETE FROM pages WHERE page='$pagename' AND tbl='$tbl' and item=$item"
 	fi
 done
 
