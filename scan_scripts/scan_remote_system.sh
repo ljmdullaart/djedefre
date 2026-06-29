@@ -48,7 +48,11 @@ for interface in $(cat $tmp) ; do
 			while read seq ifname type ip rcidr rest ; do
 				echo "        read ip=$ip  rcidr=$rcidr"
 				echo "        add interface  $ip $serverid"
-				add_if $ip $serverid
+				declare -A interface_data
+				interface_data[ip]="$ip"
+				interface_data[host]="$serverid"
+				set_interface interface_data
+				unset interface_data
 				if [ "$type" = "inet" ] ; then
 					if [ "$rcidr" != "" ] ; then
 						nwaddr=$(ipcalc $ip/$rcidr | sed -n 's/\/.*//;s/^Network:\s*//p')
@@ -76,7 +80,11 @@ for interface in $(cat $tmp) ; do
 		  grep -v 'lo' |
 		  while read ifname ip mask mac ; do
 			echo "    add interface  $ip $serverid"
-			add_if $ip $serverid
+			declare -A interface_data
+			interface_data[ip]="$ip"
+			interface_data[host]="$serverid"
+			set_interface interface_data
+			unset interface_data
 			nwaddr=$(ipcalc $ip/$mask | sed -n 's/\/.*//;s/^Network:\s*//p')
 			rcidr=$(ipcalc -b $ip/$mask | sed -n 's/Netmask:.*= //p')
 			sqlite3  -cmd ".timeout 1000"  $database "UPDATE interfaces SET ifname='${ifname%:}' WHERE ip='$interface'"
