@@ -26,6 +26,7 @@ function fillObjectTable(obj) {
     if (obj.tbl === "subnet") {
         addRow(table, "Network Address", obj.nwaddress);
         addRow(table, "CIDR", obj.cidr);
+	addScopeRow(table, obj)
     }
     // CLOUD
     if (obj.tbl === "cloud") {
@@ -169,6 +170,41 @@ function addTypeRow(table, obj) {
     tr.appendChild(td);
     table.appendChild(tr);
 }
+
+function addScopeRow(table, obj) {
+    const tr = document.createElement("tr");
+    const th = document.createElement("th");
+    th.textContent = "Scope";
+
+    const td = document.createElement("td");
+    const select = document.createElement("select");
+    select.className = "edit-field";
+
+    const choices = [ "", "global", "local", "server", "shared"];
+
+    choices.forEach(choice => {
+        const opt = document.createElement("option");
+        opt.value = choice;
+        opt.textContent = choice;
+
+        if (choice === obj.scope) {
+            opt.selected = true;
+        }
+
+        select.appendChild(opt);
+    });
+
+    select.addEventListener("change", () => {
+        const newScope = select.value;
+        sendUpdate(obj, "scope", newScope);
+    });
+
+    td.appendChild(select);
+    tr.appendChild(th);
+    tr.appendChild(td);
+    table.appendChild(tr);
+}
+
 
 function addDevtypeRow(table, obj) {
     const tr = document.createElement("tr");
