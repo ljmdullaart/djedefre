@@ -1,108 +1,121 @@
 CREATE TABLE interfaces (
 	id            integer primary key autoincrement,
-	macid         string,
-	ip            string,
-	hostname      string,
-	host          integer,
-	subnet        integer,
-	access        string,
+	access        text,
 	connect_if    integer,
+	host          integer,
+	hostname      text,
+	ifname        text,
+	ip            text UNIQUE,
+	ip_scope      text,
+	macid         text,
+	options       text,
 	port          integer,
-	ifname        string,
+	remarks       text,
+	source        text,
+	subnet        integer,
 	switch        integer
-	, options);
-CREATE TABLE sqlite_sequence(name,seq);
+	);
 CREATE TABLE subnet (
 	id         integer primary key autoincrement,
-	nwaddress  string,
+	access     text,
 	cidr       integer,
+	name       text,
+	nwaddress  text UNIQUE,
+	options    text,
+	remarks    text,
+	scope      text,
+	source     text,
 	xcoord     integer,
-	ycoord     integer,
-	name       string,
-	options    string,
-	access     string
-	, source text);
+	ycoord     integer
+	);
 CREATE TABLE server (
 	id         integer primary key autoincrement,
-	name       string,
-	xcoord     integer,
-	ycoord     integer,
-	type       string,
-	status     string,
+	devicetype text,
+	interfaces text,
 	last_up    integer,
-	options    string,
-	ostype     string,
-	os         string,
-	processor  string,
-	devicetype string,
-	memory     string,
-	interfaces dtring
+	memory     text,
+	name       text UNIQUE,
+	options    text,
+	os         text,
+	ostype     text,
+	processor  text,
+	remarks    text,
+	source     text,
+	status     text,
+	type       text,
+	xcoord     integer,
+	ycoord     integer
 	);
+
 CREATE TABLE command (
 	id         integer primary key autoincrement,
-	host       string,
-	button     string,
-	command    string
+	host       text,
+	button     text,
+	command    text
 );
 CREATE TABLE details (
 	id         integer,
-	type       string,
-	os         string
+	os         text,
+	type       text
 	);
 CREATE TABLE pages (
 	id         integer primary key autoincrement,
-	page       string,
-	tbl        string,
 	item       integer,
+	page       text,
+	tbl        text,
 	xcoord     integer,
 	ycoord     integer
 	);
 CREATE TABLE switch (
 	id         integer primary key autoincrement,
-	switch     string,
-	server     integer,
-	name       string,
+	name       text,
 	ports      integer
+	remarks    text,
+	switch     text,
+	server     integer
 	);
 CREATE TABLE l2connect (
 	id         integer primary key autoincrement,
-	vlan       string,
-	from_tbl   string,
+	vlan       text,
+	from_tbl   text,
 	from_id    integer,
 	from_port  integer,
-	to_tbl     string,
+	to_tbl     text,
 	to_id      integer,
 	to_port    integer,
-	source     string
+	source     text
 	);
 CREATE TABLE config (
 	id         integer primary key autoincrement,
-	attribute  string,
-	item       string,
-	value      string
+	attribute  text,
+	item       text,
+	value      text
 	);
 CREATE TABLE cloud (
 	id         integer primary key autoincrement,
-	name       string,
-        vendor     string,
-	type       string,
+	name       text UNIQUE,
+	options    text,
+	remarks    text,
+	type       text,
+        vendor     text,
 	xcoord     integer,
 	ycoord     integer,
-	service    string
+	service    text
 	);
 CREATE TABLE dashboard (
 	id         integer primary key autoincrement,
-	server     string,
-        type       string,
-	variable   string,
-	value      string,
-	color1     string,
-	color2     string
+	server     text,
+        type       text,
+	variable   text,
+	value      text,
+	color1     text,
+	color2     text
 	);
 CREATE TABLE nfs (
 	id         integer primary key autoincrement,
-	server     string,
-        export     string,
-	client     string,
-	mountpoint string
+	client     text,
+	mountpoint text,
+	remarks    text,
+	server     text,
+        export     text
 	);
