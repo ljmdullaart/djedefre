@@ -34,4 +34,12 @@ sub ip_in_subnet {
 	}
 }
 
+sub api_log {
+        (my $line)=@_;
+        open my $fh, ">>", "log/api" or die "Cannot open log: $!";
+        print $fh "$line\n";
+        close $fh;
+}
+
+
 1;

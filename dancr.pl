@@ -157,48 +157,56 @@ get '/test' => sub {
 #     API
 ######################################################################################
 get '/api/json/servers' => sub {
+	api_log ('/api/json/servers');
 	my $ref=query_server();
 	send_as JSON =>  $ref;
 	
 };
 
 get '/api/json/config' => sub {
+	api_log ('/api/json/config');
 	my $ref=query_config();
 	send_as JSON =>  $ref;
 	
 };
 
 get '/api/json/subnets' => sub {
+	api_log ('/api/json/subnets');
 	my $ref=query_subnet();
 	send_as JSON =>  $ref;
 	
 };
 
 get '/api/json/clouds' => sub {
+	api_log ('/api/json/clouds');
 	my $ref=query_cloud();
 	send_as JSON =>  $ref;
 	
 };
 
 get '/api/json/interfaces' => sub {
+	api_log ('/api/json/interfaces');
 	my $ref=query_interfaces_extra();
 	send_as JSON =>  $ref;
 	
 };
 
 get '/api/json/nfs' => sub {
+	api_log ('/api/json/nfs');
 	my $ref=query_nfs();
 	send_as JSON =>  $ref;
 	
 };
 
 get '/api/json/dashboard' => sub {
+	api_log ('/api/json/dashboard');
 	my $ref=query_dashboard();
 	send_as JSON =>  $ref;
 	
 };
 
 get '/api/listings' => sub {
+	api_log ('/api/json/listings');
 	my $file = '/tmp/djedefre.listing';
 	open my $fh, '<', $file or return send_error("Cannot open $file: $!", 500);
 	my $content = do { local $/; <$fh> };
@@ -207,19 +215,21 @@ get '/api/listings' => sub {
 };
 
 get '/api/json/page/:param' => sub {
-    my $page = route_parameters->get('param');
+	my $page = route_parameters->get('param');
+	
+	api_log ("/api/json/page:$page");
+	my ($drawing, $subnets, $srvdraw, $vboxes) = load_page_objects($page);
 
-    my ($drawing, $subnets, $srvdraw, $vboxes) = load_page_objects($page);
+	add_pagelist_to_objects($drawing);
+	add_l3_lines($drawing, $subnets, $vboxes);
+	add_l2_lines($drawing, $srvdraw, $page);
 
-    add_pagelist_to_objects($drawing);
-    add_l3_lines($drawing, $subnets, $vboxes);
-    add_l2_lines($drawing, $srvdraw, $page);
-
-    send_as JSON => $drawing;
+	send_as JSON => $drawing;
 };
 
 
 get '/api/pagelist' => sub {
+	api_log ("/api/pagelist");
 	my $outxml="<pages>\n";
 	my $ref  = query_pagelist();
 	while(my $r = sql_getrow()){
@@ -233,6 +243,7 @@ get '/api/pagelist' => sub {
 };
 
 get '/api/logolist' => sub {
+	api_log ("/api/logolist");
 	my @files = glob('images/logo_*.png');
 	my $outxml="<logos>\n";
 	foreach my $file (@files) {
@@ -246,6 +257,7 @@ get '/api/logolist' => sub {
 	$outxml;
 };
 get '/api/devtypelist' => sub {
+	api_log ("/api/devtypelist");
 	my @devtypes=qw/pc network server printer virtual nas appliance tablet smartphone voip iot security_camera av ups/;
 	my $outxml="<devtypes>\n";
 	foreach my $devtype (@devtypes) {
@@ -268,6 +280,8 @@ post '/api/moveobject' => sub {
 	my $xcoord = int($data->{xcoord});
 	my $ycoord = int($data->{ycoord});
 	my $page   = $data->{page};
+	api_log("/api/moveobject item=$item tbl=$tbl to($xcoord,$ycoord) on page $page");
+
 	my $pageid = q_page_id('page',$page,'tbl',$tbl,'item',$item);
 	q_page_update($pageid,'xcoord',$xcoord);
 	q_page_update($pageid,'ycoord',$ycoord);
@@ -282,6 +296,7 @@ post '/api/changeobject' => sub {
 	my $var    = $data->{var};
 	my $val    = $data->{val};
 	$tbl='none' unless defined $tbl;
+	api_log("/api/changeobject item=$item tbl=$tbl var=$var val=$val");
 	if ($tbl eq 'server'){ q_server_update ($item,$var,$val); }
 	if ($tbl eq 'subnet'){ q_subnet_update ($item,$var,$val); }
 	if ($tbl eq 'cloud') { q_cloud_update  ($item,$var,$val); }
@@ -294,16 +309,18 @@ post '/api/setpagelist' => sub {
 	my $tbl    = $data->{tbl};
 	my $action = $data->{action};   # add | remove
 	my $page   = $data->{page};
+	api_log("/api/setpagelist item=$item  tbl=$tbl action=$action page=$page");
 	if ($action eq 'remove'){ query_pages_del_obj($page,$tbl,$item); }
 	if ($action eq 'add'){ query_pages_add_obj($page,$tbl,$item,100,100); }
 	return to_json { status => "ok" };
-    
+	
 };
 
 post '/api/deleteobject' => sub {
 	my $data   = from_json(request->body);
 	my $item   = $data->{item};
 	my $tbl    = $data->{tbl};
+	api_log("/api/deleteobject item=$item  tbl=$tbl ");
 	if ($tbl eq 'server'){ query_delete_server ($item); }
 	if ($tbl eq 'subnet'){ query_delete_subnet ($item); }
 	if ($tbl eq 'cloud' ){ query_delete_cloud  ($item); }
