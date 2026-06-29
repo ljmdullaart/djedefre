@@ -13,7 +13,7 @@ sub load_page_objects {
     my $seq = 0;
     my (@drawing, @srvdraw, @subnets, @vboxes);
 
-    my $vboxcolor = q_config('line:color','vbox') // 'yellow';
+    my $vboxcolor = q_config('line:color','vbox') // 'royalblue';
 
     my $ref = query_page('page', $page);
     my @page_content = @$ref;
@@ -53,8 +53,7 @@ sub load_page_objects {
             $item{interfaces} = [ @$ifref ];
 
             push @drawing, \%item;
-
-            if ($item{options} =~ /vboxhost:(\d+)/) {
+            if ($item{options} =~ /vboxhost[:=](\d+)/) {
                 push @vboxes, {
                     server => $1,
                     client => $item{item},
@@ -71,6 +70,7 @@ sub load_page_objects {
             $item{cidr}      = q_subnet('cidr', $id);
             $item{options}   = q_subnet('options', $id);
             $item{access}    = q_subnet('access', $id);
+            $item{scope}     = q_subnet('scope', $id);
             $item{type}      = ($item{nwaddress} eq 'Internet') ? 'internet' : 'subnet';
 
             push @subnets, \%item;
@@ -191,7 +191,8 @@ sub add_l3_lines {
                 my %vboxline;
                 $vboxline{thick} = 10;
                 $vboxline{from}  = $dr_obj;
-                $vboxline{color} = q_config('line:color','vbox') // 'yellow';
+                $vboxline{color} = q_config('line:color','vbox') // 'royalblue';
+                $vboxline{opacity} = 0.5;
 
                 if ($vbox->{server} == $serverid) {
                     $seq++;
@@ -257,9 +258,14 @@ sub add_l2_lines {
         my $to_tbl   = $r->{to_tbl};
         my $from_id  = $r->{from_id};
         my $to_id    = $r->{to_id};
+	my $fromserver=undef;
+	my $toserver=undef;
 
-        my $fromserver = ($from_tbl eq 'interfaces') ? q_interfaces('host', $from_id) : undef;
-        my $toserver   = ($to_tbl   eq 'interfaces') ? q_interfaces('host', $to_id)   : undef;
+	if ($from_tbl eq 'interfaces') { $fromserver = q_interfaces('host', $from_id); }
+	elsif ($from_tbl eq 'server') { $fromserver = $from_id; }
+
+	if ($to_tbl   eq 'interfaces') { $toserver   =q_interfaces('host', $to_id); }
+	elsif ($to_tbl   eq 'server') { $toserver   =$to_id; }
 
         next unless defined $fromserver && defined $toserver;
 
