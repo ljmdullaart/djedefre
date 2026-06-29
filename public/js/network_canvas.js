@@ -124,7 +124,8 @@ document.addEventListener("DOMContentLoaded", () => {
                             const line = new Konva.Line({
                                 points: [fromNode.x(), fromNode.y(), toNode.x(), toNode.y()],
                                 stroke: obj.color || "black",
-                                strokeWidth: obj.thick || 1
+                                strokeWidth: obj.thick || 1,
+				opacity: obj.opacity ?? 1
                             });
 
                             lineLayer.add(line);
