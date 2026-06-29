@@ -30,11 +30,19 @@ fi
 # 
 
 me=$(hostname -s)
-add_server "$me"
+
+declare -A server_data
+server_data[name]="$me"
+server_data[source]="scan_localhost"
+server_data[status]="up"
+server_data[type]="server"
+server_data[xcoord]=100
+server_data[ycoord]=100
+set_server server_data
+unset server_data
 serverid=$db_retval
 
 
- 
 #  _       _             __                                       _ 
 # (_)_ __ | |_ ___ _ __ / _| __ _  ___ ___  ___    __ _ _ __   __| |
 # | | '_ \| __/ _ \ '__| |_ / _` |/ __/ _ \/ __|  / _` | '_ \ / _` |
@@ -48,21 +56,57 @@ serverid=$db_retval
 # |___/\__,_|_.__/|_| |_|\___|\__|___/
 #  
 
+echo "Found interfaces:"
 ip addr |
 	grep -v '127.0.0.1' |
+	grep -v ' ::1' |
 	sed -n 's/.*inet \(.*\)\/\(.*\) brd.*/\1 \2/p' 
-ip addr |
-	grep -v '127.0.0.1' |
-	sed -n 's/.*inet \(.*\)\/\(.*\) brd.*/\1 \2/p' | 
-	while read ip mycidr ; do
+echo
+
+ip route show | grep "via" | awk '{print $5}' | sort -u | while read -r iface; do
+    ip -o -4 addr show "$iface" | awk '{print $2, $4}' | while read -r name ip_mask; do
+        # Splits IP en Subnet (bijv. 192.168.1.10/24 -> 192.168.1.10 192.168.1.0/24)
+        ip_addr=$(echo $ip_mask | cut -d/ -f1)
+        subnet=$(ip route show dev "$name" | grep "proto kernel" | awk '{print $1}' | head -n1)
+        echo "$name $ip_addr $subnet"
+    done
+done 
+
+ip addr | sed -n 's/\w*: \([[:alnum:]]*\).*/\1/p'  |
+	while read ifname ip mycidr ; do
+		read ip mycidr <<< $(ip -o -f inet addr show $ifname | awk '{print $4}' | sed 's/\// /')
 		echo "serverid=$serverid ip=$ip cidr=$mycidr"
 		if [ "$mycidr" != '' ] ; then
-			add_if $ip $serverid
 			echo "   serverid=$serverid ip=$ip cidr=$mycidr"
-			nwaddr=$(ipcalc $ip/$mycidr | sed -n 's/\/.*//;s/^Network:\s*//p')
-			echo "   serverid=$serverid ip=$ip nnaddr=$nwaddr cidr=$mycidr"
-			add_subnet $nwaddr $mycidr scan_localsystem
-			sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
+			nwaddress=$(ipcalc $ip/$mycidr | sed -n 's/\/.*//;s/^Network:\s*//p')
+			echo "   serverid=$serverid ip=$ip nnaddr=$nwaddress cidr=$mycidr"
+			add_subnet $nwaddress $mycidr scan_localsystem
+			declare -A subnet_data
+			subnet_data[nwaddress]="${nwaddress// /}"
+			subnet_data[cidr]="$mycidr"
+			subnet_data[name]="$nwaddress"
+			subnet_data[source]="scan_localsystem"
+			set_subnet subnet_data
+			subnetid=$db_retval
+
+			declare -A interface_data
+			interface_data[ip]="${ip// /}"
+			interface_data[host]="$serverid"
+			interface_data[subnet]="$subnetid"
+			interface_data[macid]=$(ip addr show | grep -B1 "inet $ip/" | grep -oP 'link/ether \K[^ ]+')
+			interface_data[ifname]=$(ip -o addr show | awk -v ip="$ip" '$4 ~ "^"ip"/" {print $2}')
+			interface_data[source]="scan_localsystem"
+			set_interface interface_data
+
+			subnet_data[access]="$db_retval"
+			set_subnet subnet_data
+
+			unset interface_data 
+			unset subnet_data
+			
 		fi
 		mycidr=''
 	done
+
+
+
