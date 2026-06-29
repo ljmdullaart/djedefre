@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 #INSTALL@ /opt/djedefre/nwdrawing.pm
 #INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+# used by X11-version
 
 use strict;
 use warnings;
