@@ -26,53 +26,57 @@ cat /proc/net/arp |
 awk '{print $1 " " $4}' |
 egrep -v '00:00:00:00:00:00|IP' >> $tmp1
 
-sqlite3  -separator ' '  -cmd ".timeout 1000" "$database" "SELECT id,ip,access FROM interfaces" > $tmp
+list_interfaces | while read id ip rest ; do
+	access=$(valfromid interfaces $id access)
+	echo "$id $ip $access"
+done > $tmp
 
-grep ssh $tmp |
+egrep 'ssh|telnet'  $tmp |
 	while read id ip access ; do
 		echo "Get arp from $ip"
-		if [[ "$access" == *"root"* ]] ; then
-			sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 root@'
-		elif [[ "$access" == *"admin"* ]] ; then
-			sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 admin@'
-		else
-			sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 '
-		fi
-		if echo hop | $sshcmd$ip which ip 2>/dev/null | grep -q ip ; then
-			echo hop | $sshcmd$ip 2>/dev/null  ip addr | awk '
+		if cmd_on $id which ip 2>/dev/null | grep -q 'usr.*ip' ; then
+			cmd_on $id ip addr | awk '
 				/inet /{ inet=$2 }
 				/link.ether/ { link=$2}
 				/^[0-9]/ { printf "%s %s\n", inet, link }
 				END { printf "%s %s\n", inet, link }
-			' | sed -n 's/\/[0-9]*//p' |sort -u | grep -v 127.0.0.1 |
-			while read myip mymac ; do
-				if [[ $myip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-					sqlite3   -cmd ".timeout 1000" "$database" "UPDATE interfaces SET macid='$mymac' WHERE ip='$myip'"
-				fi
-			done
+			' | sed -n 's/\/[0-9]*//p' |sort -u | grep -v 127.0.0.1 >> $tmp2
 		fi
-		echo hop|
-			$sshcmd$ip 2>/dev/null  "if [ -f /proc/net/arp ] ; then cat /proc/net/arp; fi" |
-			egrep -v '00:00:00:00:00:00|IP'  |
-			awk '{print $1 " " $4 }'>> $tmp1
+		if cmd_on $id which arp  2>/dev/null | grep -q 'usr.*ip' ; then
+			cmd_on $id arp -a | sed 's/.*(\(.*\)) at \([0-9a-fA-F:]*\).*/\1 \2/' | grep -v "00:00:00:00:00:0" >>$tmp2
+		fi
+		cmd_on $id '[ -f /proc/net/arp ] && cat /proc/net/arp'| sed 's/.*(\(.*\)) at \([0-9a-fA-F:]*\).*/\1 \2/'  | grep -v "00:00:00:00:00:0">>$tmp2
+			
+	done
+sed -n 's/\([0-9\.]*\) .* \([0-9a-f:][0-9a-f:]*\) .*/\1 \2/p' $tmp2 | sort -u
+sed -n 's/\([0-9\.]*\) .* \([0-9a-f:][0-9a-f:]*\) .*/\1 \2/p' $tmp2 | sort -u |
+	while read myip mymac ; do
+		if [[ $myip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+			# add only if ip in a subnet that is "global"
+			subnetid=$(get_subnet $myip)
+			if [ "$subnetid" = "" ] ; then
+				djedefre_log "IP address $myip is not in a known subnet"
+			else
+				subnetscope=$(valfromid subnet "$subnetid" scope)
+				if [ "$subnetscope" = "global" ] ; then
+					declare -A interface_data
+					interface_data[ip]="$myip"
+					if [ "$mymac" != "" ] ; then interface_data[macid]="$mymac" ; fi
+					interface_data[source]="scan_arp"
+					interface_data[subnet]="$subnetid"
+					set_interface interface_data
+					unset interface_data
+				else
+					djedefre_log "IP address $myip not in global subnet"
+				fi
+			fi
+		fi
 	done
 
-sort -u $tmp1 | while read ip macid; do
-	if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-		if [ "$macid" != "" ] ; then
-			host=$(sqlite3  -separator ' '  -cmd ".timeout 1000" "$database" "SELECT host FROM interfaces WHERE ip='$ip'")
-			sqlite3   -cmd ".timeout 1000" "$database" "UPDATE interfaces SET macid='$macid' WHERE ip='$ip'"
-			echo "SET macid='$macid' WHERE ip='$ip'"
-		fi
-	fi
-
-done
-
-
-	
-	
-
-#sqlite3  "$database" "DELETE FROM interfaces WHERE subnet IS NULL"
+sed -n 's/\([0-9\.]*\) .* \([0-9a-f:][0-9a-f:]*\) .*/\1 \2/p' $tmp2 | sort -u |
+	while read myip mymac ; do
+		set_ipmac $myip $mymac
+	done
 
 
 rm -f $tmp $tmp1 $tmp2
