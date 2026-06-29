@@ -91,7 +91,7 @@ sub sql_qvalue{
 	my ($package, $filename, $line) = caller;
 	#debug($DEB_DB,"sql_query  $package, $filename, line number $line using $dbfile");
 	my $logline="sql_qvalue $query";
-	for my $bv (@bind){ $logline="$logline, $bv"; }
+	for my $bv (@bind){ $bv='' unless defined $bv; $logline="$logline, $bv"; }
 	db_log ($logline);
 	my $db = DBI->connect(
 		"dbi:SQLite:dbname=$dbfile",
@@ -821,17 +821,18 @@ sub q_interfaces {
 	(my $var, my $id)=@_;
         my  %allowed_column = (
 		id         =>1,
-		macid      =>1,
-		ip         =>1,
-		hostname   =>1,
-		host       =>1,
-		subnet     =>1,
 		access     =>1,
 		connect_if =>1,
-		port       =>1,
+		host       =>1,
+		hostname   =>1,
 		ifname     =>1,
-		switch     =>1,
-                options    =>1
+		ip         =>1,
+		macid      =>1,
+                options    =>1,
+		port       =>1,
+		ip_scope   =>1,
+		subnet     =>1,
+		switch     =>1
         );
 	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
 	#debug($DEB_DB,"$sbr $package, $filename, line number $line");
@@ -1592,13 +1593,14 @@ sub q_subnet_id_by {
 	(my $var, my $val)=@_;
         my  %allowed_column = (
 		id         =>1,
-		nwaddress  =>1,
+		access     =>1,
 		cidr       =>1,
-		xcoord     =>1,
-		ycoord     =>1,
 		name       =>1,
+		nwaddress  =>1,
 		options    =>1,
-		access     =>1
+		scope      =>1,
+		xcoord     =>1,
+		ycoord     =>1
         );
 	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
 	#debug($DEB_DB,"$sbr $package, $filename, line number $line");
@@ -1624,13 +1626,14 @@ sub q_subnet {
 	(my $var,my $id)=@_;
         my  %allowed_column = (
 		id         =>1,
-		nwaddress  =>1,
+		access     =>1,
 		cidr       =>1,
-		xcoord     =>1,
-		ycoord     =>1,
 		name       =>1,
+		nwaddress  =>1,
 		options    =>1,
-		access     =>1
+		scope      =>1,
+		xcoord     =>1,
+		ycoord     =>1
         );
 	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
 	#debug($DEB_DB,"$sbr $package, $filename, line number $line");
@@ -1655,13 +1658,14 @@ sub q_subnet_update {
 	my ($id, %updates) = @_;
         my  %allowed_column = (
 		id         =>1,
-		nwaddress  =>1,
+		access     =>1,
 		cidr       =>1,
-		xcoord     =>1,
-		ycoord     =>1,
 		name       =>1,
+		nwaddress  =>1,
 		options    =>1,
-		access     =>1
+		scope      =>1,
+		xcoord     =>1,
+		ycoord     =>1
         );
 	my ($package, $filename, $line) = caller; my $sbr=(caller(0))[3];
 	#debug($DEB_DB,"$sbr $package, $filename, line number $line");
