@@ -1,9 +1,8 @@
 #!/bin/bash
-#!/bin/bash
 
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
-tmp=/tmp/scan_access.$$
-tmp1=/tmp/scan_access1.$$
+tmp=/tmp/scan_access.$$   #list of vbox hosta
+tmp1=/tmp/scan_access1.$$ #interfaceslist
 
 if [ -f $SCRIPTPATH/djedefre.common.sh ] ; then
 	. $SCRIPTPATH/djedefre.common.sh
@@ -24,31 +23,52 @@ fi
 now=$(date +%s)
 serverlist=/tmp/djedefre.serverlist.$$
 vboxlist=/tmp/djedefre.vbox.$$
+arplist=/tmp/djedefre.arp.$$
 
 
-sqlite3 -separator ' ' $database  'SELECT ip,host,access FROM interfaces' > $tmp1
+list_interfaces | cut -d' ' -f1,2 > $tmp1
 
-cat $tmp1 | 
-while read interface vboxhostid access ; do
-	type=$(sqlite3 -separator ' ' $database  "SELECT type FROM server WHERE id=$vboxhostid")
-	if [ "$access" = "" ] ; then
-		:
-	elif [ "$access" = "none" ] ; then
-		:
-	elif [ "$type" = "cisco" ]  ; then
-		:
-	else
-		if [[ "$access" == *"root"* ]] ; then
-			sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 root@'
-		elif [[ "$access" == *"admin"* ]] ; then
-			sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 admin@'
-		else
-			sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 '
+
+cat $tmp1 | while read if_id if_ip ; do
+	if_host=$(valfromid interfaces $if_id host)
+	if_access=$(valfromid interfaces $if_id access)
+	srv_type=$(valfromid server $if_host type)
+	srv_name=$(valfromid server $if_host name)
+	if cmd_on $if_id which vboxmanage  | grep -q vboxmanage 2>/dev/null ; then
+		echo "Host  $srv_name ($if_host) is a vbox host"
+		cmd_on $if_id vboxmanage list runningvms | sed "s/.*{//;s/}.*//;s/^/$if_host $if_id /" >> $serverlist  2>/dev/null 
+	fi
+done
+
+echo "----------------------------------"
+awk '!seen[$1, $3]++' $serverlist | while read -r vboxhost vboxif vboxid ; do
+	if [ "$vboxid" != "" ] ; then
+		tmpmac=''
+		vboxmac=''
+		client_if_id=''
+		client_srv_id=''
+		client_srv_name=''
+		tmpmac=$(cmd_on $vboxif "VBoxManage showvminfo $vboxid  --machinereadable" | sed -n 's/"//g;s/^macaddress[0-9]*=//p' | head -1)
+		vboxmac=$(echo $tmpmac | sed -E 's/(..)(..)(..)(..)(..)(..)/\1:\2:\3:\4:\5:\6/' | tr 'A-Z' 'a-z')
+		client_if_id=$(idfromval interfaces macid "$vboxmac")
+		if [ "$client_if_id" != "" ] ; then
+			client_srv_id=$(valfromid interfaces $client_if_id host)
+			client_srv_name=$(valfromid server $client_srv_id name)
+			srv_options=$(optfromid server $client_srv_id)
+			srv_options=$(setvarstring vboxhost $vboxhost "$vboxhost")
+echo "$srv_options"
+			setfromid server $client_srv_id options "$srv_options"
 		fi
-		echo "Testing if $interface contains a vbox manager:"
-		if echo hop|$sshcmd$interface which vboxmanage ; then
-			echo "Host  $vboxhostid is a vbox host"
-			echo hop|$sshcmd$interface vboxmanage list vms > "$serverlist" 2>/dev/null
+		echo "----------------------------------"
+	fi
+done
+	
+rm -f $vboxlist $serverlist $arplist  $tmp $tmp1
+exit
+
+
+
+
 			sed 's/^/serverlist: /'  "$serverlist"
 			sed 's/^"//;s/".*//' "$serverlist"| while read vbox ; do
 				if [ "$vbox" != "" ] ; then
