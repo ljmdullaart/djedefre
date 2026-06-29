@@ -1,7 +1,7 @@
 #!/bin/bash
 
-tmp=/tmp/scan_server.$$
-tmp1=/tmp/scan_server.$$.1
+tmp=/tmp/scan_server.$$		# list of interfaces
+tmp1=/tmp/scan_server.$$.1	# list of IP CIDR
 tmp2=/tmp/scan_server.$$.2
 
 
@@ -22,98 +22,173 @@ elif [ "$1" != '' ] ; then
 	fi
 fi
 
-SQL(){
-	sqlite3  -separator ' ' -cmd ".timeout 1000" "$database" "$*"
+get_ipv4_full() {
+	local if_id="$1"
+	local outfile="$2"
+	: > "$outfile"
+
+	# Helper: bereken netwerk via ipcalc
+	calc_net() {
+		local ip="$1"
+		local cidr="$2"
+		ipcalc "$ip/$cidr" | sed -n 's/\/.*//;s/Network. *//p'
+	}
+
+	# 1. Linux modern: ip -4 -o addr
+	cmd_on "$if_id" "ip -4 -o addr" 2>/dev/null | \
+	awk '{print $2, $4}' | while read -r iface ipcidr; do
+		ip="${ipcidr%/*}"
+		cidr="${ipcidr#*/}"
+		net=$(calc_net "$ip" "$cidr")
+		echo "$ip $cidr $net $iface"
+	done > "$outfile"
+	[[ -s "$outfile" ]] && return 0
+
+	# 2. Linux generic: ip addr
+	cmd_on "$if_id" "ip addr" 2>/dev/null | \
+	awk '/inet / {print $NF, $2}' | while read -r iface ipcidr; do
+		ip="${ipcidr%/*}"
+		cidr="${ipcidr#*/}"
+		net=$(calc_net "$ip" "$cidr")
+		echo "$ip $cidr $net $iface"
+	done > "$outfile"
+	[[ -s "$outfile" ]] && return 0
+
+	# 3. BSD/macOS/Linux-ifconfig
+	cmd_on "$if_id" "ifconfig" 2>/dev/null | \
+	awk '
+		/^[a-zA-Z0-9]/ {iface=$1}
+		/inet / {
+			ip=$2
+			for(i=1;i<=NF;i++){
+				if($i=="netmask"){
+					mask=$(i+1)
+					# macOS/BSD hex → dec
+					if(mask ~ /^0x/){
+						m=mask
+						gsub("0x","",m)
+						split(m,a,"")
+						bin=""
+					 for(j=1;j<=length(m);j+=2){
+							byte=substr(m,j,2)
+							dec=strtonum("0x" byte)
+							for(k=7;k>=0;k--) bin=bin""int(dec/2^k)%2
+						}
+						cidr=gsub(/1/,"1",bin)
+					} else {
+					 split(mask,oct,".")
+					 cidr=0
+						for(j in oct){
+							n=oct[j]
+						 while(n>0){ cidr+=n%2; n=int(n/2) }
+						}
+					}
+					print ip, cidr, iface
+				}
+			}
+		}
+	' | while read -r ip cidr iface; do
+		net=$(calc_net "$ip" "$cidr")
+		echo "$ip $cidr $net $iface"
+	done > "$outfile"
+	[[ -s "$outfile" ]] && return 0
+
+	# 4. Windows: ipconfig
+	cmd_on "$if_id" "ipconfig" 2>/dev/null | \
+	awk '
+		/adapter/ {iface=$0; gsub(".*adapter ","",iface); gsub(":","",iface)}
+		/IPv4 Address/ {ip=$NF}
+		/Subnet Mask/ {
+			split($NF,oct,".")
+			cidr=0
+			for(i in oct){
+				n=oct[i]
+				while(n>0){ cidr+=n%2; n=int(n/2) }
+			}
+			print ip, cidr, iface
+		}
+	' | while read -r ip cidr iface; do
+		net=$(calc_net "$ip" "$cidr")
+		echo "$ip $cidr $net $iface"
+	done > "$outfile"
+	[[ -s "$outfile" ]] && return 0
+
+	# 5. Cisco: sh ip int (NIET br)
+	cmd_on "$if_id" "sh ip int" 2>/dev/null | \
+	awk '
+		/Internet address/ {
+			iface=$1
+			sub("Internet address is ","",$0)
+			split($4,parts,"/")
+			ip=parts[1]
+			cidr=parts[2]
+			print ip, cidr, iface
+		}
+	' | while read -r ip cidr iface; do
+		net=$(calc_net "$ip" "$cidr")
+		echo "$ip $cidr $net $iface"
+	done > "$outfile"
+	[[ -s "$outfile" ]] && return 0
+
+	return 1
 }
-SQL "SELECT id,ip,access FROM interfaces" > $tmp
 
-grep ssh $tmp |
-	while read id ip access ; do
-		echo "Scan server for $ip"
-		if [[ "$access" == *"root"* ]] ; then
-			sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 root@'
-		elif [[ "$access" == *"admin"* ]] ; then
-			sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 admin@'
-		else
-			sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 '
+
+list_interfaces | cut -d' ' -f1,2 > $tmp
+
+cat $tmp | while read if_id if_ip ; do
+	echo "if_id=$if_id if_ip=$if_ip"
+	if_access=$(valfromid interfaces $if_id access)
+	if_host=$(valfromid interfaces $if_id host)
+	if [ "$if_host" != "" ] ; then
+		srv_name=$(valfromid server $if_host name)
+	else
+		srv_name=$(host $if_ip | grep -v NXDOMAIN | head -1)
+	fi
+	 echo "	 srv_name=$srv_name "
+	if [ "$if_access" != "" ] ; then
+		echo "Scan server for $if_ip"
+		get_ipv4_full "$if_id" $tmp1
+		hostname=$(cmd_on $if_id hostname -s)
+		if [ "$srvname" = "" ] ; then
+			srvname="$hostname"
 		fi
-		echo hop| $sshcmd$ip ip addr 2>&1 | sed -n 's/\/.*//;s/.*inet //p' > $tmp2
-		echo hop| $sshcmd$ip ifconfig 2>&1 |sed -n 's/.*inet \(.*\) netmask \(.*\) br.*/\1 \2/p' >>$tmp2
-		echo hop| $sshcmd$ip ifconfig 2>&1 |sed -n 's/.*inet addr://;s/ .*Mask:.*//p' >>$tmp2
-		lhost=$(echo hop| $sshcmd$ip hostname -s)
-		srvid=''
-		srvname=$(grep -v 127.0.0.1  $tmp2 | sed 's/ .*//' | sort -un | tail -1)
-		rm -f $tmp1
-		for ifip in $(grep -v 127.0.0.1  $tmp2 | sed 's/ .*//') ; do
-			nslookup $ifip 2>&1 | grep -v NXDOMAIN | sed -n "s/.$//;s/.*= /$ifip /p" >> $tmp1
-			newhost=$(nslookup $ifip 2>&1 | grep -v NXDOMAIN | sed -n "s/.$//;s/.*= //p")
-			newsrvid=$(SQL "SELECT host FROM interfaces WHERE ip='$ifip'")
-			if [[ "$srvname" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] ; then
-				if [ "$newhost" != "" ] ; then
-					srvname="$newhost"
-				fi
+		sort -u  $tmp1 | sed "s/^/tmp1 for $if_ip: /"
+		sort -u  $tmp1 | while read ip cidr  nwaddress interfacename; do
+			if [ "$nwaddress" = "" ] ; then echo "================> ip=$ip cidr=$cidr" ; continue  ; fi
+			sn_id=$(get_subnet $ip)
+			netscope=''
+			echo "   ip=$ip  cidr=$cidr  nwaddress=$nwaddress sn_id=$sn_id"
+			declare -A interface_data
+			declare -A subnet_data
+			if [ "$sn_id" = "" ] ; then
+				subnet_data[nwaddress]=$nwaddress
+				subnet_data[name]=$nwaddress
+				subnet_data[cidr]=$cidr
+				subnet_data[source]="scan_server"
+				set_subnet subnet_data
+				sn_id=$db_retval
 			else
-				if [[ "$newhost" == $lhost.* ]] ; then
-					srvname="$newhost"
+				# is the subnet scope global ?
+				netscope=$(valfromid subnet $sn_id scope)
+				if [ "$netscope" != "global" ] ; then
+					sn_id=''
 				fi
 			fi
-
-			if [ "$srvid" = "" ] ; then
-				if [ "$newsrvid" != "" ] ; then
-					srvid="$newsrvid"
-				fi
+			
+			if [ "$subnetid" != "" ] ; then
+				interface_data[ip]="${ip// /}"
+				interface_data[host]="${if_host// /}"
+				interface_data[subnet]="$sn_id"
+				interface_data[ip_scope]="$netscope"
+				interface_data[source]="scan_server"
+				other_int=$(idfrom_interfaces ip $ip)
+				echo "->other_int=$other_int from idfrom_interfaces ip $ip"
+				set_interface interface_data
 			fi
+			unset interface_data
+			unset subnet_data
 		done
-		if [ "$srvid" = "" ] ; then
-			if [ "$srvname" != "" ] ; then
-				add_server $srvname
-				SQL "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
-				srvid=$db_retval
-			fi
-		fi
-		if [ "$srvid" != "" ] ; then
-			for interface in $(cat $tmp2) ; do
-				add_if $interface $srvid
-				SQL "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
-			done
-		fi
-
-	done
-
-# all not-assigned interfaces become server as well
-
-SQL "SELECT ip FROM interfaces WHERE host IS NULL" > $tmp
-
-cat $tmp | while read ifip ; do
-	newhost=$(nslookup $ifip 2>&1 | grep -v NXDOMAIN | sed -n "s/.$//;s/.*= //p")
-	if [ "$newhost" = "" ] ; then
-		newhost=$ifip
-	fi
-	add_server $newhost
-	srvid=$db_retval
-	add_if $ifip $srvid
-SQL "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
-done
-
-# Try to name the hosts
-SQL "SELECT name FROM server" > $tmp
-cat $tmp | while read srvname ; do 
-	if [[ "$srvname" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] ; then
-		newname=$(host $srvname |  sed 's/.* //;s/\..*//;s/.*NXDOMAIN.*//')
-		if [ "$newname" != "" ] ; then
-			SQL "UPDATE server SET name='$newname' WHERE name='$srvname'"
-			SQL "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
-		fi
-	fi
-done
-
-# clean the hosts table
-SQL "SELECT id from server " > $tmp
-cat $tmp | while read srvid ; do 
-	ifs=$(SQL "SELECT ip FROM interfaces WHERE host=$srvid")
-	if [ "$ifs" = "" ] ; then
-		SQL "DELETE FROM server WHERE id=$srvid"
-		SQL "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
 	fi
 done
 
