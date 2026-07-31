@@ -89,7 +89,8 @@ CREATE TABLE config (
 	id         integer primary key autoincrement,
 	attribute  text,
 	item       text,
-	value      text
+	value      text,
+	comment    string
 	);
 CREATE TABLE cloud (
 	id         integer primary key autoincrement,
