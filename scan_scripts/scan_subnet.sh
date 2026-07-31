@@ -27,9 +27,8 @@ fi
 list_subnet > $tmpnets
 
 
-djedefre_log "Scan subnets"
+djedefre_log "########################################## Scan subnets ##########################################"
 sed 's/^/    /' $tmpnets
-djedefre_log '-------------------'
 egrep -v 'Internet|id' $tmpnets | cut -d' ' -f1-3  | while read id ip cidr ; do
 		ip_scope=$(valfromid subnet $id scope)
 		if [ "$ip_scope" = "local" ] || [ "$ip_scope" = "global" ] ; then
@@ -43,7 +42,7 @@ egrep -v 'Internet|id' $tmpnets | cut -d' ' -f1-3  | while read id ip cidr ; do
 		fi
 	done 
 echo
-djedefre_log "Add interfaces"
+djedefre_log "Add interfaces--------------------------------"
 touch $tmpip
 
 sort -u $tmpip | while read ip subnetid ip_scope; do
@@ -54,11 +53,13 @@ sort -u $tmpip | while read ip subnetid ip_scope; do
 	interface_data[source]="scan_subnet"
 	set_interface interface_data
 	unset interface_data
+	djedefre_log "    Added interface $ip"
 	echo -n .
 	
 done
 echo
 
+djedefre_log "Modify interfaces--------------------------------"
 idfrom_interfaces host NULL > $tmpint
 
 cat $tmpint | while read interfaceid ; do
@@ -77,6 +78,7 @@ cat $tmpint | while read interfaceid ; do
 	set_server server_data
 	serverid=$db_retval
 	unset server_data
+	djedefre_log "    Added server $name ($serverid)"
 
 	declare -A interface_data
 	interface_data[ip]="$ip"
@@ -85,6 +87,7 @@ cat $tmpint | while read interfaceid ; do
 	interface_data[source]="scan_subnet"
 	set_interface interface_data
 	unset interface_data
+	djedefre_log "    Assigned $ip (interfaceid=$interfaceid) to $name (server_id=$serverid)"
 	
 
 	echo "$interfaceid: $ip $name server:$serverid in $db_retval"
