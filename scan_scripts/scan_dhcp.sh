@@ -1,8 +1,9 @@
 #!/bin/bash
 
+######################################
+# If no DHCP server is found, use thie following:
 DHCPSERVER=nameserver
 
-DHCPIP=$(host $DHCPSERVER | sed 's/.* //')
 tmp1=/tmp/scan_dhcp1.$$
 tmp2=/tmp/scan_dhcp2.$$
 tmp3=/tmp/scan_dhcp3.$$
@@ -32,26 +33,30 @@ fi
 
 echo '-------------------'
 
-DHCPACCESS=$(sqlite3  -separator ' '  $database "SELECT  access  FROM interfaces WHERE ip='$DHCPIP' AND access LIKE '%ssh%'")
-	
-
-
-
-if [[ "$DCCPACCESS" == *"root"* ]] ; then
-    sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 root@'
-elif [[ "$DCCPACCESS" == *"admin"* ]] ; then
-    sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 admin@'
-else
-    sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 '
+dhcpserver=$(grep "dhcp-server-identifier" /var/lib/dhcp/dhclient*.leases | tail -n 1 | sed 's/.* \([0-9.]*\);/\1/')
+dhcpip="$dhcpserver"
+if [ "$dhcpserver" = "" ] ; then
+	dhcpserver="$DHCPSERVER"
+	dhcpip=$(host $dhcpserver | sed 's/.* //')
 fi
-echo hop| $sshcmd$DHCPIP "test -f /var/log/daemon.log && sudo grep DHCPAC /var/log/daemon.log " | sed 's/.*DHCPACK on //' >>$tmp3
-echo "Got log from $DHCPIP"
-#192.168.178.208 to 7c:b2:7d:86:e1:c9 (verlaine) via wlan0
 
+dhcpid=$(idfromval interfaces ip "$dhcpip")
+
+if [ "$dhcpid" = "" ] ; then
+	echo "No DHCP server found"
+	rm -f  $tmp1 $tmp2 $tmp3
+	exit 
+fi
+
+
+cmd_on "$dhcpid" "test -f /var/log/daemon.log && sudo grep DHCPAC /var/log/daemon.log " | sed 's/.*DHCPACK on //' >>$tmp3
+echo "Got log from $dhcpid"
+
+exit
 
 sort -u $tmp3 | while read if to mac rest ; do
 	echo "ip=$if mac=$mac"
-	ifid=$(sqlite3  -separator ' ' -cmd ".timeout 1000" "$database" "SELECT id FROM interfaces WHERE ip='$if'")
+	ifid=$(idfromval interfaces ip "$if")
 	if [ "$ifid" = "" ] ; then
 		sqlite3  -separator ' '  $database "INSERT INTO interfaces (ip) VALUES ('$if')"
 		sqlite3  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
