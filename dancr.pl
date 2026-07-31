@@ -115,6 +115,22 @@ get '/status' => sub {
 	};
 };
 
+get '/listings' =>sub {
+	set_flash('');
+	template 'listings.tt', {
+		msg           => get_flash(),
+		uri_top       => uri_for('/'),
+	};
+};
+
+get '/editpages' => sub {
+	set_flash('');
+	template 'editpages.tt', {
+		msg           => get_flash(),
+		uri_top       => uri_for('/'),
+	};
+};
+
 get '/tutorial' => sub {
 	set_flash('');
 	template 'tutorial.tt', {
@@ -152,6 +168,47 @@ get '/test' => sub {
 		uri_top       => uri_for('/'),
 	};
 };
+
+
+ 
+#######################################################################
+# Login only looks if the username is present in /etc/passwd
+# This is not something to run in multi-user production environments.
+any ['get', 'post'] => '/login' => sub {
+	my $err;
+ 
+	if ( request->method() eq "POST" ) {
+		# process form input
+		my $tusername=body_parameters->get('username');
+		my $username;
+		if ($tusername=~/(\w+)/){
+			$username=$1;
+			if ( 0 == system ("/usr/bin/grep '$username:' /etc/passwd")){
+				session 'logged_in' => true;
+				set_flash('You are logged in.');
+				return redirect '/';
+			}
+			else {
+				$err = "Unknown user";
+			}
+		}
+		else {
+			$err = "Invalid username";
+		}
+	}
+	# display login form
+	template 'login.tt', {
+		err => $err,
+	};
+ 
+};
+ 
+get '/logout' => sub {
+	app->destroy_session;
+	set_flash('You are logged out.');
+	redirect '/';
+};
+ 
 
 start;
 
