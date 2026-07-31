@@ -1,9 +1,5 @@
 #!/bin/bash
 
-#
-#   Dit is de ellendeling met de extra subnetten
-#
-
 
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
@@ -21,6 +17,7 @@ elif [ "$1" != '' ] ; then
 		echo "Database=$database, not $1"
 	fi
 fi
+djedefre_log "############################ scan local system ##########################################"
 
 #            _     _                                                             
 #   __ _  __| | __| |  _ __ ___   ___    __ _ ___   ___  ___ _ ____   _____ _ __ 
@@ -29,6 +26,7 @@ fi
 #  \__,_|\__,_|\__,_| |_| |_| |_|\___|  \__,_|___/ |___/\___|_|    \_/ \___|_|   
 # 
 
+djedefre_log "Adding local server"
 me=$(hostname -s)
 
 declare -A server_data
@@ -42,6 +40,7 @@ set_server server_data
 unset server_data
 serverid=$db_retval
 
+djedefre_log "local server =$serverid"
 
 #  _       _             __                                       _ 
 # (_)_ __ | |_ ___ _ __ / _| __ _  ___ ___  ___    __ _ _ __   __| |
@@ -56,11 +55,14 @@ serverid=$db_retval
 # |___/\__,_|_.__/|_| |_|\___|\__|___/
 #  
 
-echo "Found interfaces:"
-ip addr |
+interfacelist=$(ip addr |
 	grep -v '127.0.0.1' |
 	grep -v ' ::1' |
 	sed -n 's/.*inet \(.*\)\/\(.*\) brd.*/\1 \2/p' 
+	)
+
+djedefre_log  "Found interfaces:"
+djedefre_log  "$interfacelist"
 echo
 
 ip route show | grep "via" | awk '{print $5}' | sort -u | while read -r iface; do
@@ -68,11 +70,11 @@ ip route show | grep "via" | awk '{print $5}' | sort -u | while read -r iface; d
         # Splits IP en Subnet (bijv. 192.168.1.10/24 -> 192.168.1.10 192.168.1.0/24)
         ip_addr=$(echo $ip_mask | cut -d/ -f1)
         subnet=$(ip route show dev "$name" | grep "proto kernel" | awk '{print $1}' | head -n1)
-        echo "$name $ip_addr $subnet"
+        djedefre_log  "$name $ip_addr $subnet"
     done
 done 
 
-ip addr | sed -n 's/\w*: \([[:alnum:]]*\).*/\1/p'  |
+ip addr | sed -n 's/\w*: \([[:alnum:]]*\).*/\1/p'  | sort -u |
 	while read ifname ip mycidr ; do
 		read ip mycidr <<< $(ip -o -f inet addr show $ifname | awk '{print $4}' | sed 's/\// /')
 		echo "serverid=$serverid ip=$ip cidr=$mycidr"
@@ -88,6 +90,7 @@ ip addr | sed -n 's/\w*: \([[:alnum:]]*\).*/\1/p'  |
 			subnet_data[source]="scan_localsystem"
 			set_subnet subnet_data
 			subnetid=$db_retval
+			djedefre_log "Added subnet $nwaddress/$cidr: $subnetid"
 
 			declare -A interface_data
 			interface_data[ip]="${ip// /}"
@@ -97,6 +100,7 @@ ip addr | sed -n 's/\w*: \([[:alnum:]]*\).*/\1/p'  |
 			interface_data[ifname]=$(ip -o addr show | awk -v ip="$ip" '$4 ~ "^"ip"/" {print $2}')
 			interface_data[source]="scan_localsystem"
 			set_interface interface_data
+			djedefre_log "Added interface $ip ($ifname) - $host on  $subnetid"
 
 			subnet_data[access]="$db_retval"
 			set_subnet subnet_data
