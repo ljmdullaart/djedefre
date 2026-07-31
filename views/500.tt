@@ -1,6 +1,15 @@
-<h1>500</h1>
-Djedefre is mute,
-<br>
-Silent through the shifting sands,
-<br>
-System error reigns.
+<table style="width: max-content; border-collapse: collapse; font-size: 11px; line-height: 1;">
+  <thead>
+    <tr style="background: #eee;">
+      <th style="padding: 2px; border: 1px solid #ccc; white-space: nowrap;"><img src=500.jpg></th>
+      <th style="padding: 2px; border: 1px solid #ccc; white-space: nowrap;">
+        <h1>500</h1>
+        Djedefre is mute,
+        <br>
+        Silent through the shifting sands,
+        <br>
+        System error reigns.
+      </th>
+    </tr>
+  </thead>
+</table>
