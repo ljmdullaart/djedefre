@@ -22,6 +22,8 @@ elif [ "$1" != '' ] ; then
 	fi
 fi
 
+djedefre_log '############################ scan clean servers ###################################'
+
 current_seconds=$(date +%s)
 
 echo  remove hosts that are more than 3 months down
@@ -29,11 +31,13 @@ list_server | while read srv_id ; do
 	last_up=$(valfromid server $srv_id last_up)
 	if [ "$last_up" = "" ] ; then
 		del_server $srv_id
+		djedefre_log "$srv_id deleted: Never seen as up"
 	else
 		past_seconds=$(date -d "${last_up/T/ }" +%s)
 		days_ago=$(( (current_seconds - past_seconds) / 86400 ))
 		if [ $days_ago -gt 60 ] ; then
 			del_server $srv_id
+			djedefre_log "$srv_id deleted: more than 60 days not seen"
 		fi
 	fi
 done
@@ -42,9 +46,11 @@ done
 echo  remove servers without interfaces
 
 list_server | while read srv_id ; do
-	ifaces=$(valfromid interfaces $srv_id id)
+	
+	ifaces=$(idfromval interfaces host  $srv_id )
 	if [ "$ifaces" = "" ]; then
 		del_server $srv_id
+		djedefre_log "$srv_id deleted: It has no interfaces"
 	fi
 done
 
