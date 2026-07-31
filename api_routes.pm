@@ -3,10 +3,18 @@ use strict;
 use warnings;
 use Dancer2 appname => 'dancr';
 
+sub check_authorized {
+	if ( ! session('logged_in') ) {
+		status 401;
+		halt( to_json({ error => 'Not logged in' }) );
+	}
+}
+
 ######################################################################################
 #     API
 ######################################################################################
 get '/api/json/servers' => sub {
+	check_authorized();
 	api_log ('/api/json/servers');
 	my $ref=query_server();
 	send_as JSON =>  $ref;
@@ -14,6 +22,7 @@ get '/api/json/servers' => sub {
 };
 
 get '/api/json/config' => sub {
+	check_authorized();
 	api_log ('/api/json/config');
 	my $ref=query_config();
 	send_as JSON =>  $ref;
@@ -21,6 +30,7 @@ get '/api/json/config' => sub {
 };
 
 get '/api/json/subnets' => sub {
+	check_authorized();
 	api_log ('/api/json/subnets');
 	my $ref=query_subnet();
 	send_as JSON =>  $ref;
@@ -28,6 +38,7 @@ get '/api/json/subnets' => sub {
 };
 
 get '/api/json/clouds' => sub {
+	check_authorized();
 	api_log ('/api/json/clouds');
 	my $ref=query_cloud();
 	send_as JSON =>  $ref;
@@ -35,6 +46,7 @@ get '/api/json/clouds' => sub {
 };
 
 get '/api/json/interfaces' => sub {
+	check_authorized();
 	api_log ('/api/json/interfaces');
 	my $ref=query_interfaces_extra();
 	send_as JSON =>  $ref;
@@ -42,6 +54,7 @@ get '/api/json/interfaces' => sub {
 };
 
 get '/api/json/nfs' => sub {
+	check_authorized();
 	api_log ('/api/json/nfs');
 	my $ref=query_nfs();
 	send_as JSON =>  $ref;
@@ -49,6 +62,7 @@ get '/api/json/nfs' => sub {
 };
 
 get '/api/json/dashboard' => sub {
+	check_authorized();
 	api_log ('/api/json/dashboard');
 	my $ref=query_dashboard();
 	send_as JSON =>  $ref;
@@ -56,6 +70,7 @@ get '/api/json/dashboard' => sub {
 };
 
 get '/api/listings' => sub {
+	check_authorized();
 	api_log ('/api/json/listings');
 	my $file = '/tmp/djedefre.listing';
 	open my $fh, '<', $file or return send_error("Cannot open $file: $!", 500);
@@ -64,7 +79,47 @@ get '/api/listings' => sub {
 	return "<pre style='font-family: monospace;'>$content</pre>";
 };
 
+get '/api/listingfiles' => sub {
+	check_authorized();
+    my $target_dir = File::Spec->catdir('', 'tmp', 'djedefre');
+    unless (-d $target_dir) {
+        status 404;
+        return to_json { status => "error", message => "Directory not found" };
+    }
+    my @files;
+    if (opendir(my $dh, $target_dir)) {
+        @files = grep { 
+            -f File::Spec->catfile($target_dir, $_) # Alleen echte bestanden (geen submappen)
+            && $_ !~ /^\./                          # Sla verborgen bestanden en . / .. over
+        } readdir($dh);
+        closedir($dh);
+    } else {
+        status 500;
+        return to_json { status => "error", message => "Cannot open directory: $!" };
+    }
+    return to_json { 
+        status => "ok", 
+        files  => [ sort @files ] 
+    };
+};
+get '/api/listingfile/:filename' => sub {
+	check_authorized();
+    my $filename = route_parameters->get('filename');
+    $filename = basename($filename);
+    my $file_path = File::Spec->catfile('', 'tmp', 'djedefre', $filename);
+    unless (-e $file_path && -f $file_path) {
+        status 404;
+        return "File not found";
+    }
+    return send_file(
+        $file_path,
+        system_path  => 1,
+        content_type => 'text/html; charset=UTF-8'
+    );
+};
+
 get '/api/json/page/:param' => sub {
+	check_authorized();
 	my $page = route_parameters->get('param');
 	
 	api_log ("/api/json/page:$page");
@@ -73,18 +128,28 @@ get '/api/json/page/:param' => sub {
 	add_pagelist_to_objects($drawing);
 	add_l3_lines($drawing, $subnets, $vboxes);
 	add_l2_lines($drawing, $srvdraw, $page);
+	add_nfs_lines($drawing, $srvdraw, $page);
 
 	send_as JSON => $drawing;
 };
 
 
 get '/api/pagelist' => sub {
+	check_authorized();
 	api_log ("/api/pagelist");
 	my $outxml="<pages>\n";
 	my $ref  = query_pagelist();
 	while(my $r = sql_getrow()){
 		my $pg=$r->{item};
-		$outxml .= "<page>\n<name>$pg</name>\n</page>\n";
+		my $tp=$r->{value};
+		my $comment=$r->{comment};
+		$comment='' unless defined $comment;
+		if ($comment eq '' ){
+			$outxml .= "<page>\n<name>$pg</name>\n<type>$tp</type></page>\n";
+		}
+		else {
+			$outxml .= "<page>\n<name>$pg</name>\n<type>$tp</type><comment>$comment</comment></page>\n";
+		}
 	}
 	$outxml.="</pages>\n";
 	response_header('Content-Type' => 'text/xml');
@@ -93,6 +158,7 @@ get '/api/pagelist' => sub {
 };
 
 get '/api/logolist' => sub {
+	check_authorized();
 	api_log ("/api/logolist");
 	my @files = glob('images/logo_*.png');
 	my $outxml="<logos>\n";
@@ -107,6 +173,7 @@ get '/api/logolist' => sub {
 	$outxml;
 };
 get '/api/devtypelist' => sub {
+	check_authorized();
 	api_log ("/api/devtypelist");
 	my @devtypes=qw/pc network server printer virtual nas appliance tablet smartphone voip iot security_camera av ups/;
 	my $outxml="<devtypes>\n";
@@ -123,6 +190,7 @@ get '/api/devtypelist' => sub {
 
 
 post '/api/moveobject' => sub {
+	check_authorized();
 	my $data = from_json(request->body);
 
 	my $item   = $data->{item};
@@ -139,7 +207,8 @@ post '/api/moveobject' => sub {
 };
 
 post '/api/changeobject' => sub {
-	my $data = from_json(request->body);
+	check_authorized();
+	my $data   = from_json(request->body);
 	my $item   = $data->{item};
 	my $id     = $data->{id};
 	my $tbl    = $data->{tbl};
@@ -154,6 +223,7 @@ post '/api/changeobject' => sub {
 };
 
 post '/api/setpagelist' => sub {
+	check_authorized();
 	my $data   = from_json(request->body);
 	my $item   = $data->{item};
 	my $tbl    = $data->{tbl};
@@ -166,7 +236,33 @@ post '/api/setpagelist' => sub {
 	
 };
 
+post '/api/editpage' =>sub {
+	my $data   = from_json(request->body);
+	my $action = $data->{action};
+	my $name   = $data->{name};
+	my $type   = $data->{type};
+	my $comment= $data->{comment};
+	print "/api/editpage:\n	action =$action\n	name   = $name\n	type   = $type\n	comment= $comment\n";
+	if ($action eq "add_page"){
+		q_page_add ($name);
+	}
+	elsif ($action eq "delete_page"){
+		q_page_delete ('name',$name);
+	}
+	elsif ($action eq "update_type"){
+		query_set_pagetype($name,$type);
+	}
+	elsif ($action eq "update_comment"){
+		q_config_set_comment('page:type', $name,$comment);
+	}
+	
+
+
+	return to_json { status => "ok" };
+};
+
 post '/api/deleteobject' => sub {
+	check_authorized();
 	my $data   = from_json(request->body);
 	my $item   = $data->{item};
 	my $tbl    = $data->{tbl};
@@ -177,12 +273,24 @@ post '/api/deleteobject' => sub {
 	return to_json { status => "ok" };
 };
 	
+post '/api/konvaupload' => sub {
+	check_authorized();
+	my $file = upload('konva_image');
+	if ($file) {
+		my $destination = File::Spec->catfile(config->{appdir}, 'public', 'images', $file->filename);
+		$file->copy_to($destination);
+		return to_json { status => "ok" };
+	}
+	status 400;
+	return to_json { status => "error" };
+};
 
 	
 ######################################################################################
 #     old
 ######################################################################################
 get '/api/servers' =>sub {
+	print "OLD: /api/server\n";
 	my $outxml="<servers>\n";
 	my $db  = connect_db();
 	my $sql = "SELECT id,name,xcoord,ycoord,type,interfaces,access,status,last_up,options FROM server";
@@ -241,6 +349,8 @@ get '/api/servers' =>sub {
 };
 
 get '/api/nmap/id/:param' => sub {
+	check_authorized();
+	print "OLD: /api/nmap/id/:param\n";
 	my $id=0;
 	my $param=route_parameters->get('param');
 	if ($param=~/([0-9]+)/){
@@ -276,6 +386,8 @@ get '/api/nmap/id/:param' => sub {
 			
 };
 get '/api/server/id/:param' => sub {
+	check_authorized();
+	print "OLD: /api/server/id/:param\n";
 	my $id=0;
 	my $param=route_parameters->get('param');
 	if ($param=~/([0-9]+)/){
@@ -328,6 +440,8 @@ get '/api/server/id/:param' => sub {
 	
 
 get '/api/subnets' => sub {
+	check_authorized();
+	print "OLD: /api/subnets\n";
 	my $outxml="<subnets>\n";
 	my $db  = connect_db();
 	my $sql = 'SELECT id,nwaddress,cidr,xcoord,ycoord,name,options,access FROM subnet';
@@ -368,6 +482,8 @@ get '/api/subnets' => sub {
 };
 
 get '/api/subnet/id/:param' => sub {
+	check_authorized();
+	print "OLD: /api/subnet/id/:param\n";
 	my $id=0;
 	my $param=route_parameters->get('param');
 	if ($param=~/([0-9]+)/){
@@ -412,6 +528,8 @@ get '/api/subnet/id/:param' => sub {
 };
 
 get '/api/interfaces' => sub {
+	check_authorized();
+	print "OLD: /api/sinterface\n";
 	my $outxml="<interfaces>\n";
 	my $db  = connect_db();
 	my $sql = 'SELECT id,macid,ip,hostname,host,subnet,access FROM interfaces';
@@ -445,6 +563,8 @@ get '/api/interfaces' => sub {
 };
 
 get '/api/interface/id/:param[Int]' => sub {
+	check_authorized();
+	print "OLD: /api/interface/id/:param[Int]\n";
 	my $param=route_parameters->get('param');
 	my $id=0; my $macid='';my $ip='';my $hostname='';my $host='';my $subnet='';my $access='';
 	if ($param=~/([0-9]+)/){
@@ -481,6 +601,8 @@ get '/api/interface/id/:param[Int]' => sub {
 	$outxml; 
 };
 get '/api/interface/host/:param[Int]' => sub {
+	check_authorized();
+	print "OLD: /api/interface/host/:param[Int]\n";
 	my $param=route_parameters->get('param');
 	my $id=0; my $macid='';my $ip='';my $hostname='';my $host='';my $subnet='';my $access='';
 	if ($param=~/([0-9]+)/){
@@ -517,6 +639,8 @@ get '/api/interface/host/:param[Int]' => sub {
 	$outxml; 
 };
 get '/api/interface/hostname/:param[Str]' => sub {
+	check_authorized();
+	print "OLD: //api/interface/hostname/:param[Str]\n";
 	my $param=route_parameters->get('param');
 	my $id=0; my $macid='';my $ip='';my $hostname='';my $host='';my $subnet='';my $access='';
 	if ($param=~/([a-z0-9\.]+)/){
@@ -555,6 +679,8 @@ get '/api/interface/hostname/:param[Str]' => sub {
 };
 
 get '/api/drawing/:param' => sub {
+	check_authorized();
+	print "OLD: /api/drawing/:param\n";
 	my $param=route_parameters->get('param');
 	$param='top' unless defined $param;
 	my @serverx;
@@ -637,6 +763,7 @@ get '/api/drawing/:param' => sub {
 ######################################################################################
 # pictures/images
 get '/**.gif' => sub {
+	check_authorized();
 	my $file='images'.request->path ;
 	if ( -f $file ) {
 		send_file $file;
@@ -648,12 +775,14 @@ get '/**.gif' => sub {
 	}
 };
 get '/**.ico' => sub {
+	check_authorized();
 	my $file='images'.request->path ;
 	if ( -f $file ) {
 		send_file $file;
 	}
 };
 get '/**.png' => sub {
+	check_authorized();
 	my $file='images'.request->path ;
 	if ( -f $file ) {
 		send_file $file;
@@ -666,6 +795,7 @@ get '/**.png' => sub {
 };
 # stylesheets
 get '/**.css' => sub {
+	check_authorized();
 	my $file='css'.request->path ;
 	if ( -f $file ) {
 		send_file $file;
@@ -678,6 +808,7 @@ get '/**.css' => sub {
 };
 # javascripts
 get '/**.js' => sub {
+	check_authorized();
 	my $file='js'.request->path ;
 	if ( -f $file ) {
 		send_file $file;
@@ -693,6 +824,7 @@ get '/**.js' => sub {
 	
  
 post '/add' => sub {
+	check_authorized();
 	if ( not session('logged_in') ) {
 		send_error("Not logged in", 401);
 	}
@@ -708,44 +840,6 @@ post '/add' => sub {
 		body_parameters->get('text')
 	) or die $sth->errstr;
  
-	redirect '/';
-};
- 
-#######################################################################
-# Login only looks if the username is present in /etc/passwd
-# This is not something to run in multi-user production environments.
-any ['get', 'post'] => '/login' => sub {
-	my $err;
- 
-	if ( request->method() eq "POST" ) {
-		# process form input
-		my $tusername=body_parameters->get('username');
-		my $username;
-		if ($tusername=~/(\w+)/){
-			$username=$1;
-			if ( 0 == system ("/usr/bin/grep '$username:' /etc/passwd")){
-				session 'logged_in' => true;
-				set_flash('You are logged in.');
-				return redirect '/';
-			}
-			else {
-				$err = "Unknown user";
-			}
-		}
-		else {
-			$err = "Invalid username";
-		}
-	}
-	# display login form
-	template 'login.tt', {
-		err => $err,
-	};
- 
-};
- 
-get '/logout' => sub {
-	app->destroy_session;
-	set_flash('You are logged out.');
 	redirect '/';
 };
  
