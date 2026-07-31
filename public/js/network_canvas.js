@@ -141,6 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     lineLayer.draw();
                     nodeLayer.draw();
+                    autoUploadImage(stage,drawingName);
 if (isMobile()) {
     fitToScreen();
 }
@@ -304,3 +305,38 @@ function loadBackgroundImage(pageName, layer) {
     };
 }
 
+function autoUploadImage(stageInstance,drawingName) {
+    console.log("Canvas is ready. Upload starting automatically...");
+    stageInstance.toBlob({
+        callback: function (blob) {
+            if (!blob) {
+                console.error("Error: Konva failed to generate a Blob.");
+                return;
+            }
+            const filename = `page_${drawingName}.png`;
+            const formData = new FormData();
+            formData.append('konva_image', blob, filename);
+            fetch('/api/konvaupload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Server error with status: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === "ok") {
+                    console.log("Image successfully saved on the server.");
+                } else {
+                    console.error("Backend rejected the upload:", data);
+                }
+            })
+            .catch(error => {
+                console.error("Automatic upload failed:", error);
+            });
+        },
+        mimeType: 'image/png'
+    });
+}
