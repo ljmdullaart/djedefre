@@ -216,6 +216,43 @@ sub q_config {
 }
 
 #-----------------------------------------------------------------------
+# Name        : q_config_comment
+# Purpose     : Query the comment of an attribute, item
+# Arguments   : attribute, item
+# Returns     : The comment
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+
+sub q_config_comment {
+	(my $attr,my $item)=@_;
+	my ($package, $filename, $line) = caller;
+	#debug($DEB_DB,"q_config $package, $filename, line number $line");
+	my $retval=sql_qvalue ("SELECT comment FROM config WHERE attribute= ? AND item= ? ",$attr,$item);
+	return $retval;
+}
+
+#-----------------------------------------------------------------------
+# Name        : q_config_set_comment
+# Purpose     : Set the comment 
+# Arguments   : attribute, item, comment
+# Returns     : 
+# Globals     : 
+# Side‑effects: 
+# Notes       : 
+#-----------------------------------------------------------------------
+
+sub q_config_set_comment {
+	(my $attr,my $item,my $comment)=@_;
+	my ($package, $filename, $line) = caller;
+	#debug($DEB_DB,"q_config $package, $filename, line number $line");
+	sql_qvalue ("UPDATE config SET comment= ? WHERE attribute= ? AND item= ? ",$comment,$attr,$item);
+	my $retval=sql_qvalue ("SELECT comment FROM config WHERE attribute= ? AND item= ? ",$attr,$item);
+	return $retval;
+}
+
+#-----------------------------------------------------------------------
 # Name        : q_changed
 # Purpose     : Query the value of changed; always set it to no
 # Arguments   : none
@@ -268,7 +305,7 @@ sub query_changed_no {
 sub query_pagelist {
 	my ($package, $filename, $line) = caller;
 	#debug($DEB_DB,"query_pagelist $package, $filename, line number $line");
-	return sql_query ("SELECT DISTINCT item,value FROM config WHERE attribute LIKE 'page:%'");
+	return sql_query ("SELECT DISTINCT item,value,comment FROM config WHERE attribute LIKE 'page:%'");
 }
 
 #-----------------------------------------------------------------------
@@ -324,8 +361,10 @@ sub query_set_pagetype {
 	(my $page, my $type)=@_;
 	my ($package, $filename, $line) = caller;
 	#debug($DEB_DB,"query_set_pagetype $package, $filename, line number $line");
+	my $comment=sql_query ("SELECT comment FROM config WHERE attribute='page:type' AND item= ? ",$page);
+	$comment='' unless defined $comment;
 	sql_query ("DELETE FROM config WHERE attribute='page:type' AND item= ? ",$page);
-	sql_query ("INSERT INTO config (attribute,item,value) VALUES ('page:type', ? , ? )",$page,$type);
+	sql_query ("INSERT INTO config (attribute,item,value,comment) VALUES ('page:type', ? , ? ,? )",$page,$type,$comment);
 }
 
 #-----------------------------------------------------------------------
@@ -1146,6 +1185,20 @@ sub query_page{
 		$retval= sql_query("SELECT * FROM pages ");
 	}
 	return $retval;
+}
+
+#-----------------------------------------------------------------------
+# Name        : q_page_add
+# Purpose     : Add a page
+# Arguments   : name
+# Returns     : id
+# Globals     : 
+# Side‑effects: 
+# Notes       :  default type is l3
+#-----------------------------------------------------------------------
+sub q_page_add {
+	(my $name)=@_;
+	sql_query("INSERT INTO config (attribute,item,value,comment) VALUES ('page:type', '$name', 'l3','')");
 }
 
 #-----------------------------------------------------------------------
