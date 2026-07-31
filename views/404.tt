@@ -1,6 +1,15 @@
-<h1>404</h1>
-Son of Khufu's line,
-<br>
-Lost at Abu Rawash height,
-<br>
-Stone turned back to dust.
+<table style="width: max-content; border-collapse: collapse; font-size: 11px; line-height: 1;">
+  <thead>
+    <tr style="background: #eee;">
+      <th style="padding: 2px; border: 1px solid #ccc; white-space: nowrap;"><img src=404.jpg></th>
+      <th style="padding: 2px; border: 1px solid #ccc; white-space: nowrap;">
+        <h1>404</h1>
+        Son of Khufu's line,
+        <br>
+        Lost at Abu Rawash height,
+        <br>
+        Stone turned back to dust.
+        </td></tr></table></th>
+    </tr>
+  </thead>
+</table>
