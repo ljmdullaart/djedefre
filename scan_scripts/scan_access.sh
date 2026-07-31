@@ -25,7 +25,7 @@ if [ "$1" != '' ] ; then
 		echo "Database=$database, not $1"
 	fi
 fi
-
+djedefre_log '###################################### scan access ############################################'
 
 list_interfaces > $tmp
 
@@ -62,6 +62,14 @@ sort -u $tmp |  while read id rest; do
 					if grep -q OUTPUT $tmp2 ; then
 						access=dotelnet
 					fi
+					timeout 5  dotelnet $ip sh ip int br |grep -v Credentials| sed 's/^/OUTPUT/' >$tmp2
+					if grep -q OUTPUT $tmp2 ; then
+						access=dotelnet
+					fi
+					timeout 6  dotelnet $ip sh ip int br |grep -v Credentials| sed 's/^/OUTPUT/' >$tmp2
+					if grep -q OUTPUT $tmp2 ; then
+						access=dotelnet
+					fi
 					
 				fi
 			fi
@@ -72,18 +80,20 @@ sort -u $tmp |  while read id rest; do
 		interface_data[access]="$access"
 		set_interface interface_data
 		unset interface_data
+		djedefre_log "Access to $ip is $access"
 	elif [ "$oldaccess" = "dotelnet" ] ; then
-		timeout 4  dotelnet $ip sh ip int br |grep -v Credentials| sed 's/^/OUTPUT/' >$tmp2
+		timeout 10  dotelnet $ip sh ip int br |grep -v Credentials| sed 's/^/OUTPUT/' >$tmp2
 		if grep -q OUTPUT $tmp2 ; then
 			echo "Verified: $ip access dotelnet"
+			djedefre_log "Old access to $ip is $oldaccess"
 		else
-			setfromid interfaces $id access none
 			echo "please rerun for $ip; no telnet"
 		fi
 	elif [ "$oldaccess" = "ssh" ] ; then
 		echo hop | timeout 6 ssh  -o PasswordAuthentication=no -o ConnectTimeout=4  $ip 'echo hop' 2>/dev/null  > $tmp2
 		if grep -q hop $tmp2 ; then
 			echo "Verified: $ip access ssh"
+			djedefre_log "Old access to $ip is $oldaccess"
 		else
 			setfromid interfaces $id access none
 			echo "please rerun for $ip; no ssh"
@@ -92,6 +102,7 @@ sort -u $tmp |  while read id rest; do
 		echo hop | timeout 6 ssh  -o PasswordAuthentication=no -o ConnectTimeout=4  root@$ip 'echo hop' 2>/dev/null  > $tmp2
 		if grep -q hop $tmp2 ; then
 			echo "Verified: $ip access ssh(root)"
+			djedefre_log "Old access to $ip is $oldaccess"
 		else
 			setfromid interfaces $id access none
 			echo "please rerun for $ip, no ssh root"
@@ -100,6 +111,7 @@ sort -u $tmp |  while read id rest; do
 		echo hop | timeout 6 ssh  -o PasswordAuthentication=no -o ConnectTimeout=4  admin@$ip 'echo hop' 2>/dev/null  > $tmp2
 		if grep -q hop $tmp2 ; then
 			echo "Verified: $ip access ssh(admin)"
+			djedefre_log "Old access to $ip is $oldaccess"
 		else
 			setfromid interfaces $id access none
 			echo "please rerun for $ip; no ssh admin"
