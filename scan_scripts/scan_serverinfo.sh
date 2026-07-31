@@ -49,7 +49,7 @@ cat $tmp1 | while read if_id if_ip ; do
 				os=$(sed -n  's/.*IOS.*(\(.*\)), \(.*\),.*/\1 \2/p' $tmp3)
 				cpu=$(sed -n 's/[Pp]rocessor.*//p' $tmp3)
 				mem=$(sed -n 's/.* \([0-9][0-9]*\)K\/.*/\1/p' $tmp3)
-				ifname=$(cmd_on "$if_id" "sh ip int br" | sed -n "s/  *$if_ip .*//p")
+				ifname=$(cmd_on "$if_id" "sh ip int br" | sed -n "s/.* $if_ip .*//p")
 				setfromid interfaces "$if_id" name "$ifname"
 			fi
 		fi
