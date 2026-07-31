@@ -11,6 +11,8 @@ if [ -f $SCRIPTPATH/djedefre.common.sh ] ; then
 	. $SCRIPTPATH/djedefre.common.sh
 fi
 
+djedefre_log '########################## scan arp ############################'
+
 if [ "$1" = "-h" ] ; then
 	echo 'HELP!!'
 	exit 0
@@ -19,6 +21,7 @@ elif [ "$1" != '' ] ; then
 		database="$1"
 	else
 		echo "Database=$database, not $1"
+		djedefre_log  "Database=$database, not $1"
 	fi
 fi
 
@@ -34,6 +37,7 @@ done > $tmp
 egrep 'ssh|telnet'  $tmp |
 	while read id ip access ; do
 		echo "Get arp from $ip"
+		djedefre_log  "Get arp from $ip"
 		if cmd_on $id which ip 2>/dev/null | grep -q 'usr.*ip' ; then
 			cmd_on $id ip addr | awk '
 				/inet /{ inet=$2 }
@@ -66,6 +70,7 @@ sed -n 's/\([0-9\.]*\) .* \([0-9a-f:][0-9a-f:]*\) .*/\1 \2/p' $tmp2 | sort -u |
 					interface_data[subnet]="$subnetid"
 					set_interface interface_data
 					unset interface_data
+					djedefre_log "IP address $myip added"
 				else
 					djedefre_log "IP address $myip not in global subnet"
 				fi
@@ -76,6 +81,7 @@ sed -n 's/\([0-9\.]*\) .* \([0-9a-f:][0-9a-f:]*\) .*/\1 \2/p' $tmp2 | sort -u |
 sed -n 's/\([0-9\.]*\) .* \([0-9a-f:][0-9a-f:]*\) .*/\1 \2/p' $tmp2 | sort -u |
 	while read myip mymac ; do
 		set_ipmac $myip $mymac
+		djedefre_log  "$myip has mac-id  $mymac"
 	done
 
 
