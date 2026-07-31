@@ -51,7 +51,8 @@ common_tmp=/tmp/$$.commontmp
 
 configs=''
 database=djedefre.db
-logfile='djedefre.log'
+logfile='/tmp/djedefre.log'
+dblog='/tmp/djedefre.db.log'
 
 parse_config (){
 	file=$1
@@ -112,12 +113,20 @@ fi
 # |_|\___/ \__, |\__, |_|_| |_|\__, |
 #          |___/ |___/         |___/
 
-djedefre_log(){
+db_log(){
 	if [ "$logfile" = "" ] ; then
-		logger "DJEDEFRE: $1"
+		logger "DJEDEFRE: $*"
 	else
 		now=$(date)
-		echo "$now $1" >> "$logfile"
+		echo "$now $*" >> "$dblog"
+	fi
+}
+djedefre_log(){
+	if [ "$logfile" = "" ] ; then
+		logger "DJEDEFRE: $*"
+	else
+		now=$(date)
+		echo "$now $*" >> "$logfile"
 	fi
 }
 
@@ -202,7 +211,7 @@ clean_mac() {
 #  \__,_|\__,_|\__\__,_|_.__/ \__,_|___/\___|
 ### DATABASE:
 SQL(){
-	djedefre_log "SQL $*  "
+	#djedefre_log "SQL $*  "
 	if sqlite3  -separator ' ' -cmd ".timeout 1000"  "$database" "$*" ; then 
 		:
 	else 
@@ -225,7 +234,7 @@ setfromid(){
 	local var="$3"
 	local val="$4"
 	local dtype=text
-	djedefre_log "setfromid: UPDATE $tabel SET $var=$val WHERE id=$id"
+	db_log "setfromid: UPDATE $tabel SET $var=$val WHERE id=$id"
 	dtype=$(SQL "pragma table_info ($tabel)" | awk -v "col=$var" '$2== col {print $3}'| tail -1)
 	case $dtype in
 	text) SQL "UPDATE $tabel SET $var='$val' WHERE id=$id" ;;
@@ -237,7 +246,7 @@ valfromid(){
 	local tabel="$1"
 	local id="$2"
 	local var="$3"
-	djedefre_log "valfromid: SELECT $var FROM $tabel WHERE id=$id"
+	db_log "valfromid: SELECT $var FROM $tabel WHERE id=$id"
 	SQL "SELECT $var FROM $tabel WHERE id=$id"
 }
 idfromval(){
@@ -284,13 +293,6 @@ set_ipmac(){
 	SQL "UPDATE interfaces SET macid='$mac' WHERE id=$if_id"
 	echo $if_id
 }
-	
-# Call with: declare -A interface_data
-#            interface_data[ip]="$interface"
-#            interface_data[host]="$srvid"
-#            set_interface interface_data
-#            unset interface_data
-
 clean_mac() {
     local raw_mac="$1"
     # Verwijder alle ., :, spaties en - en maak lowercase
@@ -305,6 +307,13 @@ clean_mac() {
     # Voeg dubbele punten toe
     echo "$clean" | sed -E 's/(..)(..)(..)(..)(..)(..)/\1:\2:\3:\4:\5:\6/'
 }
+	
+# Call with: declare -A interface_data
+#            interface_data[ip]="$interface"
+#            interface_data[host]="$srvid"
+#            set_interface interface_data
+#            unset interface_data
+
 
 set_interface() {
     local -n data_ref=$1
@@ -330,6 +339,14 @@ set_interface() {
     local mac="${data_ref[macid]}"
     local forced_id="${data_ref[id]}"
     
+    if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] ; then
+	:
+    elif [ "$ip" = "Internet" ] ; then
+	:
+    else
+            echo "Fout: Ongeldig IP-adres (${data_ref[ip]})" >&2
+	return 1
+    fi
     if [[ -z "$ip$mac$forced_id" ]]; then
         db_retval=""
         return
@@ -505,8 +522,9 @@ list_server(){
 
 list_vboxhosts(){
 	SQL select options from server                  |
-		sed -n 's/.*vboxhost=\([0-9]*\).*/\1/p' |
+		sed -n "s/.*vboxhost=\([0-9]*\).*/\1/p" |
 		sort -u
+
 }
 
 del_server(){
@@ -531,6 +549,10 @@ pages_delete(){
 
 list_pages(){
 	SQL "SELECT id FROM pages"
+}
+
+pages_tblitem(){
+	SQL "SELECT tbl,item FROM pages WHERE page='$1'"
 }
 
 #------------------------------ subnet ---------------------------------------------------------------
@@ -592,6 +614,7 @@ get_subnet() {
 			echo $id
 		fi
 	done | head -1
+	rm -f "$common_tmp"
 }
 
 
@@ -683,6 +706,43 @@ set_l2(){
 		VALUES ($(printf '%s,' "${vals[@]}" | sed 's/,$//'))
 	"
 }
+#------------------------------ NFS ------------------------------------------------------------------------
+
+db_nfs_clear(){
+	SQL "DELETE FROM nfs"
+}
+db_nfs_add(){
+	#server,client,export,mountpoint
+	SQL "INSERT INTO nfs (server,client,export,mountpoint) VALUES ('$1' , '$2', '$3', '$4')"
+}
+
+db_nfs_del_srv(){
+	srv="$1"
+	SQL "DELETE FROM nfs WHERE server='$srv' OR client='$srv'"
+}
+
+db_nfs_dedup(){
+	SQL "DELETE FROM nfs WHERE ROWID NOT IN ( SELECT MIN(ROWID) FROM nfs GROUP BY server, export, client, mountpoint);"
+}
+
+
+db_nfs_serverlist(){
+	local list
+	local host
+	list=$(SQL "SELECT DISTINCT server FROM nfs")
+	for host in $list ; do
+		idfromval server name $host
+	done
+}
+db_nfs_clientlist(){
+	local list
+	local host
+	list=$(SQL "SELECT DISTINCT client FROM nfs")
+	for host in $list ; do
+		idfromval server name $host
+	done
+}
+
 #------------------------------ config table ---------------------------------------------------------------
 
 set_dbconfig(){
@@ -700,6 +760,39 @@ get_dbconfig(){
 	local attribute="$1"
 	local item="$2"
 	SQL "SELECT value FROM config WHERE attribute='$attribute' AND item='$item'" 
+}
+
+#------------------------------ dashboard ------------------------------------------------------------------
+
+#        id         integer primary key autoincrement,
+#        server     text,
+#        type       text,
+#        variable   text,
+#        value      text,
+#        color1     text,
+#        color2     text
+
+db_dash_set_val(){
+	local server="$1"
+	local variable="$2"
+	local value="$3"
+	local tpe="$4"
+	local color1="$5"
+	local color2="$6"
+	local id=$(idfromval dashboard  server "$server" variable "$variable")
+	if [ "$id" = "" ] ; then
+		if [ "$tpe" = "" ]    ; then tpe=val      ; fi
+		if [ "$color1" = "" ] ; then color1=black ; fi
+		if [ "$color2" = "" ] ; then color2=black ; fi
+		SQL "INSERT INTO dashboard (server,type,variable,value,color1,color2)
+		     VALUES ('$server','$tpe','$variable','$value','$color1','$color2')
+		    "
+	else
+		if [ "$value"  != "" ] ; then SQL "UPDATE dashboard SET value ='$value'  WHERE id=$id" ; fi
+		if [ "$tpe"    != "" ] ; then SQL "UPDATE dashboard SET type  ='$tpe'    WHERE id=$id" ; fi
+		if [ "$color1" != "" ] ; then SQL "UPDATE dashboard SET color1='$color1' WHERE id=$id" ; fi
+		if [ "$color2" != "" ] ; then SQL "UPDATE dashboard SET color2='$color2' WHERE id=$id" ; fi
+	fi
 }
 
 
@@ -724,6 +817,7 @@ get_dbconfig(){
 
 add_server(){
 	### add_server <servername> : add a server if not exists; return server ID.
+	echo "add_server" >> old.subs
 	name="$1"
 	server_old=$(SQL "SELECT id FROM server WHERE name='$name'")
 	if [ "$server_old" = "" ] ; then
@@ -735,6 +829,7 @@ add_server(){
 
 add_subnet(){
 	### add_subnet <nwaddress> <cidr-bits> : Add a subnet if it does not exist; return the ID
+	echo "add_subnet" >> old.subs
 	nwaddress="${1// /}"
 	cidr="$2"
 	src="$3"
@@ -761,6 +856,7 @@ add_subnet(){
 }
 
 if_net(){
+	echo "if_net" >> old.subs
 	ips=$(SQL "SELECT ip FROM interfaces")
 	for interface in $ips ; do
 
