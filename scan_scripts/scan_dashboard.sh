@@ -1,8 +1,10 @@
 #!/bin/bash
 
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
-tmp1=/tmp/scan_access.$$
-tmp2=/tmp/scan_access2.$$
+tmp1=/tmp/scan_dash.$$
+tmp2=/tmp/scan_dash.$$
+
+mkdir -p /tmp/djedefre
 
 if [ -f $SCRIPTPATH/djedefre.common.sh ] ; then
 	. $SCRIPTPATH/djedefre.common.sh
@@ -18,21 +20,19 @@ elif [ "$1" != '' ] ; then
 		echo "Database=$database, not $1"
 	fi
 fi
+djedefre_log '########################### scan dashboard ###################################'
 
 scandate=$(date)
-ovariable=$(sqlite3 -cmd ".timeout 1000" $database "SELECT variable FROM dashboard WHERE type='val' AND  server='Last scan' AND variable='Date'")
-if [ "$ovariable" = "" ] ; then
-	sqlite3 -cmd ".timeout 1000" $database "INSERT INTO dashboard (server,type,variable,value,color1,color2) VALUES('Last scan','val','Date','$scandate','black','black')"
-else
-	sqlite3 -cmd ".timeout 1000" $database "UPDATE dashboard SET value='$scandate' WHERE type='val' AND  server='Last scan' AND variable='Date'"
-fi
+db_dash_set_val 'Last scan' 'Date' "$scandate"
+
 
 for dash_script in $SCRIPTPATH/dashboard_*sh ; do
+	djedefre_log "running $dash_script"
 	bash $dash_script > $tmp1
 	grep -v ^$ $tmp1 | while read line ; do
 		if [[ "$line" == *: ]] ; then
 			server=${line%:*}
-			echo "server=$server"
+			djedefre_log "server=$server"
 		else
 			IFS=';' read -ra ADDR <<< "$line"
 			tpe="${ADDR[0]}"
@@ -40,21 +40,9 @@ for dash_script in $SCRIPTPATH/dashboard_*sh ; do
 			value="${ADDR[2]}"
 			color1="${ADDR[3]}"
 			color2="${ADDR[4]}"
-			echo "    tpe=$tpe variable=$variable value=$value color1=$color1 color2=$color2"
+			djedefre_log "    tpe=$tpe variable=$variable value=$value color1=$color1 color2=$color2"
 			if [ "$server" != "" ] && [ "$variable" != "" ] && [ "$tpe" != "" ] ; then
-				if [ "$color1" = "" ] ; then color1=black ; fi
-				if [ "$color2" = "" ] ; then color1=grey  ; fi
-				ovariable=$(sqlite3 -cmd ".timeout 1000" $database "SELECT variable FROM dashboard WHERE type='$tpe' AND variable='$variable'")
-				#echo "SELECT variable FROM dashboard WHERE type='$tpe' AND  server='$server' AND variable='$variable' ->$ovariable"
-				if [ "$ovariable" = "" ] ; then
-					sqlite3 -cmd ".timeout 1000" $database "DELETE FROM dashboard WHERE server='$server' AND variable='$variable'"
-					sqlite3 -cmd ".timeout 1000" $database "INSERT INTO dashboard (server,type,variable,value,color1,color2) VALUES('$server','$tpe','$variable','$value','$color1','$color2')"
-				else
-					ovalue=$(sqlite3 $database "SELECT value FROM dashboard WHERE type='$tpe' AND  server='$server' AND variable='$variable'")
-					sqlite3 -cmd ".timeout 1000" $database "UPDATE dashboard SET value='$value' WHERE type='$tpe' AND  server='$server' AND variable='$variable'"
-					sqlite3 -cmd ".timeout 1000" $database "UPDATE dashboard SET color1='$color1' WHERE type='$tpe' AND  server='$server' AND variable='$variable'"
-					sqlite3 -cmd ".timeout 1000" $database "UPDATE dashboard SET color2='$color2' WHERE type='$tpe' AND  server='$server' AND variable='$variable'"
-				fi
+				db_dash_set_val "$server" "$variable" "$value" "$tpe" "$color1" "$color2"
 			fi
 				
 		fi
@@ -62,10 +50,14 @@ for dash_script in $SCRIPTPATH/dashboard_*sh ; do
 done
 rm -f $tmp1 $tmp2
 
+rm -f  /tmp/djedefre.listing
 for listscript in $SCRIPTPATH/listing_*sh ; do
-	bash $listscript
-done > /tmp/djedefre.listing
-sqlite3 -cmd ".timeout 1000" $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
+	djedefre_log "running $listscript"
+	baselist=$(basename $listscript)
+	bash $listscript -s >> /tmp/djedefre.listing 2>>/tmp/djedefre.log
+	bash $listscript -htm > /tmp/djedefre/$baselist.htm 2>>/tmp/djedefre.log
+done 
+set_dbconfig 'run:param' 'changed' 'yes'
 
 exit
 				
