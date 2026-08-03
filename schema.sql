@@ -120,3 +120,13 @@ CREATE TABLE nfs (
 	server     text,
         export     text
 	);
+CREATE TABLE users (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	username   text UNIQUE NOT NULL,
+	password   text,
+	role       text
+);
+
+INSERT INTO users ( username,password,role)
+VALUES ('admin','admin','admin') ;
+
