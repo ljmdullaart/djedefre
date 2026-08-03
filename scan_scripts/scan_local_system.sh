@@ -81,8 +81,7 @@ ip addr | sed -n 's/\w*: \([[:alnum:]]*\).*/\1/p'  | sort -u |
 		if [ "$mycidr" != '' ] ; then
 			echo "   serverid=$serverid ip=$ip cidr=$mycidr"
 			nwaddress=$(ipcalc $ip/$mycidr | sed -n 's/\/.*//;s/^Network:\s*//p')
-			echo "   serverid=$serverid ip=$ip nnaddr=$nwaddress cidr=$mycidr"
-			add_subnet $nwaddress $mycidr scan_localsystem
+			echo "   serverid=$serverid ip=$ip nwaddr=$nwaddress cidr=$mycidr"
 			declare -A subnet_data
 			subnet_data[nwaddress]="${nwaddress// /}"
 			subnet_data[cidr]="$mycidr"
