@@ -44,7 +44,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 // --- Nodes tekenen (alles behalve tbl === "line") ---
                 objects.filter(o => o.tbl !== "line").forEach(obj => {
                     const img = new Image();
-                    img.src = `/logo_${obj.type}.png`;
+                    img.src = `/images/logo_${obj.type}.png`;
 
                     const p = new Promise(resolve => {
                         img.onload = () => {
