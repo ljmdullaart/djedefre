@@ -52,6 +52,7 @@ egrep 'ssh|telnet'  $tmp |
 		cmd_on $id '[ -f /proc/net/arp ] && cat /proc/net/arp'| sed 's/.*(\(.*\)) at \([0-9a-fA-F:]*\).*/\1 \2/'  | grep -v "00:00:00:00:00:0">>$tmp2
 			
 	done
+cat $tmp1 >>$tmp2
 sed -n 's/\([0-9\.]*\) .* \([0-9a-f:][0-9a-f:]*\) .*/\1 \2/p' $tmp2 | sort -u
 sed -n 's/\([0-9\.]*\) .* \([0-9a-f:][0-9a-f:]*\) .*/\1 \2/p' $tmp2 | sort -u |
 	while read myip mymac ; do
