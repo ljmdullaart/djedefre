@@ -1093,6 +1093,16 @@ sub query_l2_delete_to_by_host {
 	sql_query("DELETE FROM l2connect WHERE to_tbl= ? AND to_id= ? ",$to_tbl,$to_host);
 }
 
+#     __ _ _  
+# | |(_ |_|_) 
+# |_|__)|_| \ 
+#   
+
+sub q_user_password_hash {
+    my ($username) = @_;
+    my $retval = sql_qvalue("SELECT password FROM users WHERE username = ?", $username);
+    return $retval;
+}
 
 
 #       _  __ 
