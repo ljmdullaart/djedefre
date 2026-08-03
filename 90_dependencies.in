@@ -1,0 +1,64 @@
+.header
+.appendix
+
+.h1 Prerequisites
+
+.h2 Packages
+
+- perl
+- cpanminus
+- build-essential
+- libssl-dev
+- curl
+- libexpat1-dev
+- libpcap-dev
+- libmagickcore-dev
+- imagemagick
+- libimage-magick-perl
+- sqlite3
+- cron
+- openssh-server
+- telnetd
+- inetutils-inetd
+- nmap
+- iproute2
+- ipcalc
+- shared-mime-info
+- iputils-ping
+- arping
+- avahi-utils
+- bsdextrautils
+- curl
+- dos2unix
+- fping
+- grepcidr
+- bind9-host
+- jq
+- sqlite3
+- openssh-client
+- sudo
+- groff-base
+- wget 
+- libauthen-simple-pam-perl
+
+
+.h2 Perl CPAN
+
+- DBI
+- DBD::SQLite
+- Dancer2
+- Dancer2::Plugin::Database
+- File::HomeDir
+- File::Slurp
+- File::Slurper
+- Image::Magick
+- List::MoreUtils
+- Net::DHCP::Constants
+- Net::DHCP::Packet
+- Net::Pcap
+- Net::RawIP
+- Sort::Naturally
+- Template
+- XML::Parser
+- Dancer2::Plugin::Auth::Tiny
+- Crypt::Argon2
