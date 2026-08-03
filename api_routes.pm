@@ -2,6 +2,8 @@
 use strict;
 use warnings;
 use Dancer2 appname => 'dancr';
+use Dancer2::Plugin::Auth::Tiny;
+use dje_db;
 
 sub check_authorized {
 	if ( ! session('logged_in') ) {
