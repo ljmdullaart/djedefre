@@ -171,7 +171,7 @@ cat $tmp | while read if_id if_ip ; do
 			else
 				# is the subnet scope global ?
 				netscope=$(valfromid subnet $sn_id scope)
-				if [ "$netscope" != "global" ] ; then
+				if [ "$netscope" != "global" ] || [ "$netscope" != "local" ] ; then
 					sn_id=''
 				fi
 			fi
