@@ -82,6 +82,14 @@ list_interfaces |
 				interface_data[ip_scope]="global"
 				set_interface interface_data
 				unset interface_data
+			elif [ "$sn_scope" = "local" ] && [ "$if_host" != "" ] ; then
+				declare -A interface_data
+				interface_data[ip]="$ip"
+				interface_data[host]="$if_host"
+				interface_data[subnet]="$sn_id"
+				interface_data[ip_scope]="local"
+				set_interface interface_data
+				unset interface_data
 			fi
 				
 				
