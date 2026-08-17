@@ -73,6 +73,21 @@ sort -u $tmp |  while read id rest; do
 					
 				fi
 			fi
+		elif nmap -p 21 $ip | grep -q 21.tcp ; then
+			if [ -f /usr/local/bin/dotelnet ] ; then
+				timeout 4  dotelnet $ip echo dotelnet |grep -v Credentials| sed 's/^/OUTPUT/' >$tmp2
+				if grep -q OUTPUT $tmp2 ; then
+					access=dotelnet
+				fi
+				timeout 5  dotelnet $ip sh ip int br |grep -v Credentials| sed 's/^/OUTPUT/' >$tmp2
+				if grep -q OUTPUT $tmp2 ; then
+					access=dotelnet
+				fi
+				timeout 6  dotelnet $ip sh ip int br |grep -v Credentials| sed 's/^/OUTPUT/' >$tmp2
+				if grep -q OUTPUT $tmp2 ; then
+					access=dotelnet
+				fi
+			fi	
 		fi
 		echo "$ip $access"
 		declare -A interface_data
