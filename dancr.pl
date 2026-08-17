@@ -2,6 +2,15 @@
 use strict;
 use warnings;
 use Dancer2;
+
+set plugins => {
+    'OpenAPI' => {
+        show_ui         => 1,
+        ui_url          => '/doc',
+        main_api_module => 'api_routes',
+    }
+};
+
 use DBI;
 use Dancer2::Plugin::Database;
 use File::Spec;
@@ -55,7 +64,7 @@ sub get_flash {
  
 	return $msg;
 }
- 
+
 hook before_template_render => sub {
 	my $tokens = shift;
  
