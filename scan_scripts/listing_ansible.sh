@@ -48,15 +48,16 @@ elif [ "$1" = "-htm" ] ; then
 	echo '<br>'
 	echo "<table>"
 
-	echo "<tr><td>host</td><td> ok</td><td>changed</td><td>unreachable</td><td>failed</td></tr>"
+	echo "<tr><td><b>host</b></td><td><b> ok</b></td><td><b>changed</b></td><td><b>unreachable</b></td><td><b>failed</b></td></tr>"
 	ssh fontaine 'cat /tmp/last.ansible.log' | 
-	sed -n 's/      //;s/\(.*\) : ok=\(.*\)changed=\(.*\)unreachable=\(.*\)failed=\(.*\) *skip.*/\1\2 \4 \3 \5/p' |
+	sed -n 's/      //;s/\(.*\) : ok=\(.*\)changed=\(.*\)unreachable=\(.*\)failed=\(.*\) *skip.*/\1\2 \3 \4 \5/p' |
 	while read host  ok changed unreachable failed rest ; do
 		echo "<tr><td>$host</td><td> $ok</td><td>$changed</td><td>$unreachable</td><td>$failed</td></tr>"
 	done
 
 	echo "</table>"
-		
+	echo "<br>"
+	ssh fontaine cat /tmp/last.ansible.log | grep Finished		
 
 else
 	echo "                 ANSIBLE"
