@@ -10,7 +10,7 @@ function buildServerOverview() {
             const filtered = servers.filter(s => s.devicetype !== "network");
 
             // Sort by status
-            const order = { down: 0, up: 1, excluded: 2 };
+            const order = { down: 0, up: 1, excluded: 2, removed: 3 };
             filtered.sort((a, b) => order[a.status] - order[b.status]);
 
             filtered.forEach(server => {
