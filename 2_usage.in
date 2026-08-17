@@ -9,42 +9,28 @@ From
 download at least 
 
 - 
-.fixed djedefre.pl
+.fixed dancr.pl
+- 
+.fixed api_routes.pm
+- 
+.fixed common_functions.pm
+- 
+.fixed dje_db.pm
+- 
+.fixed djedefre_user.pm
+- 
+.fixed drawing.pm
+- 
+.fixed djedefre_create_db.pl
+- the directory
+.fixed public
+- the directory
+.fixed views
 - the directory
 .fixed scan_scripts
-- the directory
-.fixed images
-
-Make sure that the following Perl modules are installed:
-
-- 
-.fixed Tk
--
-.fixed Tk::JBrowseEntry
-- 
-.fixed File::Slurp
-- 
-.fixed File::Slurper
-- 
-.fixed File::HomeDir
-- 
-.fixed DBD/SQLite.pm
--
-.fixed List/MoerUtils.pm
--
-.fixed Sort/Naturally.pm
 
 
-
-Make sure that the following programs are installed:
-
-- 
-.fixed ipcalc
-- 
-.fixed grepcidr
-- 
-.fixed fping
-
+Make sure that all the prerequisites in appendix A are met.
 
 .h2 First start
 
@@ -58,184 +44,222 @@ is installed.
 and create it if it is not there
 - Create the database with 
 .fixed perl djedefre_create_db.pl
-- start the GUI with
-.fixed ./dedefre.pl &
+- start the webserver with
+.fixed nohup ./dancr.pl &
 
-You will be greeted with a cartouche depicting the hieroglyphs for Djedefre with a number of menus above it.
+With a web browswer, navigate to 
+.link http://127.0.0.1:3000
 
-.img djedefre_opening.xcf
+You will be greeted with an empty page, with in the top-right a
+.fixed log in
+button
 
-The buttons give access to functionality:
+.img HALF startup_screen.xcf
 
-- Pages contains a list of pages with network drawings
-- Lists provides listings of the network
-- Input provides various methods for data entry
+Click the login, and a login screen will appear.
 
-At this point, when you select the page "top" from the Pages menu, you will get an empty drawing.
+.img HALF login_screen.xcf
 
-.h2 Start scanning
+The cartouche depicted is Djedefre. You can now login. Any user that is defined 
+on the system will be granted access.
 
-To get some information into the database, scan-scripts are used. These scan-scripts can be 
-found in the directory 
+At this moment, Djedefre does not contain any data. Exploring further is therefore useless.
+
+.h2 Concepts
+
+The heart of Djedefre is the database. Most information that is displayed 
+comes from the database. Also, many scripts rely on information from the database.
+
+The user interface is handled by the dancer2 webserver 
+that was started with
+.fixed nohup ./dancr.pl &
+The dancer2 application uses the information from the database 
+to display in various forms, from lists to drawings.  The drawings are
+also automatically saved.
+
+The database is filled with scan scripts. Scan scripts are stored in the directory
 .fixed scan_scripts.
+There are different type of scan scripts: for filling the database and scripts that
+produce output on stdout.
+The scripts that may update the database all start with
+.fixed scan_
+for scripts that scan the network or with
+.fixed page_
+for scripts that generate standard pages, or network drawings.
 
-The best start would be to scan the local system. Launch the script
-.fixed scan_local_system.sh
-in the
-.fixed scan_scripts
-directory in a separate
-.fixed xterm
-window with:
+There is an optimal sequence for running the
+.fixed scan_
+and
+.fixed page_
+scripts. The script
+.fixed right_sequence.sh
+runs that sequence.
+
+The other scan scripts that start with
+.fixed dashboard_
+or
+.fixed listing_
+or
+.fixed status_
+are used to create an operational dashboard. 
+
+.h2 Scan the network
+
+Scan the network by running
 
 .pre
-bash scan-scripts/scan_local_system.sh database/djedefre.pl 
+bash right_sequence.sh
 .pre
 
-When the scan is finished, the plot page "top" will show the local system and the subnets that it 
-is connected to.
+in the scan script directory. It helps if you have password-less
+.fixed sudo
+rights. When the scan finishes, reload the web page in the browser. Under the menu
 
-.img djedefre_localsys.xcf
+	--- Select Drawing ---
 
-With the left mouse button, you can pick-up the server and the subnets and place them anywhere
-on the canvas that you like. When a server or subnet is selected, an info-window opens on the right
-displaying some information about the selected item.
+there ar now a number of drawings that correspond to the 
+.fixed pages_
+scripts. Select the option 
 
-.img djedefre_localsys2.xcf
+	all_subnets
 
-As there are now subnets in the database, a scan of the subnets is possible. 
-Run the script
-.fixed  scan_subnet.sh with:
+and a drawing with all induvidual subnets appear. The subnets that you see are the
+subnets that are connected to the local system. If you click on a subnet, the pane on 
+the right side will display some additional information.
+For the scanning, the Scope is important. This is a drop-down list with the following
+options:
 
-.pre
-bash scan-scripts/scan_subnet.sh database/djedefre.pl 
-.pre
+|------------------------------------------------------------------------|
+|  (empty)     | The subnet is not under control and will not be scanned |
+|------------------------------------------------------------------------|
+| global       | The subnet is a global network, but under our control.  |
+|              | It will be scanned                                      |
+|------------------------------------------------------------------------|
+| local        | The subnet is a local subnet that must be scanned.      |
+|------------------------------------------------------------------------|
+| server       | A subnet that is specific for a server, for example     |
+|              | 127.0.0.0/8. It will not be scanned.                    |
+|------------------------------------------------------------------------|
+| shared       | A shared network that must not be scanned               |
+|------------------------------------------------------------------------|
+
+For your local network, select "local" and run the scan
+.fixed right_sequence.sh
+again. You should now see other hosts as well in the "all_server" drawing. In the 
+"complete" you will see a start of a drawing off your network.
+
+Running 
+.fixed right_sequence.sh
+will make the drawing more complete. If you have set-up passwordless ssh login
+to other servers on your network, Djedefre will try to obtain information from those
+servers or devices. That may lead to the discovery of other subnets.
+
+.h2 Documenting the network
+
+If there is access to the different devices
+the scanning scripts will collect information from those devices. 
+After a few iterations 
+of scanning and classifying networks, the network may look something like
+below.
+
+.img HALF networkdrawing.xcf
+
+When a device or subnet is clicked, the pane on the right will show the 
+details of that device.
+
+Many fields can be edited. For the text fields, enter commits the changes. For the
+selection fields, a new seletion is automaticaly 
+committed.
+
+Below there is a selection table for the pages on which the object should be
+available. And below that, there is a button that can delete the object from
+the database.
+
+Objects can be relocated in the drawing with drag and drop.
+
+.h2 Types of objects
+
+.h3 Servers
+
+Servers are the main objects in Djederfre. A server is a device that is connected to the 
+network. When scanning, the scan scripts try to find out as much as possible about a 
+server. That includes DNS name and, if a login is possible, CPU type, OS and so on. 
+If the sanning process has ssh access to the server, it will have more information.
+
+Servers are connected to the network with interfaces. Interfaces are not separate objects.
 
 
-.img djedefre_subnet.xcf
+|--------------------------------------------------------------------------|
+| Item           | Item number in the database                             |
+|--------------------------------------------------------------------------|
+| Name           | Name of the device; can be edited                       |
+|--------------------------------------------------------------------------|
+| Type           | Type. Select from drop-down list. Determines the        |
+|                | icon in the drawing.                                    |
+|--------------------------------------------------------------------------|
+| Device Type    | Device type is a general classification of the device   |
+|--------------------------------------------------------------------------|
+| OS Type        | Type of OS                                              |
+|--------------------------------------------------------------------------|
+| OS             | Specific OS; version and release                        |
+|--------------------------------------------------------------------------|
+| Processor      | The processor in the device                             |
+|--------------------------------------------------------------------------|
+| Memmory        | The quantity of memmory in kB                           |
+|--------------------------------------------------------------------------|
+| Interfaces     | A table of detected interfaces                          |
+|--------------------------------------------------------------------------|
+
+.h3 Subnets
+
+Subnets are IPv4 subnets. They are defined by the base address and the number of
+bits in the network mask, called cidr. 
+Networks have a scope, that determines whether they should be scanned. Networks
+without scope will not be scanned. A desctiption of the scope has been given above.
 
 
+|--------------------------------------------------------------------------|
+| Item           | Item number in the database                             |
+|--------------------------------------------------------------------------|
+| Name           | Name of the subnet; can be edited                       |
+|--------------------------------------------------------------------------|
+| Type           | Type. Select from drop-down list. Determines the        |
+|                | icon in the drawing.                                    |
+|--------------------------------------------------------------------------|
+| Network address| Base address of the network                             |
+|--------------------------------------------------------------------------|
+| CIDR           | number of network bits                                  |
+|--------------------------------------------------------------------------|
+| Scope          | Scope can be empty, global, local, server or shared     |
+|--------------------------------------------------------------------------|
 
-.img djedefre_srvdet.xcf
 
-When you have scanned the network, placed all devices and subnets, set the correct type and name, your
-network may look something like this:
+.h3 Cloud
 
-.img djedefre_network.xcf
-
-.h2 Scanning the network
+Clouds are services on the Internet. Djedefre does not use private clouds: private clouds 
+are just local servers. Like servers, clouds can have multiple types. 
 
 
-You may have noticed that the scan of subnets did not provide a complete list of all the
-servers on the network. This is because the subnet scan uses
-.fixed fping
-to scan the subnet. Typically, for example, Windows 10 does not reply to a ping, so 
-no Windows 10 machines will show up. An ARP scan however will detect those machines if they're on
-the same layer 2 segment.
+|--------------------------------------------------------------------------|
+| Item           | Item number in the database                             |
+|--------------------------------------------------------------------------|
+| Name           | Name of the subnet; can be edited                       |
+|--------------------------------------------------------------------------|
+| Type           | Type. Select from drop-down list. Determines the        |
+|                | icon in the drawing.                                    |
+|--------------------------------------------------------------------------|
+| Vendor         | The vendor of the cloud service                         |
+|--------------------------------------------------------------------------|
+| Service        | description of the cloud service                        |
+|--------------------------------------------------------------------------|
 
-There are a number of scan scripts available. 
-These scripts try to find out what the network lay-out is, what the systems are.
-Although the scripts can run in any sequence, the fastest discovery seems to be:
+.h2 Lists
 
-- local_system 
-- subnet 
-- arp 
-- access 
-- type 
-- server 
-- remote_system 
-- cisco 
-- dns 
-- vbox  
-- internet 
-- database_integrity
-- status 
+In the menu, there is an option to select a list. The lists are provided for the documentation of the
+network. They are basically dumps of the database, though some combinations are made to make the
+content more usefull. 
 
-The scan scripts are in the directory
-.fixed scan_scripts
-and they are called
-.fixed scan_xxxxx.sh
-with 
-.fixed xxxxx
-meaning the name of the scan.
+.h2 Status
 
-.h3 local_system 
-
-Adds the local system to the network. Also adds the interfaces and the subnets that the system is connected
-to. 
-
-.h3 subnet 
-
-Scans all the known subnets for servers. Uses
-.fixed sudo fping
-for the scan.
-
-.h3 access 
-
-Scan all the known systems for ssh access. It must be password-less login. Three users are used:
-
-- current user: should be the default
-- 
-.fixed root
-: should be available only is a very closed environment, because it is unsafe. Some IoT things require this.
-- 
-.fixed admin
-: same remark as
-.fixed root
-But some devices need this, for example older Qnap NASses.
-
-.h3 arp 
-
-The ARP table is read from every device that has ssh access. Interfaces that have an IP address and where the MAC-id
-is not 00:00:00:00:00:00 are added. For interfaces without host, a server is created.
-
-.h3 type 
-
-Tries to determine the type of servers. This works reasonably well for servers that have ssh access.
-
-.h3 server 
-
-For the servers that have ssh access, try to appropriate all the interfaces. 
-
-Also, if the host name is still the IP address, rename the server to its host name.
-
-.h3 remote_system 
-
-For all the servers that have ssh access, add the networks that they are connected to.
-
-.h3 cisco 
-
-Cisco IOS devices do not have a standard shell. The Cisco scan scans devices that have the type "cisco" and
-does a "server" scan and a "remote_system" scan on these devices.
-
-.h3 dns 
-
-For all interfaces, set the host name to the host name that DNS has given it. Also, for all servers where the name 
-is an IP address, set the host name to the corresponding name in DNS.
-
-.h3 vbox  
-
-Determine for all VirtualBox managers which machines are running on it.
-
-.h3 status 
-
-Determines the status of the servers. In its simple form, it tests whether the server responds to a ping.
-
-If under
-.fixed scan_scripts
-there is a script
-.fixednospace status_
-.inospace name
-.fixednospace .sh
-, where
-.i name
-is the name of the server, then that script is used to determine the status of the server.
-If the script has an exit code 0, then the server is up.
-
-.h3 internet 
-
-Uses
-.fixed traceroute
-to determine where the break-out to the Internet is. The last IP address 
-that is in the database table "interfaces" is considered as belonging to the 
-server that has the interface to the Internet.
-
+The statusses accumulate the results of various custom scripts. A separate chapter is dedicated
+to the statusses.

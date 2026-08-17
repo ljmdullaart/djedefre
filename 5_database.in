@@ -2,142 +2,138 @@
 
 .h1 Database
 
-Most fields are only filled-in if they are known
+.img FULL mcd.dia
+
+Most fields are only filled-in if they are known.
 
 
-.h2 interfaces 
+.h2 Tables
 
-	id	integer primary key autoincrement	ID of the interface
-	macid	string	MAC-ID
-	ip	string	IP address
-	hostname	string	
-	host	integer
-	subnet	integer
-	access	string
-	connect_if	integer
-	port	integer
+.h3 interfaces
 
+Describe interfaces in servers to the network. These are IPv4 interfaces.
 
-.h2 subnet
+	id	integer primary key	Unique ID
+	access	text	Describe how the server can be accessed
+	connect_if	integer	Unused
+	host	integer	ID of the server that tis interface belongs to
+	hostname	text	Hostname correspinding to the IP
+	ifname	text	Name of the interface in the server
+	ip	text UNIQUE	IP address
+	ip_scope	text	Scope of the network that the interface connects to
+	macid	text	MAC id
+	options	text	Additional information
+	port	integer	If the interface has multiple ports, a port number can be added
+	remarks	text	Remarks and comments
+	source	text	The scan script that updated this record the last.
+	subnet	integer	Unused
+	switch	integer	Unused
 
-	id	integer primary key autoincrement
-	nwaddress	string
-	cidr	integer
-	xcoord	integer
-	ycoord	integer
-	name	string
-	options	string
-	access	string
+.h3 subnet
 
+	id	integer primary key	Unique ID
+	access	text	Unused
+	cidr	integer	Bits in the network mask
+	name	text	Name of the network
+	nwaddress	text UNIQUE	Base IPv4 address
+	options	text	Additional information
+	remarks	text	Remarks and comments
+	scope	text	Scope: empty, global, local, server or shared
+	source	text	The scan script that updated this record the last.
+	xcoord	integer	Unused
+	ycoord	integer	Unused
 
+.h3 server
 
+	id	integer primary key	Unique ID
+	devicetype	text	General type of the device
+	interfaces	text	Unused
+	last_up	integer	timestamp for last up
+	memory	text	memmory in bytes
+	name	text UNIQUE	Name of the server
+	options	text	Additional information
+	os	text	Operating system
+	ostype	text	General type of the OS
+	processor	text	Processor
+	remarks	text	Remarks and comments
+	source	text	The scan script that updated this record the last.
+	status	text	Status: upm down or excluded
+	type	text	Type of the server; determines the icon
+	xcoord	integer	Unused
+	ycoord	integer	Unused
 
-.h2 server
+.h3 pages
 
-	id	integer primary key autoincrement
-	name	string
-	xcoord	integer
-	ycoord	integer
-	type	string
-	status	string
-	last_up	integer
-	options	string
-	ostype	string
-	os	string
-	processor	string
-	devicetype	string
-	memory	string
-
-
-
-
-.h2 command
-
-	id	integer primary key autoincrement
-	host	string
-	button	string
-	command	string
-
-
-
-
-.h2 details
-
-	id	integer
-	type	string
-	os	string
-
-
-.h2 pages
-
-	id	integer primary key autoincrement
-	page	string
-	tbl	string
+	id	integer primary key	Unique ID
 	item	integer
+	page	text
+	tbl	text
 	xcoord	integer
 	ycoord	integer
 
+.h3 switch
 
-.h2 switch
-
-	id	integer primary key autoincrement
-	switch	string
-	server	integer
-	name	string
+	id	integer primary key	Unique ID
+	name	text
 	ports	integer
+	remarks	text	Remarks and comments
+	switch	text
+	server	integer
 
+.h3 l2connect
 
-.h2 l2connect
-
-	id	integer primary key autoincrement
-	vlan	string
-	from_tbl	string
+	id	integer primary key	Unique ID
+	vlan	text
+	from_tbl	text
 	from_id	integer
 	from_port	integer
-	to_tbl	string
+	to_tbl	text
 	to_id	integer
 	to_port	integer
+	source	text	The scan script that updated this record the last.
 
-.h2 config
+.h3 config
 
-	id	integer primary key autoincrement
-	attribute	string
-	item	string
-	value	string
+	id	integer primary key	Unique ID
+	attribute	text
+	item	text
+	value	text
+		comment string
 
-.h2 cloud
+.h3 cloud
 
-	id	integer primary key autoincrement
-	name	string
-	vendor	string
-	type	string
-	xcoord	integer
-	ycoord	integer
-	service	string
+	id	integer primary key	Unique ID
+	name	text UNIQUE
+	options	text
+	remarks	text	Remarks and comments
+	type	text
+	vendor	text
+	xcoord	integer Unused
+	ycoord	integer Unused
+	service	text
 
+.h3 dashboard
 
+	id	integer primary key	Unique ID
+	server	text
+	type	text
+	variable	text
+	value	text
+	color1	text
+	color2	text
 
+.h3 nfs
 
-.h2 dashboard
+	id	integer primary key	Unique ID
+	client	text
+	mountpoint	text
+	remarks	text	Remarks and comments
+	server	text
+	export	text
 
-	id	integer primary key autoincrement
-	server	string
-	type	string
-	variable	string
-	value	string
-	color1	string
-	color2	string
+.h3 users
 
-
-
-
-.h2 nfs
-
-	id	integer primary key autoincrement
-	server	string
-	export	string
-	client	string
-	mountpoint	string
-
-
-
+	id	INTEGER PRIMARY KEY AUTOINCREMENT	Unique ID
+	username	TEXT UNIQUE NOT NULL
+	password_hash	TEXT NOT NULL
+	role
