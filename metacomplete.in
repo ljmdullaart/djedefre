@@ -1,8 +1,8 @@
-.set do_cover yes
 .TOC
+.COVER
 .author ljm
 .title Djedefre
-.subtitle a network documentation tool
 .cover cover.png
-.headerlink ../top/tech.html Tech
-.headerlink ../top/top.html
+.set do_cover yes
+.set cp2 15
+.set cp3 12
