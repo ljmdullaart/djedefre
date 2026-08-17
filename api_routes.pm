@@ -2,6 +2,8 @@
 use strict;
 use warnings;
 use Dancer2 appname => 'dancr';
+
+
 use Dancer2::Plugin::Auth::Tiny;
 use dje_db;
 
@@ -12,9 +14,11 @@ sub check_authorized {
 	}
 }
 
+
 ######################################################################################
 #     API
 ######################################################################################
+
 get '/api/json/servers' => sub {
 	check_authorized();
 	api_log ('/api/json/servers');
@@ -83,41 +87,43 @@ get '/api/listings' => sub {
 
 get '/api/listingfiles' => sub {
 	check_authorized();
-    my $target_dir = File::Spec->catdir('', 'tmp', 'djedefre');
-    unless (-d $target_dir) {
-        status 404;
-        return to_json { status => "error", message => "Directory not found" };
-    }
-    my @files;
-    if (opendir(my $dh, $target_dir)) {
-        @files = grep { 
-            -f File::Spec->catfile($target_dir, $_) # Alleen echte bestanden (geen submappen)
-            && $_ !~ /^\./                          # Sla verborgen bestanden en . / .. over
-        } readdir($dh);
-        closedir($dh);
-    } else {
-        status 500;
-        return to_json { status => "error", message => "Cannot open directory: $!" };
-    }
-    return to_json { 
-        status => "ok", 
-        files  => [ sort @files ] 
-    };
+	my $target_dir = File::Spec->catdir('', 'tmp', 'djedefre');
+	unless (-d $target_dir) {
+		status 404;
+		return to_json { status => "error", message => "Directory not found" };
+	}
+	my @files;
+	if (opendir(my $dh, $target_dir)) {
+		@files = grep { 
+			my $full_path = File::Spec->catfile($target_dir, $_);
+			-f File::Spec->catfile($target_dir, $_) # Alleen echte bestanden (geen submappen)
+			&& $_ !~ /^\./	                      # Sla verborgen bestanden en . / .. over
+			&& -s $full_path > 10
+		} readdir($dh);
+		closedir($dh);
+	} else {
+		status 500;
+		return to_json { status => "error", message => "Cannot open directory: $!" };
+	}
+	return to_json { 
+		status => "ok", 
+		files  => [ sort @files ] 
+	};
 };
 get '/api/listingfile/:filename' => sub {
 	check_authorized();
-    my $filename = route_parameters->get('filename');
-    $filename = basename($filename);
-    my $file_path = File::Spec->catfile('', 'tmp', 'djedefre', $filename);
-    unless (-e $file_path && -f $file_path) {
-        status 404;
-        return "File not found";
-    }
-    return send_file(
-        $file_path,
-        system_path  => 1,
-        content_type => 'text/html; charset=UTF-8'
-    );
+	my $filename = route_parameters->get('filename');
+	$filename = basename($filename);
+	my $file_path = File::Spec->catfile('', 'tmp', 'djedefre', $filename);
+	unless (-e $file_path && -f $file_path) {
+		status 404;
+		return "File not found";
+	}
+	return send_file(
+		$file_path,
+		system_path  => 1,
+		content_type => 'text/html; charset=UTF-8'
+	);
 };
 
 get '/api/json/page/:param' => sub {
@@ -844,5 +850,11 @@ post '/add' => sub {
  
 	redirect '/';
 };
+
+
+######################################################################################
+
+
  
 1;
+
