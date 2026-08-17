@@ -57,13 +57,12 @@ sed -n 's/\([0-9\.]*\) .* \([0-9a-f:][0-9a-f:]*\) .*/\1 \2/p' $tmp2 | sort -u
 sed -n 's/\([0-9\.]*\) .* \([0-9a-f:][0-9a-f:]*\) .*/\1 \2/p' $tmp2 | sort -u |
 	while read myip mymac ; do
 		if [[ $myip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-			# add only if ip in a subnet that is "global"
 			subnetid=$(get_subnet $myip)
 			if [ "$subnetid" = "" ] ; then
 				djedefre_log "IP address $myip is not in a known subnet"
 			else
 				subnetscope=$(valfromid subnet "$subnetid" scope)
-				if [ "$subnetscope" = "global" ] ; then
+				if [ "$subnetscope" = "global" ] || [ "$subnetscope" = "local" ] ; then
 					declare -A interface_data
 					interface_data[ip]="$myip"
 					if [ "$mymac" != "" ] ; then interface_data[macid]="$mymac" ; fi
@@ -73,7 +72,7 @@ sed -n 's/\([0-9\.]*\) .* \([0-9a-f:][0-9a-f:]*\) .*/\1 \2/p' $tmp2 | sort -u |
 					unset interface_data
 					djedefre_log "IP address $myip added"
 				else
-					djedefre_log "IP address $myip not in global subnet"
+					djedefre_log "IP address $myip not in local or global subnet"
 				fi
 			fi
 		fi
