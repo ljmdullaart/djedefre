@@ -32,7 +32,7 @@ CREATE TABLE server (
 	id         integer primary key autoincrement,
 	devicetype text,
 	interfaces text,
-	last_up    integer,
+	last_up    text,
 	memory     text,
 	name       text UNIQUE,
 	options    text,
