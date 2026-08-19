@@ -2,6 +2,7 @@
 
 tmp=/tmp/scan_remote_server.$$
 tmp2=/tmp/scan_remote_server.$$.2
+iflstfile=/tmp/scan_remote_server.$$.3
 
 
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
@@ -16,58 +17,68 @@ if [ "$1" = "-h" ] ; then
 elif [ "$1" != '' ] ; then
 	if [ -f "$1" ] ; then
 		database="$1"
+		shift
 	else
 		echo "Database=$database, not $1"
 	fi
 fi
 
-sqlite3  -cmd ".timeout 1000" "$database" "SELECT ip FROM interfaces WHERE access LIKE 'ssh%'" > $tmp
+
+if [ "$1" = "" ] ; then
+        list_interfaces | awk '{print $1}' > $iflstfile
+
+else
+        echo $1 > $iflstfile
+fi
 
 
-for interface in $(cat $tmp) ; do
-	echo "Interface $interface:"
-	access=$(sqlite3  -cmd ".timeout 1000" "$database" "SELECT access FROM interfaces WHERE ip='$interface'")
-	if [[ "$access" == *"root"* ]] ; then
-		sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 root@'
-	elif [[ "$access" == *"admin"* ]] ; then
-		sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 admin@'
-	else
-		sshcmd='ssh -x -o PasswordAuthentication=no -o ConnectTimeout=2 '
-	fi
+for if_id in $(cat $iflstfile) ; do
+	echo "Interface $if_id:"
 	cidr=''
-	if $sshcmd$interface which ip | grep -q ip ; then
-		echo "    ip addr"
-		$sshcmd$interface ip -o addr |
+	serverid=$(valfromid interfaces $if_id host)
+	servername=$(valfromid server $serverid name)
+	if cmd_on $if_id which ip | grep -q ip ; then
+		echo "    ip addr on $servername"
+		cmd_on $if_id  ip -o addr |
 			grep -v '127.0.0.1'  |
 			sed  's/\// /g'      |
 			sed 's/^/        /'
-		$sshcmd$interface ip -o addr |
+			ifname=''
+		cmd_on $if_id  ip -o addr |
 			grep -v '127.0.0.1'  |
 			sed  's/\// /g'      |
 			grep -v '^$'         |
 			while read seq ifname type ip rcidr rest ; do
-				echo "        read ip=$ip  rcidr=$rcidr"
-				echo "        add interface  $ip $serverid"
-				declare -A interface_data
-				interface_data[ip]="$ip"
-				interface_data[host]="$serverid"
-				set_interface interface_data
-				unset interface_data
 				if [ "$type" = "inet" ] ; then
+					echo "        read ip=$ip  rcidr=$rcidr"
+					echo "        add interface  $ip $serverid"
+					declare -A interface_data
+					interface_data[ip]="$ip"
+					interface_data[host]="$serverid"
+					interface_data[ifname]="$ifname"
+					interface_data[source]="scan_remote_system"
+					set_interface interface_data
+					unset interface_data
+					this_if=$(idfromval interfaces ip "$ip" | head -1)
 					if [ "$rcidr" != "" ] ; then
 						nwaddr=$(ipcalc $ip/$rcidr | sed -n 's/\/.*//;s/^Network:\s*//p')
-						sqlite3   -cmd ".timeout 1000" $database "UPDATE interfaces SET ifname='$ifname' WHERE ip='$interface'"
 						echo "    add subnet $nwaddr $rcidr"
-						add_subnet $nwaddr $rcidr "scan_remotesystem1$interface"
-						echo "     $nwaddr $rcidr"
-						sqlite3  -cmd ".timeout 1000"  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
+						declare -A subnet_data
+						subnet_data[nwaddress]="$nwaddr"
+						subnet_data[cidr]="$rcidr"
+						subnet_data[source]=scan_remotesystem
+						set_subnet subnet_data
+						unset subnet_data
+						echo "     $nwaddr $rcidr added"
 					fi
 				fi
 				rcidr=''
+				ifname=''
 			done
 	elif $sshcmd$interface which ifconfig | grep -q ifconfig ; then
+		ifname=''
 		echo "    ifconfig"
-		$sshcmd$interface ifconfig               |
+		cmd_on $if_id ifconfig               |
 		  #sed 's/: / /;:a;N;$!ba;s/\n[ \t]/ /g'  |
 		  #grep -v '127.0.0.1'                    |
 		  #grep -v '^$'                           |
@@ -83,16 +94,22 @@ for interface in $(cat $tmp) ; do
 			declare -A interface_data
 			interface_data[ip]="$ip"
 			interface_data[host]="$serverid"
+			interface_data[ifname]="$ifname"
+			interface_data[macid]="$mac"
+			interface_data[source]="scan_remote_system"
 			set_interface interface_data
 			unset interface_data
 			nwaddr=$(ipcalc $ip/$mask | sed -n 's/\/.*//;s/^Network:\s*//p')
 			rcidr=$(ipcalc -b $ip/$mask | sed -n 's/Netmask:.*= //p')
-			sqlite3  -cmd ".timeout 1000"  $database "UPDATE interfaces SET ifname='${ifname%:}' WHERE ip='$interface'"
-			sqlite3  -cmd ".timeout 1000"  $database "UPDATE interfaces SET macid='$mac' WHERE ip='$interface'"
 			echo "    add subnet $nwaddr $rcidr"
-			add_subnet $nwaddr $rcidr "scan_remotesystem2$interface"
+			declare -A subnet_data
+			subnet_data[nwaddress]="$nwaddr"
+			subnet_data[cidr]="$rcidr"
+			subnet_data[source]=scan_remotesystem
+			set_subnet subnet_data
+			unset subnet_data
 			echo "     $nwaddr $rcidr"
-			sqlite3  -cmd ".timeout 1000"  $database "UPDATE config SET value='yes' WHERE attribute='run:param' AND item='changed'"
+			ifname=''
 		done
 	fi
 
@@ -101,6 +118,6 @@ done
 
 rm -f $tmp
 rm -f $tmp2
-
+rm -f $iflstfile
 
 

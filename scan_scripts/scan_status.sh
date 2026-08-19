@@ -61,7 +61,7 @@ for server_id in $(cat $tmp) ; do
 			echo "Script for $name" >> $LOG
 			if bash "$SCRIPTPATH/status_$name.sh" ; then
 				setfromid server $server_id status up
-				setfromid server $server_id last_up "$epochsec"
+				setfromid server $server_id last_up "$NOW"
 				echo "    $name up" >> $LOG
 			else
 				setfromid server $server_id status down
@@ -97,7 +97,7 @@ for server_id in $(cat $tmp) ; do
 			done
 			if [ $up = 1 ] ; then
 				setfromid server $server_id status up
-				setfromid server $server_id last_up "$epochsec"
+				setfromid server $server_id last_up "$NOW"
 				echo "    $name up" >> $LOG
 			else
 				setfromid server $server_id status down

@@ -27,7 +27,7 @@ cd /home/ljm/src/djedefre/scan_scripts
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
 #for script in local_system subnet access arp type server  remote_system cisco dns dhcp arp  vbox  local_system internet  clean_if l2top l2unifi l2vbox ifconnect dhcp
-for  script in local_system subnet access arp type mergeif server serverinfo vbox internet arp l2scans data clean_srv
+for  script in local_system subnet access arp type mergeif server serverinfo vbox internet arp data  #l2scans data 
 do
 	date >>$logfile
 	echo "-----STARTING $script" >>$logfile

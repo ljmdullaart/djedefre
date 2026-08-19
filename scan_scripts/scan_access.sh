@@ -21,17 +21,24 @@ fi
 if [ "$1" != '' ] ; then
 	if [ -f "$1" ] ; then
 		database="$1"
+		shift
 	else
 		echo "Database=$database, not $1"
 	fi
 fi
 djedefre_log '###################################### scan access ############################################'
 
-list_interfaces > $tmp
+if [ "$1" != "" ] ; then
+	echo $1 > $tmp
+else
+	list_interfaces > $tmp
+fi
+
 
 sort -u $tmp |  while read id rest; do
 	djedefre_log "Access for $id: $ip"
 	ip=$(valfromid interfaces $id  ip)
+	if [ "$ip" = "Internet" ] ; then continue ; fi
 	oldaccess=$(valfromid interfaces $id  access)
 	djedefre_log "Access for $id: $ip (was: $oldaccess)"
 	access=none
@@ -39,15 +46,17 @@ sort -u $tmp |  while read id rest; do
 		oldaccess=''	#try again
 	fi
 	if [ "$oldaccess" = "" ] ; then
-		if nmap -p 22 $ip | grep -q 22.tcp ; then
+		if nmap -Pn -p 22 $ip | grep -q 22.tcp ; then
+			echo "$ip has ssh open"
 			echo -n '.'
-			echo hop | timeout 6 ssh  -o PasswordAuthentication=no -o ConnectTimeout=4  $ip 'echo hop' 2>/dev/null  > $tmp2
+			echo hop | timeout 6 ssh  -o PasswordAuthentication=no -o ConnectTimeout=4  $ip 'echo doasuser' 2>/dev/null  > $tmp2
 			echo -n '.'
 			echo hop | timeout 6 ssh  -o PasswordAuthentication=no -o ConnectTimeout=4  root@$ip 'echo doasroot' 2>/dev/null  >>$tmp2
 			echo -n '.'
 			echo hop | timeout 6 ssh  -o PasswordAuthentication=no -o ConnectTimeout=4  admin@$ip 'echo doasadmin' 2>/dev/null  >>$tmp2
 			echo  '.'
-			if grep -q hop $tmp2 ; then
+			sed 's/^/sshtest: /' $tmp2
+			if grep -q doasuser $tmp2 ; then
 				access=ssh
 			elif grep -q "doasroot" $tmp2 ; then
 				access='ssh(root)'
@@ -73,7 +82,7 @@ sort -u $tmp |  while read id rest; do
 					
 				fi
 			fi
-		elif nmap -p 21 $ip | grep -q 21.tcp ; then
+		elif nmap -p 23 $ip | grep -q 23.tcp ; then
 			if [ -f /usr/local/bin/dotelnet ] ; then
 				timeout 4  dotelnet $ip echo dotelnet |grep -v Credentials| sed 's/^/OUTPUT/' >$tmp2
 				if grep -q OUTPUT $tmp2 ; then

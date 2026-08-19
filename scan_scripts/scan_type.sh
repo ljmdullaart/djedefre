@@ -4,6 +4,7 @@ tmp=/tmp/scan_typ.$$
 tmp1=/tmp/scan_typ.$$.1
 tmpnmap=/tmp/scan_typ.$$.2
 avahi=/tmp/scan_typ.$$.avahi
+iflstfile=/tmp/scan_typ.$$.iflstfile
 
 
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
@@ -18,6 +19,7 @@ if [ "$1" = "-h" ] ; then
 elif [ "$1" != '' ] ; then
 	if [ -f "$1" ] ; then
 		database="$1"
+		shift
 	else
 		echo "Database=$database, not $1"
 	fi
@@ -28,8 +30,15 @@ fi
 
 avahi-browse -a -r -t -p | cut -d';' -f4,5,6,7,8,10 > $avahi
 
-list_interfaces | sed 's/^/list_interfaces: /' 
-list_interfaces |
+if [ "$1" = "" ] ; then
+	list_interfaces > $iflstfile
+
+else
+	echo $1 > $iflstfile
+fi
+
+sed 's/^/list_interfaces: /'  $iflstfile
+cat $iflstfile |
 	while read if_id if_ip rest ; do
 		rm -f $tmp1
 		echo '-----------------------------------------------'
@@ -49,7 +58,7 @@ list_interfaces |
 			echo "    olddevtype='$olddevtype'"
 			
 			srv_name=$(valfromid server $if_host name)
-
+			if_ip=$(valfromid interfaces $if_id ip)
 			if [ "$oldtype" = "" ] || [ "$olddevtype" = "" ]  ; then 
 				ntype=server
 				ndevtype=server
@@ -62,16 +71,30 @@ list_interfaces |
 				echo -n .
 				cmd_on $if_id "if [ -f /etc/motd ] ; then cat /etc/motd; fi" >> $tmp1 2>/dev/null
 				echo -n .
+				cmd_on $if_id "if [ -f /proc/sys/kernel/syno_hw_version ] ; then echo synology ; fi" >> $tmp1 2>/dev/null
+				echo -n .
 				cmd_on $if_id "if [ -f /etc/pf.os ] ; then echo 'ID=pfsense'; fi" >> $tmp1 2>/dev/null
 				echo -n .
+				cmd_on $if_id "if [ -f /etc/release ] ; then cat /etc/release ; fi" >> $tmp1 2>/dev/null
+				echo .
 				cmd_on $if_id "if [ -f /etc/os-release ] ; then cat /etc/os-release ; fi" >> $tmp1 2>/dev/null
 				echo .
 				cmd_on $if_id 'reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v ProductName' >> $tmp1 2>/dev/null
 				echo .
 				grep "$if_ip;" $avahi | sed 's/^/avahi: /' 
 				sed  's/^/tmp1: /' $tmp1
-				
-				if grep "$if_ip;" $avahi | grep -i laserjet ; then
+				if [ 1 = 2 ] ; then
+					:
+				elif curl -s --connect-timeout 3 $if_ip | grep -q "TP-LINK Technologies" ; then
+					ntype=tplink
+					ndevtype=network
+				elif curl -s --connect-timeout 3 "http://$if_ip/api" | grep -q "P1 Meter" ; then
+					ntype=meter
+					ndevtype=appliance
+				elif grep -i 'synology' $tmp1 ; then
+					ntype=synology
+					ndevtype=nas
+				elif grep "$if_ip;" $avahi | grep -i laserjet ; then
 					ntype=laserjet
 					ndevtype=printer
 				elif grep "$if_ip;" $avahi | grep -i 'pdl printer' ; then
@@ -116,9 +139,13 @@ list_interfaces |
 						ntype=win10 
 					fi
 					ndevtype=server
+
 				elif grep -i 'unifi' $tmp1 ; then
 					ntype=unifi 
 					ndevtype=network
+				elif grep  'JFFSID=' $tmp1 ; then
+					ntype=linux 
+					ndevtype=server
 				elif grep  'Windows 7' $tmp1 ; then
 					ntype=win7 
 					ndevtype=server
@@ -171,7 +198,7 @@ list_interfaces |
 	done
 
 
-rm -f $tmp $tmp1 $tmpnmap $avahi
+rm -f $tmp $tmp1 $tmpnmap $avahi $iflstfile
 
 exit
 

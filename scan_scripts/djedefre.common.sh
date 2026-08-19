@@ -239,7 +239,7 @@ setfromid(){
 	case $dtype in
 	text) SQL "UPDATE $tabel SET $var='$val' WHERE id=$id" ;;
 	integer) SQL "UPDATE $tabel SET $var=$val WHERE id=$id" ;;
-	*) echo "dtype $dtype of column $var in $tabel is unknown"
+	*) echo "dtype $dtype of column $var in $tabel is unknown" ;;
 	esac
 }
 valfromid(){
@@ -562,39 +562,47 @@ pages_tblitem(){
 #            set_subnet subnet_data
 #            unset subnet_data
 set_subnet() {
-    local -n data_ref=$1
+	local -n data_ref=$1
 
-    # --- Normaliseer nwaddress en cidr ---
-    data_ref[nwaddress]="${data_ref[nwaddress]//[[:space:]]/}"
-    data_ref[cidr]="${data_ref[cidr]//[[:space:]]/}"
-
-    # --- Bouw kolommen en waarden ---
-    local cols=() vals=() updates=()
-
+	# --- Normaliseer nwaddress en cidr ---
+	
+	#data_ref[nwaddress]="${data_ref[nwaddress]//[[:space:]]/}"
+	#data_ref[cidr]="${data_ref[cidr]//[[:space:]]/}"
     for key in "${!data_ref[@]}"; do
-        [[ "$key" == "id" ]] && continue
-        local val="${data_ref[$key]//\'/\'\'}"
-        cols+=("$key")
-        vals+=("'$val'")
-        updates+=("$key=excluded.$key")
+        local value="${data_ref[$key]}"
+        echo "Key: $key -> Value: $value"
     done
 
-    # --- UPSERT ---
-    SQL "
-        INSERT INTO subnet ($(printf '%s,' "${cols[@]}" | sed 's/,$//'))
-        VALUES ($(printf '%s,' "${vals[@]}" | sed 's/,$//'))
-        ON CONFLICT(nwaddress) DO UPDATE SET
-            $(printf '%s,' "${updates[@]}" | sed 's/,$//');
-    "
+	local nwaddress="${data_ref[nwaddress]}"
+	local cidr="${data_ref[cidr]}"
+	local name="${data_ref[name]}"
+	local scope="${data_ref[scope]}"
+	local options="${data_ref[options]}"
+echo "nwaddress=$nwaddress cidr=$cidr"
 
-    # --- Haal ID op ---
-    db_retval=$(SQL "
-        SELECT id FROM subnet
-        WHERE nwaddress='${data_ref[nwaddress]//\'/\'\'}'
-        LIMIT 1;
-    ")
+	
+	local existid=$(SQL "SELECT id FROM subnet WHERE nwaddress='$nwaddress'")
+	if [ "$existid" = "" ] ; then
+		SQL "INSERT INTO subnet (nwaddress,name) VALUES ('$nwaddress','$nwaddress')"
+	fi
+	local existid=$(SQL "SELECT id FROM subnet WHERE nwaddress='$nwaddress'")
+	if [ "$existid" != "" ] ; then
+		if [ "$cidr" != "" ] ; then
+			SQL "UPDATE subnet SET cidr=$cidr WHERE id=$existid"
+		fi
+		if [ "$name" != "" ] ; then
+			SQL "UPDATE subnet SET name='$name' WHERE id=$existid"
+		fi
+		if [ "$scope" != "" ] ; then
+			SQL "UPDATE subnet SET scope='$scope' WHERE id=$existid"
+		fi
+		if [ "$options" != "" ] ; then
+			SQL "UPDATE subnet SET options='$options' WHERE id=$existid"
+		fi
+	fi
 
-    djedefre_log "subnet upsert id=$db_retval nwaddress=${data_ref[nwaddress]}"
+	djedefre_log "subnet upsert id=$existid nwaddress=$nwaddress cidr=$cidr"
+	echo $existid
 }
 
 
