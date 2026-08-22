@@ -1,0 +1,362 @@
+[% IF session.logged_in %]
+
+
+<h2>Pages</h2>
+
+<div id="pages-container"></div>
+
+<script>
+    // All possible page types
+    const availableTypes = ["l2", "l3", "nfs"];
+
+    async function fetchAndRenderPages() {
+        const container = document.getElementById('pages-container');
+        
+        // Layout for main container
+        container.style.display = 'flex';
+        container.style.flexWrap = 'wrap';
+        container.style.gap = '20px';
+        container.style.padding = '20px';
+        container.style.fontFamily = 'Arial, sans-serif';
+
+        try {
+            const response = await fetch('/api/pagelist');
+            if (!response.ok) throw new Error('Error fetching pagelist');
+            
+            const xmlText = await response.text();
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+            const pages = xmlDoc.getElementsByTagName('page');
+
+            for (let i = 0; i < pages.length; i++) {
+                const page = pages[i];
+                
+                // reading XML fields...
+                const name = page.getElementsByTagName('name')?.[0]?.textContent || '';
+                const currentType = page.getElementsByTagName('type')?.[0]?.textContent || '';
+                const currentComment = page.getElementsByTagName('comment')?.[0]?.textContent || '';
+
+                // 1. Create main div
+                const block = document.createElement('div');
+                block.style.border = '1px solid #ccc';
+                block.style.borderRadius = '8px';
+                block.style.padding = '15px';
+                block.style.width = '280px';
+                block.style.backgroundColor = '#f9f9f9';
+                block.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+                block.style.boxSizing = 'border-box';
+
+                // 2. Info sectie (Titel + Flexbox voor Delete-knop)
+                const headerDiv = document.createElement('div');
+                headerDiv.style.display = 'flex';
+                headerDiv.style.justifyContent = 'space-between';
+                headerDiv.style.alignItems = 'flex-start';
+                headerDiv.style.marginBottom = '10px';
+
+                const title = document.createElement('h3');
+                title.style.margin = '0';
+                title.style.color = '#333';
+                title.style.fontSize = '16px';
+                title.style.wordBreak = 'break-all';
+                title.style.paddingRight = '10px';
+                title.textContent = name;
+                headerDiv.appendChild(title);
+                
+                // 2b. De Delete Knop
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = 'Delete';
+                deleteBtn.style.backgroundColor = '#886666';
+                deleteBtn.style.color = 'black';
+                deleteBtn.style.border = 'none';
+                                deleteBtn.style.borderRadius = '4px';
+                deleteBtn.style.padding = '4px 8px';
+                deleteBtn.style.fontSize = '11px';
+                deleteBtn.style.cursor = 'pointer';
+                deleteBtn.style.fontWeight = 'bold';
+                
+                deleteBtn.addEventListener('click', async function() {
+                    if (confirm(`Weet je zeker dat je de pagina "${name}" wilt verwijderen?`)) {
+                                        try {
+                            const res = await fetch('/api/editpage', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    action: "delete_page",
+                                    name: name,
+                                    type: typeSelect.value,
+                                    comment: commentInput.value
+                                })
+                            });
+                
+                            if (!res.ok) throw new Error();
+                            const result = await res.json();
+                
+                            if (result.status === "ok") {
+                                block.remove(); // Verwijdert de tegel direct van het scherm
+                            }
+                        } catch (err) {
+                            alert(`Fout bij het verwijderen van ${name}!`);
+                        }
+                    }
+                });
+
+                headerDiv.appendChild(deleteBtn);
+                block.appendChild(headerDiv);
+
+
+                // 3. Bouw de Selectie-lijst (Type)
+                const selectContainer = document.createElement('div');
+                selectContainer.style.marginBottom = '10px';
+                selectContainer.style.fontSize = '13px';
+                selectContainer.style.color = '#666';
+
+                const labelType = document.createElement('strong');
+                labelType.textContent = 'Type: ';
+                selectContainer.appendChild(labelType);
+
+                const typeSelect = document.createElement('select');
+                typeSelect.style.padding = '3px 5px';
+                typeSelect.style.borderRadius = '4px';
+                typeSelect.style.border = '1px solid #ccc';
+                typeSelect.style.fontSize = '13px';
+
+                availableTypes.forEach(typeOptie => {
+                    const option = document.createElement('option');
+                    option.value = typeOptie;
+                    option.textContent = typeOptie;
+                    if (typeOptie === currentType) {
+                        option.selected = true;
+                    }
+                    typeSelect.appendChild(option);
+                });
+
+                // Event listener voor Type-wijziging
+                typeSelect.addEventListener('change', async function() {
+                    const geselecteerdType = this.value;
+                    const actueelComment = commentInput.value; // Haal de huidige stand van het commentaarveld op
+                    
+                    const payload = {
+                        action: "update_type",
+                        name: name,
+                        type: geselecteerdType,
+                        comment: actueelComment
+                    };
+
+                    try {
+                        const res = await fetch('/api/editpage', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (!res.ok) throw new Error();
+                    } catch (err) {
+                        alert(`Fout bij opslaan type!`);
+                        this.value = currentType;
+                    }
+                });
+
+                selectContainer.appendChild(typeSelect);
+                block.appendChild(selectContainer);
+
+                // 4. Bouw het aanpasbare Commentaarveld (Editable Input)
+                const commentContainer = document.createElement('div');
+                commentContainer.style.marginBottom = '15px';
+                commentContainer.style.fontSize = '13px';
+                commentContainer.style.color = '#666';
+
+                const labelComment = document.createElement('strong');
+                labelComment.textContent = 'Comment: ';
+                commentContainer.appendChild(labelComment);
+
+                const commentInput = document.createElement('input');
+                commentInput.type = 'text';
+                commentInput.value = currentComment;
+                commentInput.placeholder = 'Voeg commentaar toe...';
+                commentInput.style.width = '100%';
+                commentInput.style.padding = '4px 6px';
+                commentInput.style.borderRadius = '4px';
+                commentInput.style.border = '1px solid #ccc';
+                commentInput.style.fontSize = '13px';
+                commentInput.style.boxSizing = 'border-box';
+                commentInput.style.marginTop = '4px';
+
+                // EVENT LISTENER: Luister naar de <Enter> toets
+                commentInput.addEventListener('keydown', async function(event) {
+                    if (event.key === 'Enter') {
+                        event.preventDefault(); // Voorkom eventueel ongewenst formuliergedrag
+                        this.blur(); // Haal de focus van het invoerveld af (visuele feedback dat het verwerkt wordt)
+
+                        const nieuwComment = this.value;
+                        const actueelType = typeSelect.value; // Haal de huidige stand van de type-selectbox op
+
+                        const payload = {
+                            action: "update_comment",
+                            name: name,
+                            type: actueelType,
+                            comment: nieuwComment
+                        };
+
+                        try {
+                            const res = await fetch('/api/editpage', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(payload)
+                            });
+
+                            if (!res.ok) throw new Error('Serverfout');
+                            const result = await res.json();
+                            
+                            if (result.status === "ok") {
+                                console.log(`Comment succesvol bijgewerkt voor ${name}`);
+                            }
+                        } catch (err) {
+                            console.error('Fout bij updaten van comment:', err);
+                            alert(`Fout bij opslaan! Comment kon niet worden aangepast.`);
+                            this.value = currentComment; // Zet terug naar de originele waarde uit de XML bij fout
+                        }
+                    }
+                });
+
+                commentContainer.appendChild(commentInput);
+                block.appendChild(commentContainer);
+
+                // 5. Maak de link-tag aan (<a>) om naar de tekening te verwijzen
+                const link = document.createElement('a');
+                link.href = `/nwdrawing?name=${encodeURIComponent(name)}`;
+                link.style.display = 'block';
+                link.style.textDecoration = 'none';
+
+                // 6. Afbeelding container (Vast 250x250 veld)
+                const imgContainer = document.createElement('div');
+                imgContainer.style.width = '250px';
+                imgContainer.style.height = '250px';
+                imgContainer.style.backgroundColor = 'transparent';
+                imgContainer.style.display = 'flex';
+                imgContainer.style.alignItems = 'center';
+                imgContainer.style.justifyContent = 'center';
+                imgContainer.style.overflow = 'hidden';
+                imgContainer.style.margin = '0 auto';
+
+                // 7. De Afbeelding zelf
+                const img = document.createElement('img');
+                img.src = `/images/page_${name}.png?t=${Date.now()}`;
+                img.alt = name;
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = '100%';
+                img.style.objectFit = 'contain';
+                img.style.cursor = 'pointer';
+
+                img.onerror = function() {
+                    link.remove();
+                };
+
+                imgContainer.appendChild(img);
+                link.appendChild(imgContainer);
+                block.appendChild(link);
+                
+                if (!block.contains(link)) {
+                    block.appendChild(imgContainer);
+                }
+
+                container.appendChild(block);
+            }
+
+            // Empty tile for new page
+            const addBlock = document.createElement('div');
+            addBlock.style.border = '2px dashed #999'; 
+            addBlock.style.borderRadius = '8px';
+            addBlock.style.padding = '15px';
+            addBlock.style.width = '280px';
+            addBlock.style.backgroundColor = '#f0f0f0';
+            addBlock.style.boxSizing = 'border-box';
+            
+            const addTitle = document.createElement('h3');
+            addTitle.style.margin = '0 0 10px 0';
+            addTitle.style.color = '#555';
+            addTitle.style.fontSize = '16px';
+            addTitle.textContent = 'Add new page';
+            addBlock.appendChild(addTitle);
+            
+            const nameContainer = document.createElement('div');
+            nameContainer.style.marginBottom = '15px';
+            nameContainer.style.fontSize = '13px';
+            nameContainer.style.color = '#666';
+            
+            const labelNewName = document.createElement('strong');
+            labelNewName.textContent = 'Naam: ';
+            nameContainer.appendChild(labelNewName);
+            
+            const nameInput = document.createElement('input');
+            nameInput.type = 'text';
+            nameInput.placeholder = 'Name for new page';
+            nameInput.style.width = '100%';
+            nameInput.style.padding = '5px';
+            nameInput.style.borderRadius = '4px';
+            nameInput.style.border = '1px solid #999';
+            nameInput.style.fontSize = '13px';
+            nameInput.style.boxSizing = 'border-box';
+            nameInput.style.marginTop = '4px';
+            
+            // Event listener for Enter new page
+            nameInput.addEventListener('keydown', async function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    const nieuweNaam = this.value.trim();
+            
+                    if (!nieuweNaam) {
+                        alert('Please enter a name first');
+                        return;
+                    }
+            
+                    this.blur();
+            
+                    try {
+                        const res = await fetch('/api/editpage', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: "add_page",
+                                name: nieuweNaam,
+                                type: "l3",      // Standaard l3
+                                comment: ""      // Standaard leeg
+                            })
+                        });
+            
+                        if (!res.ok) throw new Error();
+                        const result = await res.json();
+            
+                        if (result.status === "ok") {
+                            location.reload(); // Reload page
+                        }
+                    } catch (err) {
+                        alert('Error creating new page');
+                    }
+                }
+            });
+            
+            nameContainer.appendChild(nameInput);
+            addBlock.appendChild(nameContainer);
+            
+            const placeholderBox = document.createElement('div');
+            placeholderBox.style.width = '250px';
+            placeholderBox.style.height = '250px';
+            placeholderBox.style.margin = '0 auto';
+            placeholderBox.style.backgroundColor = 'transparent';
+            addBlock.appendChild(placeholderBox);
+            
+            container.appendChild(addBlock);
+            
+        } catch (error) {
+            console.error('Fout:', error);
+            container.innerHTML = `<p style="color: red; font-family: Arial;">Kon de pagina\'s niet laden.</p>`;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', fetchAndRenderPages);
+</script>
+
+
+[% END %]
+

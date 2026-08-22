@@ -1,0 +1,111 @@
+[% IF session.logged_in %]
+<div class="dashboard-container">
+    <div id="tiles-grid" class="tiles-grid">
+        <p class="loading-text">Loading layout and files...</p>
+    </div>
+</div>
+
+<style>
+    .dashboard-container {
+        padding: 20px;
+        font-family: Arial, sans-serif;
+    }
+    
+    /* Het grid dat de tiles netjes verdeelt over de pagina */
+    .tiles-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+        gap: 5px;
+        margin-top: 20px;
+    }
+    
+    .file-tile {
+        background: #ffffff;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* De container waar de daadwerkelijke HTML-inhoud in komt */
+    .tile-content {
+        font-size: 13px;
+        color: #333;
+        flex-grow: 1;
+        overflow: auto;
+        max-height: 330px; /* Voorkomt dat één hele lange file de tile kapot maakt */
+        border: 1px dashed #f0f0f0;
+        padding: 8px;
+        background: #fafafa;
+    }
+
+    .loading-text {
+        color: #666;
+        font-style: italic;
+    }
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const gridContainer = document.getElementById('tiles-grid');
+
+    // 1. Haal de lijst met alle bestanden op
+    fetch('/api/listingfiles')
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to fetch file list');
+            return response.json();
+        })
+        .then(data => {
+            if (data.status !== 'ok' || !data.files || data.files.length === 0) {
+                gridContainer.innerHTML = '<p>No HTML files found in the directory.</p>';
+                return;
+            }
+
+            // Maak de container leeg (verwijdert de laadtekst)
+            gridContainer.innerHTML = '';
+
+            // 2. Loop door elk bestand heen en maak een tile aan
+            data.files.forEach(filename => {
+                createTileForFile(filename, gridContainer);
+            });
+        })
+        .catch(error => {
+            console.error('Error listing files:', error);
+            gridContainer.innerHTML = '<p style="color: red;">Error loading the file dashboard.</p>';
+        });
+});
+
+// Functie die per bestand een tile bouwt en de HTML-inhoud ophaalt
+function createTileForFile(filename, container) {
+    // Bouw de HTML-structuur van de tile op in het geheugen
+    const tile = document.createElement('div');
+    tile.className = 'file-tile';
+
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'tile-content';
+    contentDiv.innerHTML = '<span class="loading-text">Loading content...</span>';
+
+    // Bestandsnaam header is hier verwijderd, we voegen nu alleen de content toe
+    tile.appendChild(contentDiv);
+    container.appendChild(tile);
+
+    // 3. Haal de specifieke HTML-inhoud op voor deze tile (inclusief cache-buster)
+    fetch(`/api/listingfile/${filename}?t=${Date.now()}`)
+        .then(response => {
+            if (!response.ok) throw new Error('Could not load file content');
+            return response.text(); // We verwachten rauwe HTML/tekst, geen JSON
+        })
+        .then(htmlContent => {
+            // Injecteer de HTML in de content div van de tile
+            contentDiv.innerHTML = htmlContent;
+        })
+        .catch(error => {
+            console.error(`Error loading content for ${filename}:`, error);
+            contentDiv.innerHTML = '<span style="color: red;">Failed to load content.</span>';
+        });
+}
+</script>
+[% END %]
+
