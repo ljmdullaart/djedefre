@@ -151,8 +151,10 @@ sub add_l3_lines {
 					$item{from}	= $object->{dr_obj};
 					my $net_obj	= $net->{dr_obj};
 					my $nwaddress	= '0.0.0.0';
-					if ($net->{nwaddress} =~ /([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)/) {
-						$nwaddress = $1;
+					if (defined $net->{nwaddress}) {
+						if ($net->{nwaddress} =~ /([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)/) {
+							$nwaddress = $1;
+						}
 					}
 					my $cidr = $net->{cidr};
 					$item{netname} = $net->{name};
