@@ -6,48 +6,49 @@
 
 .h2 Packages
 
-- perl
-- cpanminus
-- build-essential
-- libssl-dev
-- curl
-- libexpat1-dev
-- libpcap-dev
-- libmagickcore-dev
-- imagemagick
-- libimage-magick-perl
-- sqlite3
-- cron
-- openssh-server
-- telnetd
-- inetutils-inetd
-- nmap
-- iproute2
-- ipcalc
-- shared-mime-info
-- iputils-ping
 - arping
 - avahi-utils
+- bind9-host
 - bsdextrautils
+- build-essential
+- cpanminus
+- cron
 - curl
 - dos2unix
 - fping
 - grepcidr
-- bind9-host
-- jq
-- sqlite3
-- openssh-client
-- sudo
 - groff-base
-- wget 
+- imagemagick
+- inetutils-inetd
+- ipcalc
+- iproute2
+- iputils-ping
+- jq
 - libauthen-simple-pam-perl
+- libexpat1-dev
+- libimage-magick-perl
+- libmagickcore-dev
+- libpcap-dev
+- libssl-dev
+- nc
+- nmap
+- openssh-client
+- openssh-server
+- perl
+- shared-mime-info
+- sqlite3
+- sudo
+- telnetd
+- wget 
 
 
 .h2 Perl CPAN
 
-- DBI
+- Crypt::Argon2
 - DBD::SQLite
+- DBI
 - Dancer2
+- Dancer2::Plugin::Auth::Tiny
 - Dancer2::Plugin::Database
 - File::HomeDir
 - File::Slurp
@@ -61,5 +62,3 @@
 - Sort::Naturally
 - Template
 - XML::Parser
-- Dancer2::Plugin::Auth::Tiny
-- Crypt::Argon2

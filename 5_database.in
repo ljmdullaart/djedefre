@@ -12,6 +12,7 @@ Most fields are only filled-in if they are known.
 .h3 interfaces
 
 Describe interfaces in servers to the network. These are IPv4 interfaces.
+An interface is always connected to a server via the column host. 
 
 	id	integer primary key	Unique ID
 	access	text	Describe how the server can be accessed
@@ -31,6 +32,9 @@ Describe interfaces in servers to the network. These are IPv4 interfaces.
 
 .h3 subnet
 
+A subnet is determined by the network address. This is the base address for the subnet.
+The subnets ar IPv4 subnet. The scope determines what the scan scripts do with the subnet.
+
 	id	integer primary key	Unique ID
 	access	text	Unused
 	cidr	integer	Bits in the network mask
@@ -45,6 +49,11 @@ Describe interfaces in servers to the network. These are IPv4 interfaces.
 
 .h3 server
 
+A server is a device in the network. That can be anything, an appliance, a laptop, a server, or 
+something completely different. The name of the server should be unique. Scanscripts may add much of
+the additional descriptive fields if Djedefre
+can access the server.
+
 	id	integer primary key	Unique ID
 	devicetype	text	General type of the device
 	interfaces	text	Unused
@@ -57,21 +66,31 @@ Describe interfaces in servers to the network. These are IPv4 interfaces.
 	processor	text	Processor
 	remarks	text	Remarks and comments
 	source	text	The scan script that updated this record the last.
-	status	text	Status: upm down or excluded
+	status	text	Status: up, down or excluded
 	type	text	Type of the server; determines the icon
 	xcoord	integer	Unused
 	ycoord	integer	Unused
 
 .h3 pages
 
+Pages determine the contents of the drawing. On a page, an item from a table is displayed
+at the given coordinates.
+The table is either cloud, server or subnets. The item is the the id in the tables.
+Connections between the objects are determined by either the IPv4 relation, the 
+.fixed vbox= 
+in the options field of the server, or the connections in the l2connect table.
+
+
 	id	integer primary key	Unique ID
-	item	integer
-	page	text
-	tbl	text
-	xcoord	integer
-	ycoord	integer
+	item	integer	ID from the object in the table
+	page	text	Name of the page
+	tbl	text	Table where the item is found
+	xcoord	integer	Location on the drawing
+	ycoord	integer	Location on the drawing
 
 .h3 switch
+
+Currently unused.
 
 	id	integer primary key	Unique ID
 	name	text
@@ -82,8 +101,11 @@ Describe interfaces in servers to the network. These are IPv4 interfaces.
 
 .h3 l2connect
 
+L2connect contains the low-level connections between objects. It is not really a layer-2 
+connection.
+
 	id	integer primary key	Unique ID
-	vlan	text
+	vlan	text	Name or number of the VLAN
 	from_tbl	text
 	from_id	integer
 	from_port	integer
@@ -98,7 +120,7 @@ Describe interfaces in servers to the network. These are IPv4 interfaces.
 	attribute	text
 	item	text
 	value	text
-		comment string
+	comment string
 
 .h3 cloud
 

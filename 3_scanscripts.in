@@ -1,0 +1,83 @@
+.header
+
+.h1 Scan scripts
+
+.h2 Intro
+
+Scan scripts are under the directory
+.fixed scan_scripts.
+The scripts try to map the network and devices
+connected to the network. They may be started in a random order, but 
+the script
+.fixed right_sequence.sh
+starts them in an order that is most efficient on my personal network.
+
+The scripts update the database with their findings. You may need to reload the 
+web page in the GUI to have the results displayed.
+
+
+.h2 Scan_ srctipts
+
+.h3 local_system
+
+Scans the local system. The local system is added to the database if it is not there
+yet and all the interfaces and the subnets to which they connect are added.
+
+.h3 subnet
+
+All subnets for which the scope is global or local are scanned with
+.fixed fping 
+and all interfaces are added to the database if they
+are not there yet. For interfaces that do not yet have a server attached, 
+a new server is created.
+
+.h3 access
+
+Scans the known servers for access. It tries to access the server with ssh, first without specifying a user,
+then as root and finally as admin. If you have the program
+.fixed dotelnet
+installed, then 
+.fixed dotelnet
+is also used to try to gain access to the server. Access is verified by 
+trying an echo or trying
+.fixed sh ip int br
+
+.h3 arp
+
+Retrieves the ARP tables from all servers that it has access to. If the IP address in the ARP table is not
+yet known, an interface, and possibly a server, is created. For all interfaces
+that are found, the MAC-id is added.
+
+.h3 type
+
+Tries to determine the type of the server. 
+For servers with access, the existence and contents of files and/or the output of simple commands
+is used. For other servers, AVAHI is used.
+
+.h3 mergeif
+
+Merges interfaces to servers. Some servers have different network interfaces, and the scanning process
+may create a different server for each interface. If the scan script can determine that an interface belongs
+to another server, the servers are merged.
+
+.h3 server
+
+This works like
+.fixed scan_local_system.sh
+but for remote servers where access is possible.
+
+.h3 serverinfo
+
+For servers with access, tries to determine as much information about the server as possible.
+
+.h3 vbox
+
+.h3 internet
+
+.h3 arp
+
+.h3 l2scans
+
+.h3 data
+
+.h3 clean_srv
