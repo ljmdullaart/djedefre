@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 #INSTALL@ /opt/djedefre/switchnput.pm
-#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+#INSTALLEDFROM verlaine:/home/ljm/Dropbox/src/djedefre
 #       _                 _ 
 #   ___| | ___  _   _  __| |
 #  / __| |/ _ \| | | |/ _` |

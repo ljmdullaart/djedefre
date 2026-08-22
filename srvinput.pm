@@ -1,15 +1,9 @@
 
-#INSTALL@ /opt/djedefre/l2input.pm
+#INSTALL@ /opt/djedefre/srvinput.pm
 #INSTALLEDFROM verlaine:/home/ljm/Dropbox/src/djedefre
-#use strict;
-#use warnings;
 
-#  _     ____    _                   _   
-# | |   |___ \  (_)_ __  _ __  _   _| |_ 
-# | |     __) | | | '_ \| '_ \| | | | __|
-# | |___ / __/  | | | | | |_) | |_| | |_ 
-# |_____|_____| |_|_| |_| .__/ \__,_|\__|
-#                       |_|     
+use strict;
+use warnings;
 
 require dje_db;
 
@@ -21,50 +15,10 @@ our $DEB_DB;
 our $DEB_SUB;
 our $DEBUG;
 
-our @srv_devicetype;
-our @srv_interfaces;
-our @srv_last_up;
-our @srv_memory;
-our @srv_name;
-our @srv_options;
-our @srv_os;
-our @srv_ostype;
-our @srv_processor;
-our @srv_status;
-our @srv_type;
-our @srv_xcoord;
-our @srv_ycoord;
-our %srv_id;
+my $selected_srv;
+my $srvinput_frame;
 
-our @devicetypes;
-our @vlans;
-
-our @if_access;
-our @if_host;
-our @if_hostname;
-our @if_ifname;
-our @if_id;
-our @if_ip;
-our @if_macid;
-our @if_port;
-our @if_subnet;
-our @if_connect_if;
-
-our @l2_id;
-our @l2_from_id;
-our @l2_from_port;
-our @l2_from_tbl;
-our @l2_to_id;
-our @l2_to_port;
-our @l2_to_tbl;
-our @l2_vlan;
-our @l2_source;
-
-
-my $selected_connect;
-my $connectionlist_frame;
-
-sub l2input {
+sub srvinput {
 	debug($DEB_SUB,"l2input");
 	$Message='';
 	$main_frame->destroy if Tk::Exists($main_frame);
@@ -72,16 +26,16 @@ sub l2input {
 		#-height      => 0.8*$main_window_height,
 		#-width       => $main_window_width
 	)->pack(-side =>'top');
-	$connectionlist_frame->destroy if Tk::Exists($connectionlist_frame);
-	$connectionlist_frame=$main_frame->Frame()->pack(-side =>'top');
-	mkl2connectframe($connectionlist_frame);
-	mkl2selectedframe($connectionlist_frame);
+	$srvinput_frame->destroy if Tk::Exists($connectionlist_frame);
+	$srvinput_frame=$main_frame->Frame()->pack(-side =>'top');
+	mksrvinpuframe($srvinput_frame);
+	mksrvinpuframe($srvinput_frame);
 }
 	
 my $l2_selected_frame;
 my $l2_selected_entry_frame;
 my $l2_selected_button_frame;
-sub mkl2selectedframe {
+sub srvinpuframe {
 	(my $parent)=@_;
 	$l2_selected_frame->destroy if Tk::Exists($l2_selected_frame);
 	$l2_selected_frame=$parent->Frame()->pack(-side =>'bottom');
@@ -155,7 +109,7 @@ sub mkl2connectframe {
 		my $fromhost='';
 		my $fromif='';
 		my $fromifname='';
-		my $from_id=$l2_from_id[$id];
+		my $from_id=sql_l2_from_id($id);
 		if ( $l2_from_tbl[$id]  eq 'switch' ){
 			$fromhost=$sw_name[$from_id];
 		}
@@ -175,15 +129,20 @@ sub mkl2connectframe {
 		my $to_id=$l2_to_id[$id];
 		if ( $l2_to_tbl[$id] eq 'switch' ){
 			$tohost=$sw_name[$to_id];
-			$to_if='';
 		}
 		else {
 			my $tohostid=$if_host[$to_id];
-			$tohosts[$id]=$srv_name[$tohostid];
+			if (defined ($srv_name[$tohostid])) {
+				$tohosts[$id]=$srv_name[$tohostid];
+			}
+			else {
+				$tohosts[$id]=$toid;
+			}
 			$toif=$if_ip[$to_id];
+			$toifname=$if_ifname[$to_id] if defined $if_ifname[$to_id];
 		}
 		
-		$from_ifnames[$id]=$fromifname;
+#		$from_ifnames[$id]=$fromifname;
 		$tohosts[$id]=$tohost;
 	}
 	foreach my $id (@l2_id){
@@ -219,29 +178,29 @@ sub mkl2connectframe {
 }
 
 
-sub l2connect_callback { # does nothing? need to see what it should do.
+sub l2connect_callback {
 	(my $i)=@_;
-	my $id        =   '';
-	my $from_tbl  =   '';
-	my $fromhosts =   '';
-	my $fromif    =   '';
-	my $fromif    =   '';
-	my $from_port =   '';
-	my $to_tbl    =   '';
-	my $tohost    =   '';
-	my $toif      =   '';
-	my $to_port   =   '';
-	my $vlan      =   '';
-	#$id       = $ids[$i]        if defined $ids[$i];
-	#$from_tbl = $from_tbls[$i]  if defined $from_tbls[$i];
-	#$fromhost = $fromhosts[$i]  if defined $fromhosts[$i];
-	#$fromif   = $fromifs[$i]    if defined $fromifs[$i];
-	#$from_port= $from_ports[$i] if defined $from_ports[$i];
-	#$to_tbl   = $to_tbls[$i]    if defined $to_tbls[$i];
-	#$tohost   = $tohosts[$i]    if defined $tohosts[$i];
-	#$toif     = $toifs[$i]      if defined $toifs[$i];
-	#$to_port  = $to_ports[$i]   if defined $to_ports[$i];
-	#$vlan     = $vlans[$i]      if defined $vlans[$i];
+	$id        =   '';
+	$from_tbl  =   '';
+	$fromhosts =   '';
+	$fromif    =   '';
+	$fromif    =   '';
+	$from_port =   '';
+	$to_tbl    =   '';
+	$tohost    =   '';
+	$toif      =   '';
+	$to_port   =   '';
+	$vlan      =   '';
+	$id       = $ids[$i]        if defined $ids[$i];
+	$from_tbl = $from_tbls[$i]  if defined $from_tbls[$i];
+	$fromhost = $fromhosts[$i]  if defined $fromhosts[$i];
+	$fromif   = $fromifs[$i]    if defined $fromifs[$i];
+	$from_port= $from_ports[$i] if defined $from_ports[$i];
+	$to_tbl   = $to_tbls[$i]    if defined $to_tbls[$i];
+	$tohost   = $tohosts[$i]    if defined $tohosts[$i];
+	$toif     = $toifs[$i]      if defined $toifs[$i];
+	$to_port  = $to_ports[$i]   if defined $to_ports[$i];
+	$vlan     = $vlans[$i]      if defined $vlans[$i];
 }
 	
 1;

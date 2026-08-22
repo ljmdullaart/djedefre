@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 #INSTALL@ /opt/djedefre/dje_db.pm
-#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+#INSTALLEDFROM verlaine:/home/ljm/Dropbox/src/djedefre
 use DBI;
 use strict;
 use warnings;

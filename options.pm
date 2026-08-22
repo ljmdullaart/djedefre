@@ -1,5 +1,5 @@
 #INSTALL@ /opt/djedefre/options.pm
-#INSTALLEDFROM verlaine:/home/ljm/src/djedefre
+#INSTALLEDFROM verlaine:/home/ljm/Dropbox/src/djedefre
 
 use strict;
 use warnings;
