@@ -81,8 +81,8 @@ cat $iflstfile |
 				echo .
 				cmd_on $if_id 'reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v ProductName' >> $tmp1 2>/dev/null
 				echo .
-				grep "$if_ip;" $avahi | sed 's/^/avahi: /' 
-				sed  's/^/tmp1: /' $tmp1
+				#grep ";$if_ip;" $avahi | sed 's/^/avahi: /' 
+				#sed  's/^/tmp1: /' $tmp1
 				if [ 1 = 2 ] ; then
 					:
 				elif curl -s --connect-timeout 3 $if_ip | grep -q "TP-LINK Technologies" ; then
@@ -94,16 +94,19 @@ cat $iflstfile |
 				elif grep -i 'synology' $tmp1 ; then
 					ntype=synology
 					ndevtype=nas
-				elif grep "$if_ip;" $avahi | grep -i laserjet ; then
+				elif grep ";$if_ip;" $avahi | grep -i "type=aircon" ; then
+					ntype=airco
+					ndevtype=appliance
+				elif grep ";$if_ip;" $avahi | grep -i laserjet ; then
 					ntype=laserjet
 					ndevtype=printer
-				elif grep "$if_ip;" $avahi | grep -i 'pdl printer' ; then
+				elif grep ";$if_ip;" $avahi | grep -i 'pdl printer' ; then
 					ntype=printer
 					ndevtype=printer
-				elif grep "$if_ip;" $avahi | grep -i 'unix printer' ; then
+				elif grep ";$if_ip;" $avahi | grep -i 'unix printer' ; then
 					ntype=printer
 					ndevtype=printer
-				elif grep "$if_ip;" $avahi | grep -i 'file sharing' ; then
+				elif grep ";$if_ip;" $avahi | grep -i 'file sharing' ; then
 					ndevtype=nas
 					ntype=nas
 					if grep "$if_ip;" $avahi | grep -i 'synology' ; then
@@ -111,7 +114,7 @@ cat $iflstfile |
 					elif grep "$if_ip;" $avahi | grep -i 'qnap' ; then
 						ntype=qnap
 					fi
-				elif grep "$if_ip;" $avahi | grep SAMBA ; then
+				elif grep ";$if_ip;" $avahi | grep SAMBA ; then
 					ndevtype=nas
 					ntype=nas
 					if grep "$if_ip;" $avahi | grep -i 'synology' ; then
@@ -119,7 +122,7 @@ cat $iflstfile |
 					elif grep "$if_ip;" $avahi | grep -i 'qnap' ; then
 						ntype=qnap
 					fi
-				elif grep "$if_ip;" $avahi | grep -i 'id=appliance' ; then
+				elif grep ";$if_ip;" $avahi | grep -i 'id=appliance' ; then
 					ntype=appliance
 					ndevtype=appliance
 				elif nslookup $if_ip $if_ip > /dev/null 2>&1 ; then
